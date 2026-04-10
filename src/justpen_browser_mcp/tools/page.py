@@ -1,0 +1,54 @@
+"""Page lifecycle tools — 1 tool.
+
+browser_close closes the active page in a context. The context itself
+is not destroyed; use browser_destroy_context to drop the whole context.
+"""
+
+import logging
+
+from fastmcp import FastMCP
+
+from ..context_manager import ContextManager
+from ..errors import BrowserMcpError
+from ..responses import success_response, error_response
+
+logger = logging.getLogger(__name__)
+
+
+def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+
+    @mcp.tool
+    async def browser_close(context: str) -> dict:
+        """Close the active page (tab) in the context, keeping the context alive.
+
+        Only the currently active page is closed. If the context has other tabs,
+        they remain open. The context itself is NOT destroyed — use
+        browser_destroy_context to tear down the entire browser session.
+
+        After closing the active page, subsequent tool calls that need a page
+        (e.g. browser_navigate) will target whichever page the context considers
+        active next. Use browser_tabs to inspect and select tabs explicitly.
+
+        Returns on success:
+            data: {"closed": True}
+            data: {"closed": False, "reason": "no open pages"}  — if there are no tabs to close
+
+        Errors:
+            context_not_found — context does not exist
+        """
+        try:
+            await ctx_mgr.get(context)
+            async with ctx_mgr.lock_for(context):
+                ctx = await ctx_mgr.get(context)
+                if not ctx.pages:
+                    return success_response(
+                        context, data={"closed": False, "reason": "no open pages"}
+                    )
+                page = await ctx_mgr.active_page(context)
+                await page.close()
+            return success_response(context, data={"closed": True})
+        except BrowserMcpError as e:
+            return error_response(context, e.error_type, str(e))
+        except Exception as e:
+            logger.exception("browser_close failed")
+            return error_response(context, "internal_error", str(e))
