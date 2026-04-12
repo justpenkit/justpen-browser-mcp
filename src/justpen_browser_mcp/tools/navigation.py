@@ -20,10 +20,21 @@ from ..responses import success_response, error_response
 logger = logging.getLogger(__name__)
 
 
+def _looks_like_ip(host: str) -> bool:
+    """Return True if *host* is a bare IPv4 address (with optional port)."""
+    # Strip port suffix if present.
+    bare = host.split(":")[0]
+    parts = bare.split(".")
+    if len(parts) != 4:
+        return False
+    return all(p.isdigit() and 0 <= int(p) <= 255 for p in parts)
+
+
 def _normalize_url(url: str) -> str:
     """Normalize a user-supplied URL.
 
     - Bare "localhost" / "localhost:PORT" → http://localhost[:PORT]
+    - Bare IPv4 address (e.g. "10.0.0.5:8080") → http://IP[:PORT]
     - Schemeless hostname containing "." → https://hostname
     - Otherwise unchanged.
     """
@@ -34,6 +45,10 @@ def _normalize_url(url: str) -> str:
         or url.startswith("localhost:")
         or url.startswith("localhost/")
     ):
+        return f"http://{url}"
+    # Bare IP addresses default to http://, not https://.
+    host_part = url.split("/")[0]
+    if _looks_like_ip(host_part):
         return f"http://{url}"
     if "." in url:
         return f"https://{url}"
@@ -76,11 +91,27 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             normalized = _normalize_url(url)
             async with ctx_mgr.lock_for(context):
                 page = await ctx_mgr.active_page(context)
+                # Track whether a download was triggered during navigation.
+                _download_triggered: list = []
+                page.once("download", lambda dl: _download_triggered.append(dl))
                 try:
                     await page.goto(normalized, wait_until="domcontentloaded")
                 except PWTimeout as e:
                     raise NavigationTimeoutError(str(e)) from e
                 except PlaywrightError as e:
+                    if _download_triggered:
+                        # Navigation aborted because a download started
+                        # (e.g. net::ERR_ABORTED). This is expected for
+                        # export/report/download endpoints.
+                        dl = _download_triggered[0]
+                        return success_response(
+                            context,
+                            data={
+                                "url": page.url,
+                                "title": await page.title(),
+                                "download": dl.suggested_filename,
+                            },
+                        )
                     raise NavigationFailedError(str(e)) from e
                 try:
                     await page.wait_for_load_state("load", timeout=5000)
