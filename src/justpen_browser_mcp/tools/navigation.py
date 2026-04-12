@@ -47,7 +47,8 @@ def _normalize_url(url: str) -> str:
     ):
         return f"http://{url}"
     # Bare IP addresses default to http://, not https://.
-    host_part = url.split("/")[0]
+    # Strip path, query, and fragment before checking.
+    host_part = url.split("/")[0].split("?")[0].split("#")[0]
     if _looks_like_ip(host_part):
         return f"http://{url}"
     if "." in url:
@@ -91,25 +92,22 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             normalized = _normalize_url(url)
             async with ctx_mgr.lock_for(context):
                 page = await ctx_mgr.active_page(context)
-                # Track whether a download was triggered during navigation.
-                _download_triggered: list = []
-                page.once("download", lambda dl: _download_triggered.append(dl))
                 try:
                     await page.goto(normalized, wait_until="domcontentloaded")
                 except PWTimeout as e:
                     raise NavigationTimeoutError(str(e)) from e
                 except PlaywrightError as e:
-                    if _download_triggered:
-                        # Navigation aborted because a download started
-                        # (e.g. net::ERR_ABORTED). This is expected for
-                        # export/report/download endpoints.
-                        dl = _download_triggered[0]
+                    err_msg = str(e).lower()
+                    if "net::err_aborted" in err_msg or "download" in err_msg:
+                        # Navigation aborted because a download started.
+                        # This is expected for export/report/download
+                        # endpoints — not a real navigation failure.
                         return success_response(
                             context,
                             data={
                                 "url": page.url,
                                 "title": await page.title(),
-                                "download": dl.suggested_filename,
+                                "download": True,
                             },
                         )
                     raise NavigationFailedError(str(e)) from e
