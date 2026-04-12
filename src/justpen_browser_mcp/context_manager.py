@@ -332,6 +332,11 @@ class ContextManager:
                 raise InvalidStateFileError(
                     "Each cookie must be a dict with at least 'name' and 'value' keys"
                 )
+            if "url" not in cookie and "domain" not in cookie:
+                raise InvalidStateFileError(
+                    f"Cookie {cookie.get('name')!r} needs 'url' or 'domain' "
+                    "for Playwright to accept it"
+                )
 
         # Validate origins structure.
         for origin_data in state.get("origins", []):
