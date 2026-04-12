@@ -382,7 +382,6 @@ class ContextManager:
                         page.url,
                     )
                 else:
-                    new_origins_with_data.add(origin)
                     js_items = json.dumps(
                         [
                             {"name": item["name"], "value": item["value"]}
@@ -394,6 +393,7 @@ class ContextManager:
                         f"const items = {js_items}; "
                         f"items.forEach(i => localStorage.setItem(i.name, i.value));"
                     )
+                    new_origins_with_data.add(origin)
             except Exception as exc:
                 logger.warning(
                     "load_state: failed to set localStorage for origin %r: %s",
