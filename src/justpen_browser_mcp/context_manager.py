@@ -394,6 +394,12 @@ class ContextManager:
                         f"const items = {js_items}; "
                         f"items.forEach(i => localStorage.setItem(i.name, i.value));"
                     )
+            except Exception as exc:
+                logger.warning(
+                    "load_state: failed to set localStorage for origin %r: %s",
+                    origin,
+                    exc,
+                )
             finally:
                 await page.close()
 
