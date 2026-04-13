@@ -38,7 +38,7 @@ class CamoufoxLauncher:
 
     def is_running(self) -> bool:
         """Return True if the browser is currently running. Does NOT trigger launch."""
-        return self._browser is not None
+        return self._browser is not None and self._browser.is_connected()
 
     async def get_browser(self) -> Browser:
         """Return the running Camoufox Browser, launching on first call.
@@ -48,6 +48,14 @@ class CamoufoxLauncher:
         After shutdown(), the next call launches a fresh browser.
         """
         async with self._lock:
+            if self._browser is not None and not self._browser.is_connected():
+                logger.warning("Camoufox browser disconnected, cleaning up...")
+                try:
+                    await self._cm.__aexit__(None, None, None)
+                except Exception as e:
+                    logger.warning(f"Error cleaning up dead browser: {e}")
+                self._cm = None
+                self._browser = None
             if self._browser is None:
                 await self._ensure_binary()
                 logger.info("Launching Camoufox browser...")
