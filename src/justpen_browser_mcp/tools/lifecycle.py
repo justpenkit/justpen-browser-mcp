@@ -69,8 +69,11 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         """
         try:
             async with ctx_mgr.lock_for(context):
-                await ctx_mgr.load_state(context, state_path)
-            return success_response(context=context, data={"loaded_from": state_path})
+                failed_origins = await ctx_mgr.load_state(context, state_path)
+            data: dict = {"loaded_from": state_path}
+            if failed_origins:
+                data["failed_origins"] = failed_origins
+            return success_response(context=context, data=data)
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))
         except Exception as e:
