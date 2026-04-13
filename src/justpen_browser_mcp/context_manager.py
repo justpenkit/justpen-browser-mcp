@@ -400,6 +400,9 @@ class ContextManager:
                     origin,
                     exc,
                 )
+                # Preserve old localStorage: prevent stale-origin cleanup
+                # from clearing data that was working before this call.
+                new_origins_with_data.add(origin)
             finally:
                 await page.close()
 
