@@ -13,6 +13,7 @@ from ..context_manager import ContextManager, assert_no_modal
 from ..errors import BrowserMcpError, InvalidParamsError
 from ..ref_resolver import resolve_selector_to_stable
 from ..responses import success_response, error_response
+from .navigation import _normalize_url
 
 logger = logging.getLogger(__name__)
 
@@ -232,7 +233,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                 elif action == "new":
                     page = await ctx.new_page()
                     if url:
-                        await page.goto(url)
+                        await page.goto(_normalize_url(url))
                     # The newly added page is always the last in ctx.pages;
                     # make it the logical active tab so subsequent tools
                     # target it.
@@ -245,11 +246,11 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                         raise InvalidParamsError(f"invalid tab index: {index}")
                     await ctx.pages[index].close()
                     # Adjust the active-page index so it still points at a
-                    # valid tab after the close.
+                    # valid tab after the close.  When the closed tab was the
+                    # active one, select the adjacent remaining tab (clamped)
+                    # rather than jumping to 0.
                     current_active = getattr(ctx, "_active_page_index", 0)
-                    if index == current_active:
-                        new_active = 0
-                    elif index < current_active:
+                    if index < current_active:
                         new_active = current_active - 1
                     else:
                         new_active = current_active
