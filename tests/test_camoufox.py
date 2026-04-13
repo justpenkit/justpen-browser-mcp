@@ -16,7 +16,7 @@ class TestCamoufoxLauncher:
 
     async def test_get_browser_lazy_launches(self):
         launcher = CamoufoxLauncher()
-        fake_browser = MagicMock(name="Browser")
+        fake_browser = MagicMock(name="Browser", **{"is_connected.return_value": True})
         fake_cm = AsyncMock(name="AsyncCamoufox")
         fake_cm.__aenter__.return_value = fake_browser
         fake_cm.__aexit__.return_value = None
@@ -35,7 +35,7 @@ class TestCamoufoxLauncher:
 
     async def test_get_browser_idempotent(self):
         launcher = CamoufoxLauncher()
-        fake_browser = MagicMock(name="Browser")
+        fake_browser = MagicMock(name="Browser", **{"is_connected.return_value": True})
         fake_cm = AsyncMock(name="AsyncCamoufox")
         fake_cm.__aenter__.return_value = fake_browser
 
@@ -55,7 +55,7 @@ class TestCamoufoxLauncher:
     async def test_concurrent_first_calls_serialize(self):
         """Two concurrent get_browser calls should produce one launch."""
         launcher = CamoufoxLauncher()
-        fake_browser = MagicMock(name="Browser")
+        fake_browser = MagicMock(name="Browser", **{"is_connected.return_value": True})
         fake_cm = AsyncMock(name="AsyncCamoufox")
         fake_cm.__aenter__.return_value = fake_browser
 
@@ -77,7 +77,7 @@ class TestCamoufoxLauncher:
 
     async def test_shutdown_clears_browser(self):
         launcher = CamoufoxLauncher()
-        fake_browser = MagicMock(name="Browser")
+        fake_browser = MagicMock(name="Browser", **{"is_connected.return_value": True})
         fake_cm = AsyncMock(name="AsyncCamoufox")
         fake_cm.__aenter__.return_value = fake_browser
 
@@ -103,8 +103,12 @@ class TestCamoufoxLauncher:
 
     async def test_relaunch_after_shutdown(self):
         launcher = CamoufoxLauncher()
-        fake_browser_1 = MagicMock(name="Browser1")
-        fake_browser_2 = MagicMock(name="Browser2")
+        fake_browser_1 = MagicMock(
+            name="Browser1", **{"is_connected.return_value": True}
+        )
+        fake_browser_2 = MagicMock(
+            name="Browser2", **{"is_connected.return_value": True}
+        )
 
         cm_1 = AsyncMock(name="cm1")
         cm_1.__aenter__.return_value = fake_browser_1
@@ -125,6 +129,38 @@ class TestCamoufoxLauncher:
         assert b1 is fake_browser_1
         assert b2 is fake_browser_2
         assert launcher.is_running() is True
+
+    async def test_get_browser_relaunches_on_disconnect(self):
+        """If the browser disconnects, get_browser should relaunch automatically."""
+        launcher = CamoufoxLauncher()
+        dead_browser = MagicMock(
+            name="DeadBrowser", **{"is_connected.return_value": True}
+        )
+        fresh_browser = MagicMock(
+            name="FreshBrowser", **{"is_connected.return_value": True}
+        )
+
+        cm_1 = AsyncMock(name="cm1")
+        cm_1.__aenter__.return_value = dead_browser
+        cm_2 = AsyncMock(name="cm2")
+        cm_2.__aenter__.return_value = fresh_browser
+
+        with (
+            patch(
+                "justpen_browser_mcp.camoufox.AsyncCamoufox",
+                side_effect=[cm_1, cm_2],
+            ),
+            patch.object(launcher, "_ensure_binary", new=AsyncMock()),
+        ):
+            b1 = await launcher.get_browser()
+            assert b1 is dead_browser
+
+            # Simulate disconnect
+            dead_browser.is_connected.return_value = False
+            b2 = await launcher.get_browser()
+
+        assert b2 is fresh_browser
+        cm_1.__aexit__.assert_awaited_once()
 
     async def test_ensure_binary_passes_when_present(self):
         launcher = CamoufoxLauncher()
