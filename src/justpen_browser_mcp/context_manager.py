@@ -364,6 +364,7 @@ class ContextManager:
             await ctx.add_cookies(state["cookies"])
 
         new_origins_with_data: set[str] = set()
+        failed_origins: list[str] = []
         for origin_data in state.get("origins", []):
             origin = origin_data["origin"]
             local_storage = origin_data.get("localStorage", [])
@@ -403,6 +404,7 @@ class ContextManager:
                 # Preserve old localStorage: prevent stale-origin cleanup
                 # from clearing data that was working before this call.
                 new_origins_with_data.add(origin)
+                failed_origins.append(origin)
             finally:
                 await page.close()
 
@@ -426,6 +428,7 @@ class ContextManager:
                 await page.close()
 
         logger.info(f"Loaded state for '{name}' from {state_path}")
+        return failed_origins
 
     def get_modal_states(self, name: str) -> list[dict]:
         """Return the list of pending modal states for a context.
