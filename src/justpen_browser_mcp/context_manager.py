@@ -382,6 +382,7 @@ class ContextManager:
                         origin,
                         page.url,
                     )
+                    failed_origins.append(origin)
                 else:
                     js_items = json.dumps(
                         [
