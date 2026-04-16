@@ -41,7 +41,7 @@ def _normalize_url(url: str) -> str:
     """
     if "://" in url:
         return url
-    if url == "localhost" or url.startswith("localhost:") or url.startswith("localhost/"):
+    if url == "localhost" or url.startswith(("localhost:", "localhost/")):
         return f"http://{url}"
     # Bare IP addresses default to http://, not https://.
     # Strip path, query, and fragment before checking.
