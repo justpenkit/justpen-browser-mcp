@@ -9,9 +9,7 @@ def make_ctx_with_page(mock_ctx_mgr, cookies=None, eval_result=None):
     """Wire mock_ctx_mgr.get to return a mock context with a mock active page."""
     page = MagicMock()
     page.url = "about:blank"
-    page.evaluate = AsyncMock(
-        return_value=eval_result if eval_result is not None else {}
-    )
+    page.evaluate = AsyncMock(return_value=eval_result if eval_result is not None else {})
 
     async def _goto_side_effect(url):
         page.url = url
@@ -52,9 +50,7 @@ class TestBrowserGetCookies:
                 {"name": "baz", "value": "3"},
             ],
         )
-        result = await mcp_client.call_tool(
-            "browser_get_cookies", {"context": "admin", "name": "bar"}
-        )
+        result = await mcp_client.call_tool("browser_get_cookies", {"context": "admin", "name": "bar"})
         assert result.data["status"] == "success"
         cookies = result.data["data"]["cookies"]
         assert len(cookies) == 1
@@ -83,17 +79,13 @@ class TestBrowserSetCookies:
             "browser_set_cookies",
             {
                 "context": "admin",
-                "cookies": [
-                    {"name": "x", "value": "1", "domain": "example.com", "path": "/"}
-                ],
+                "cookies": [{"name": "x", "value": "1", "domain": "example.com", "path": "/"}],
             },
         )
         assert result.data["status"] == "success"
         ctx.add_cookies.assert_awaited_once()
 
-    async def test_set_cookies_default_domain_from_active_page(
-        self, mcp_client, mock_ctx_mgr
-    ):
+    async def test_set_cookies_default_domain_from_active_page(self, mcp_client, mock_ctx_mgr):
         ctx, page = make_ctx_with_page(mock_ctx_mgr)
         page.url = "https://example.com/x"
         result = await mcp_client.call_tool(
@@ -109,9 +101,7 @@ class TestBrowserSetCookies:
         assert sent[0]["domain"] == "example.com"
         assert sent[0]["name"] == "session"
 
-    async def test_set_cookies_default_domain_uses_active_page(
-        self, mcp_client, mock_ctx_mgr
-    ):
+    async def test_set_cookies_default_domain_uses_active_page(self, mcp_client, mock_ctx_mgr):
         ctx, _ = make_ctx_with_page(mock_ctx_mgr)
         page0 = MagicMock(url="https://a.example/x")
         page1 = MagicMock(url="https://b.example/path")
@@ -142,9 +132,7 @@ class TestBrowserSetCookies:
         assert result.data["error_type"] == "invalid_params"
         assert "neither domain nor url" in result.data["message"]
 
-    async def test_set_cookies_with_url_field_passes_through(
-        self, mcp_client, mock_ctx_mgr
-    ):
+    async def test_set_cookies_with_url_field_passes_through(self, mcp_client, mock_ctx_mgr):
         ctx, _ = make_ctx_with_page(mock_ctx_mgr)
         ctx.pages = []
         cookie = {"name": "session", "value": "abc", "url": "https://x.com"}
@@ -163,16 +151,14 @@ class TestBrowserSetCookies:
 class TestBrowserClearCookies:
     async def test_clears(self, mcp_client, mock_ctx_mgr):
         ctx, _ = make_ctx_with_page(mock_ctx_mgr)
-        result = await mcp_client.call_tool(
-            "browser_clear_cookies", {"context": "admin"}
-        )
+        result = await mcp_client.call_tool("browser_clear_cookies", {"context": "admin"})
         assert result.data["status"] == "success"
         ctx.clear_cookies.assert_awaited_once()
 
 
 class TestBrowserGetLocalStorage:
     async def test_reads_local_storage_for_origin(self, mcp_client, mock_ctx_mgr):
-        ctx, page = make_ctx_with_page(
+        _ctx, page = make_ctx_with_page(
             mock_ctx_mgr,
             eval_result={"auth_token": "xyz", "theme": "dark"},
         )
@@ -185,7 +171,7 @@ class TestBrowserGetLocalStorage:
         page.goto.assert_awaited_once_with("https://app.example.com")
 
     async def test_get_local_storage_key(self, mcp_client, mock_ctx_mgr):
-        ctx, page = make_ctx_with_page(mock_ctx_mgr, eval_result="dark")
+        _ctx, page = make_ctx_with_page(mock_ctx_mgr, eval_result="dark")
         result = await mcp_client.call_tool(
             "browser_get_local_storage",
             {
@@ -198,14 +184,12 @@ class TestBrowserGetLocalStorage:
         assert result.data["data"]["key"] == "theme"
         assert result.data["data"]["value"] == "dark"
         assert result.data["data"]["origin"] == "https://app.example.com"
-        page.evaluate.assert_awaited_once_with(
-            "(k) => localStorage.getItem(k)", "theme"
-        )
+        page.evaluate.assert_awaited_once_with("(k) => localStorage.getItem(k)", "theme")
 
 
 class TestBrowserSetLocalStorage:
     async def test_sets_items(self, mcp_client, mock_ctx_mgr):
-        ctx, page = make_ctx_with_page(mock_ctx_mgr)
+        _ctx, page = make_ctx_with_page(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_set_local_storage",
             {
@@ -218,7 +202,7 @@ class TestBrowserSetLocalStorage:
         page.evaluate.assert_awaited_once()
 
     async def test_set_local_storage_safe_eval(self, mcp_client, mock_ctx_mgr):
-        ctx, page = make_ctx_with_page(mock_ctx_mgr)
+        _ctx, page = make_ctx_with_page(mock_ctx_mgr)
         items = {"auth_token": "xyz", "theme": "dark"}
         result = await mcp_client.call_tool(
             "browser_set_local_storage",
@@ -242,7 +226,7 @@ class TestBrowserSetLocalStorage:
 
 class TestBrowserClearLocalStorage:
     async def test_clears_specific_origin(self, mcp_client, mock_ctx_mgr):
-        ctx, page = make_ctx_with_page(mock_ctx_mgr)
+        _ctx, page = make_ctx_with_page(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_clear_local_storage",
             {"context": "admin", "origin": "https://app.example.com"},

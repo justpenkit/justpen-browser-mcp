@@ -72,9 +72,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                 else:
                     locator = page.locator(selector)
                     snapshot = await locator.aria_snapshot(timeout=5000)
-            return success_response(
-                context, data={"snapshot": snapshot, "url": page.url}
-            )
+            return success_response(context, data={"snapshot": snapshot, "url": page.url})
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))
         except Exception as e:
@@ -82,12 +80,10 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             return error_response(context, "internal_error", str(e))
 
     @mcp.tool
-    async def browser_screenshot(
-        context: str, format: str = "png", full_page: bool = False
-    ) -> dict:
+    async def browser_screenshot(context: str, image_format: str = "png", *, full_page: bool = False) -> dict:
         """Take a visual screenshot of the active page and return it as base64.
 
-        format must be "png" (default, lossless) or "jpeg" (lossy, smaller).
+        image_format must be "png" (default, lossless) or "jpeg" (lossy, smaller).
         full_page=False (default) captures only the current viewport;
         full_page=True captures the entire scrollable page.
 
@@ -97,30 +93,30 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         the FINAL (possibly downscaled) image dimensions.
 
         Returns on success:
-            data: {"image_base64": str, "format": str,
+            data: {"image_base64": str, "image_format": str,
                    "width": int | None, "height": int | None}
             — width/height are None only when PIL is unavailable.
 
         Errors:
             context_not_found    — context does not exist
-            invalid_params       — format is not "png" or "jpeg"
+            invalid_params       — image_format is not "png" or "jpeg"
             modal_state_blocked  — a dialog or file-chooser is pending
 
         Use browser_snapshot for most inspection tasks; screenshots are for
         visual debugging or when accessibility data is insufficient.
         """
-        if format not in ("png", "jpeg"):
+        if image_format not in ("png", "jpeg"):
             return error_response(
                 context,
                 "invalid_params",
-                f"format must be 'png' or 'jpeg', got {format!r}",
+                f"image_format must be 'png' or 'jpeg', got {image_format!r}",
             )
         try:
             await ctx_mgr.get(context)
             assert_no_modal(ctx_mgr, context)
             async with ctx_mgr.lock_for(context):
                 page = await ctx_mgr.active_page(context)
-                image_bytes = await page.screenshot(type=format, full_page=full_page)
+                image_bytes = await page.screenshot(type=image_format, full_page=full_page)
 
             width: int | None = None
             height: int | None = None
@@ -137,7 +133,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                         )
                         img = img.resize(new_size, _PILImage.LANCZOS)
                         buf = BytesIO()
-                        save_format = "PNG" if format == "png" else "JPEG"
+                        save_format = "PNG" if image_format == "png" else "JPEG"
                         if save_format == "JPEG" and img.mode != "RGB":
                             img = img.convert("RGB")
                         img.save(buf, format=save_format)
@@ -152,7 +148,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                 context,
                 data={
                     "image_base64": base64.b64encode(image_bytes).decode("ascii"),
-                    "format": format,
+                    "image_format": image_format,
                     "width": width,
                     "height": height,
                 },
@@ -195,8 +191,8 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                 f"level must be one of {sorted(_VALID_CONSOLE_LEVELS)}, got {level!r}",
             )
         try:
-            ctx = await ctx_mgr.get(context)
-            messages = list(getattr(ctx, "_console_messages", []))
+            await ctx_mgr.get(context)
+            messages = list(ctx_mgr.state(context).console_messages)
             if level is not None:
                 messages = [m for m in messages if m.get("type") == level]
             return success_response(context, data={"messages": messages})
@@ -207,9 +203,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             return error_response(context, "internal_error", str(e))
 
     @mcp.tool
-    async def browser_network_requests(
-        context: str, filter: str | None = None, static: bool = False
-    ) -> dict:
+    async def browser_network_requests(context: str, url_filter: str | None = None, *, static: bool = False) -> dict:
         """Return all network requests collected since the context was created.
 
         Requests are captured by an event listener attached at context creation.
@@ -226,7 +220,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         image/font/stylesheet/media/manifest are filtered out (typical page
         asset noise). Pass static=True to include everything.
 
-        filter (optional): a Python regular expression. When provided, only
+        url_filter (optional): a Python regular expression. When provided, only
         requests whose URL matches are returned. Applied AFTER the static
         filter. An invalid regex returns invalid_params.
 
@@ -238,38 +232,32 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
         Errors:
             context_not_found — context does not exist
-            invalid_params    — filter is not a valid regular expression
+            invalid_params    — url_filter is not a valid regular expression
 
         Useful for verifying API calls were made, checking redirect chains,
         or diagnosing network errors during page load.
         """
         compiled = None
-        if filter is not None:
+        if url_filter is not None:
             try:
-                compiled = re.compile(filter)
+                compiled = re.compile(url_filter)
             except re.error as e:
                 return error_response(
                     context,
                     "invalid_params",
-                    f"filter is not a valid regular expression: {e}",
+                    f"url_filter is not a valid regular expression: {e}",
                 )
         try:
-            ctx = await ctx_mgr.get(context)
-            requests = list(getattr(ctx, "_network_requests", []))
+            await ctx_mgr.get(context)
+            requests = list(ctx_mgr.state(context).network_requests)
             if not static:
-                requests = [
-                    r
-                    for r in requests
-                    if r.get("resource_type") not in _STATIC_RESOURCE_TYPES
-                ]
+                requests = [r for r in requests if r.get("resource_type") not in _STATIC_RESOURCE_TYPES]
             if compiled is not None:
                 requests = [r for r in requests if compiled.search(r.get("url", ""))]
             # Strip private bookkeeping keys (e.g. "_id" used by the
             # response listener to match by request identity) before
             # returning to the caller.
-            requests = [
-                {k: v for k, v in r.items() if not k.startswith("_")} for r in requests
-            ]
+            requests = [{k: v for k, v in r.items() if not k.startswith("_")} for r in requests]
             return success_response(context, data={"requests": requests})
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))

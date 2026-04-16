@@ -4,10 +4,11 @@ import logging
 from urllib.parse import urlparse
 
 from fastmcp import FastMCP
+from playwright.async_api import Error as PlaywrightError
 
 from ..context_manager import ContextManager
 from ..errors import BrowserMcpError, InvalidParamsError
-from ..responses import success_response, error_response
+from ..responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +28,7 @@ def _verify_origin(page_url: str, requested_origin: str) -> None:
     expected = _extract_origin(requested_origin)
     if actual != expected:
         raise InvalidParamsError(
-            f"Origin mismatch: requested {requested_origin!r} but page "
-            f"landed on {actual!r} (likely redirect)"
+            f"Origin mismatch: requested {requested_origin!r} but page landed on {actual!r} (likely redirect)"
         )
 
 
@@ -68,7 +68,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             return success_response(context, data={"cookies": cookies})
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))
-        except Exception as e:
+        except (PlaywrightError, OSError, RuntimeError, ValueError, TypeError) as e:
             return error_response(context, "internal_error", str(e))
 
     @mcp.tool
@@ -104,25 +104,26 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     default_domain = parsed.hostname
                 processed: list[dict] = []
                 for cookie in cookies:
-                    has_domain = bool(cookie.get("domain"))
-                    has_url = bool(cookie.get("url"))
+                    normalized = cookie
+                    has_domain = bool(normalized.get("domain"))
+                    has_url = bool(normalized.get("url"))
                     if not has_domain and not has_url:
                         if default_domain is None:
                             return error_response(
                                 context,
                                 "invalid_params",
-                                f"cookie {cookie.get('name')!r} has neither "
+                                f"cookie {normalized.get('name')!r} has neither "
                                 "domain nor url, and no active page to default from",
                             )
-                        cookie = {**cookie, "domain": default_domain}
-                    if "path" not in cookie and not cookie.get("url"):
-                        cookie = {**cookie, "path": "/"}
-                    processed.append(cookie)
+                        normalized = {**normalized, "domain": default_domain}
+                    if "path" not in normalized and not normalized.get("url"):
+                        normalized = {**normalized, "path": "/"}
+                    processed.append(normalized)
                 await ctx.add_cookies(processed)
             return success_response(context, data={"set_count": len(processed)})
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))
-        except Exception as e:
+        except (PlaywrightError, OSError, RuntimeError, ValueError, TypeError) as e:
             return error_response(context, "internal_error", str(e))
 
     @mcp.tool
@@ -146,7 +147,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             return success_response(context, data={"cleared": True})
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))
-        except Exception as e:
+        except (PlaywrightError, OSError, RuntimeError, ValueError, TypeError) as e:
             return error_response(context, "internal_error", str(e))
 
     @mcp.tool
@@ -181,9 +182,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     await page.goto(origin)
                     _verify_origin(page.url, origin)
                     if key is not None:
-                        value = await page.evaluate(
-                            "(k) => localStorage.getItem(k)", key
-                        )
+                        value = await page.evaluate("(k) => localStorage.getItem(k)", key)
                         return success_response(
                             context,
                             data={"key": key, "value": value, "origin": origin},
@@ -204,9 +203,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             return error_response(context, "internal_error", str(e))
 
     @mcp.tool
-    async def browser_set_local_storage(
-        context: str, origin: str, items: dict[str, str]
-    ) -> dict:
+    async def browser_set_local_storage(context: str, origin: str, items: dict[str, str]) -> dict:
         """Set localStorage key-value pairs for the given origin.
 
         Opens a temporary page that navigates to origin, sets each item via
@@ -228,8 +225,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     await page.goto(origin)
                     _verify_origin(page.url, origin)
                     await page.evaluate(
-                        "(items) => { Object.entries(items).forEach("
-                        "([k, v]) => localStorage.setItem(k, v)); }",
+                        "(items) => { Object.entries(items).forEach(([k, v]) => localStorage.setItem(k, v)); }",
                         items,
                     )
                 finally:
@@ -273,9 +269,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                 if origin is None:
                     page = await ctx_mgr.active_page(context)
                     await page.evaluate("() => localStorage.clear()")
-                    return success_response(
-                        context, data={"cleared": True, "origin": page.url}
-                    )
+                    return success_response(context, data={"cleared": True, "origin": page.url})
                 page = await ctx.new_page()
                 try:
                     await page.goto(origin)

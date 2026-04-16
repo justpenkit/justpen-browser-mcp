@@ -3,6 +3,7 @@
 browser_navigate, browser_navigate_back, browser_wait_for.
 """
 
+import contextlib
 import logging
 
 from fastmcp import FastMCP
@@ -15,7 +16,7 @@ from ..errors import (
     NavigationTimeoutError,
     WaitTimeoutError,
 )
-from ..responses import success_response, error_response
+from ..responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 def _looks_like_ip(host: str) -> bool:
     """Return True if *host* is a bare IPv4 address (with optional port)."""
     # Strip port suffix if present.
-    bare = host.split(":")[0]
+    bare = host.split(":", maxsplit=1)[0]
     parts = bare.split(".")
     if len(parts) != 4:
         return False
@@ -40,15 +41,11 @@ def _normalize_url(url: str) -> str:
     """
     if "://" in url:
         return url
-    if (
-        url == "localhost"
-        or url.startswith("localhost:")
-        or url.startswith("localhost/")
-    ):
+    if url == "localhost" or url.startswith(("localhost:", "localhost/")):
         return f"http://{url}"
     # Bare IP addresses default to http://, not https://.
     # Strip path, query, and fragment before checking.
-    host_part = url.split("/")[0].split("?")[0].split("#")[0]
+    host_part = url.split("/", maxsplit=1)[0].split("?", maxsplit=1)[0].split("#", maxsplit=1)[0]
     if _looks_like_ip(host_part):
         return f"http://{url}"
     if "." in url:
@@ -111,10 +108,8 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                             },
                         )
                     raise NavigationFailedError(str(e)) from e
-                try:
+                with contextlib.suppress(PWTimeout):
                     await page.wait_for_load_state("load", timeout=5000)
-                except PWTimeout:
-                    pass
                 return success_response(
                     context,
                     data={"url": page.url, "title": await page.title()},
@@ -208,17 +203,13 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     try:
                         await page.get_by_text(text_gone).first.wait_for(state="hidden")
                     except PWTimeout as e:
-                        raise WaitTimeoutError(
-                            f"Text '{text_gone}' did not disappear: {e}"
-                        ) from e
+                        raise WaitTimeoutError(f"Text '{text_gone}' did not disappear: {e}") from e
                     parts.append(f"text_gone={text_gone!r}")
                 if text is not None:
                     try:
                         await page.get_by_text(text).first.wait_for(state="visible")
                     except PWTimeout as e:
-                        raise WaitTimeoutError(
-                            f"Text '{text}' did not appear: {e}"
-                        ) from e
+                        raise WaitTimeoutError(f"Text '{text}' did not appear: {e}") from e
                     parts.append(f"text={text!r}")
                 return success_response(context, data={"waited_for": ", ".join(parts)})
         except BrowserMcpError as e:

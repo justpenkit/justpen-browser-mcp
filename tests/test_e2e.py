@@ -5,14 +5,19 @@ ephemeral Docker test container via scripts/run-e2e-tests.sh.
 Use `pytest -m e2e` to opt in.
 """
 
-import asyncio  # noqa: F401  (used by lifecycle tests below)
+import asyncio
 import json
 import re
 from pathlib import Path
 
 import pytest
 from camoufox.async_api import AsyncCamoufox
+from fastmcp import FastMCP
 from fastmcp.client import Client
+
+from justpen_browser_mcp.camoufox import CamoufoxLauncher
+from justpen_browser_mcp.context_manager import ContextManager
+from justpen_browser_mcp.tools import register_all
 
 
 @pytest.mark.e2e
@@ -26,14 +31,8 @@ async def test_snapshot_for_ai_returns_refs_poc():
     """
     async with AsyncCamoufox(headless=True) as browser:
         page = await browser.new_page()
-        await page.set_content(
-            "<button>Click me</button>"
-            "<a href='/x'>Link</a>"
-            "<input type='text' placeholder='email'>"
-        )
-        snapshot = await page._impl_obj._channel.send(
-            "snapshotForAI", None, {"timeout": 5000}
-        )
+        await page.set_content("<button>Click me</button><a href='/x'>Link</a><input type='text' placeholder='email'>")
+        snapshot = await page._impl_obj._channel.send("snapshotForAI", None, {"timeout": 5000})
 
     assert isinstance(snapshot, str), f"snapshot is not a string: {type(snapshot)}"
     assert "Click me" in snapshot, f"button text missing from snapshot:\n{snapshot}"
@@ -49,9 +48,7 @@ async def test_aria_ref_locator_resolves():
     async with AsyncCamoufox(headless=True) as browser:
         page = await browser.new_page()
         await page.set_content("<button id='btn'>Hello</button>")
-        snapshot = await page._impl_obj._channel.send(
-            "snapshotForAI", None, {"timeout": 5000}
-        )
+        snapshot = await page._impl_obj._channel.send("snapshotForAI", None, {"timeout": 5000})
         match = re.search(r"button[^[]*\[ref=([^\]]+)\]", snapshot)
         assert match, f"Could not find button ref in snapshot:\n{snapshot}"
         ref = match.group(1)
@@ -65,11 +62,6 @@ async def test_full_server_lifecycle_with_real_browser():
     """Boot the MCP server, create a context, navigate, snapshot,
     destroy. Verify lazy launch + auto-shutdown work end-to-end.
     """
-    from fastmcp import FastMCP
-    from justpen_browser_mcp.camoufox import CamoufoxLauncher
-    from justpen_browser_mcp.context_manager import ContextManager
-    from justpen_browser_mcp.tools import register_all
-
     mcp = FastMCP("camoufox-mcp-e2e")
     launcher = CamoufoxLauncher(headless=True)
     ctx_mgr = ContextManager(launcher)
@@ -108,11 +100,6 @@ async def test_full_server_lifecycle_with_real_browser():
 async def test_storage_state_round_trip(tmp_path):
     """Create a context, set a cookie, export state, destroy, create a new
     context loading that state, verify the cookie is restored."""
-    from fastmcp import FastMCP
-    from justpen_browser_mcp.camoufox import CamoufoxLauncher
-    from justpen_browser_mcp.context_manager import ContextManager
-    from justpen_browser_mcp.tools import register_all
-
     mcp = FastMCP("camoufox-mcp-e2e-roundtrip")
     launcher = CamoufoxLauncher(headless=True)
     ctx_mgr = ContextManager(launcher)
@@ -146,8 +133,9 @@ async def test_storage_state_round_trip(tmp_path):
         )
         await client.call_tool("browser_destroy_context", {"context": "phase1"})
 
-        assert Path(state_file).exists()
-        saved = json.loads(Path(state_file).read_text())
+        state_path = Path(state_file)
+        assert await asyncio.to_thread(state_path.exists)
+        saved = json.loads(await asyncio.to_thread(state_path.read_text))
         cookie_names = {c["name"] for c in saved["cookies"]}
         assert "round_trip_test" in cookie_names
 
@@ -175,11 +163,6 @@ async def test_concurrent_multi_context_operations():
     responses on the same stream). The intent — isolation between
     contexts — is still fully validated.
     """
-    from fastmcp import FastMCP
-    from justpen_browser_mcp.camoufox import CamoufoxLauncher
-    from justpen_browser_mcp.context_manager import ContextManager
-    from justpen_browser_mcp.tools import register_all
-
     mcp = FastMCP("camoufox-mcp-e2e-concurrent")
     launcher = CamoufoxLauncher(headless=True)
     ctx_mgr = ContextManager(launcher)
@@ -214,11 +197,6 @@ async def test_concurrent_multi_context_operations():
 async def test_relaunch_after_auto_shutdown():
     """Create a context, destroy it (auto-shutdown), then create a new
     context — verify the browser re-launches cleanly."""
-    from fastmcp import FastMCP
-    from justpen_browser_mcp.camoufox import CamoufoxLauncher
-    from justpen_browser_mcp.context_manager import ContextManager
-    from justpen_browser_mcp.tools import register_all
-
     mcp = FastMCP("camoufox-mcp-e2e-relaunch")
     launcher = CamoufoxLauncher(headless=True)
     ctx_mgr = ContextManager(launcher)
@@ -226,19 +204,13 @@ async def test_relaunch_after_auto_shutdown():
 
     async with Client(mcp) as client:
         await client.call_tool("browser_create_context", {"context": "first"})
-        assert (await client.call_tool("browser_status", {})).data["data"][
-            "browser_running"
-        ]
+        assert (await client.call_tool("browser_status", {})).data["data"]["browser_running"]
 
         await client.call_tool("browser_destroy_context", {"context": "first"})
-        assert not (await client.call_tool("browser_status", {})).data["data"][
-            "browser_running"
-        ]
+        assert not (await client.call_tool("browser_status", {})).data["data"]["browser_running"]
 
         await client.call_tool("browser_create_context", {"context": "second"})
-        assert (await client.call_tool("browser_status", {})).data["data"][
-            "browser_running"
-        ]
+        assert (await client.call_tool("browser_status", {})).data["data"]["browser_running"]
 
         await client.call_tool(
             "browser_navigate",
@@ -254,13 +226,6 @@ async def test_relaunch_after_auto_shutdown():
 async def test_generate_locator_with_real_snapshot():
     """End-to-end: take a real snapshot, extract a ref, call resolveSelector,
     verify the returned internal selector resolves back to the same element."""
-    from fastmcp import FastMCP
-    from justpen_browser_mcp.camoufox import CamoufoxLauncher
-    from justpen_browser_mcp.context_manager import ContextManager
-    from justpen_browser_mcp.tools import register_all
-    from fastmcp.client import Client
-    import re
-
     mcp = FastMCP("camoufox-mcp-e2e-generate-locator")
     launcher = CamoufoxLauncher(headless=True)
     ctx_mgr = ContextManager(launcher)
@@ -272,11 +237,7 @@ async def test_generate_locator_with_real_snapshot():
             "browser_navigate",
             {
                 "context": "loc",
-                "url": (
-                    "data:text/html,"
-                    "<button data-testid='primary-btn'>Submit</button>"
-                    "<input placeholder='Email'>"
-                ),
+                "url": ("data:text/html,<button data-testid='primary-btn'>Submit</button><input placeholder='Email'>"),
             },
         )
         snap = await client.call_tool("browser_snapshot", {"context": "loc"})
@@ -299,6 +260,6 @@ async def test_generate_locator_with_real_snapshot():
         # data-testid should beat role
         assert "testid" in internal
         assert "primary-btn" in internal
-        assert "get_by_test_id('primary-btn')" == python_syntax
+        assert python_syntax == "get_by_test_id('primary-btn')"
 
         await client.call_tool("browser_destroy_context", {"context": "loc"})

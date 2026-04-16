@@ -95,9 +95,7 @@ class TestBrowserVerifyElementVisible:
 
     async def test_modal_guard(self, mcp_client, mock_ctx_mgr):
         page, _ = make_page(mock_ctx_mgr)
-        mock_ctx_mgr.get_modal_states = MagicMock(
-            return_value=pending_dialog_states(page)
-        )
+        mock_ctx_mgr.get_modal_states = MagicMock(return_value=pending_dialog_states(page))
         result = await mcp_client.call_tool(
             "browser_verify_element_visible",
             {"context": "admin", "ref": "e1"},
@@ -134,7 +132,7 @@ class TestBrowserVerifyListVisible:
         assert result.data["error_type"] == "verification_failed"
 
     async def test_container_mode(self, mcp_client, mock_ctx_mgr):
-        page, container_locator = make_page(mock_ctx_mgr, visible=True)
+        _page, container_locator = make_page(mock_ctx_mgr, visible=True)
 
         # container_locator.get_by_text(item).first.is_visible() → True for both.
         inner_first = MagicMock()
@@ -158,7 +156,7 @@ class TestBrowserVerifyListVisible:
         assert container_locator.get_by_text.call_count == 2
 
     async def test_container_mode_missing_item(self, mcp_client, mock_ctx_mgr):
-        page, container_locator = make_page(mock_ctx_mgr, visible=True)
+        _page, container_locator = make_page(mock_ctx_mgr, visible=True)
 
         # First item is visible, second isn't.
         first_a = MagicMock()
@@ -277,9 +275,7 @@ class TestBrowserVerifyTextVisible:
 
     async def test_modal_guard(self, mcp_client, mock_ctx_mgr):
         page, _ = make_page(mock_ctx_mgr)
-        mock_ctx_mgr.get_modal_states = MagicMock(
-            return_value=pending_dialog_states(page)
-        )
+        mock_ctx_mgr.get_modal_states = MagicMock(return_value=pending_dialog_states(page))
         result = await mcp_client.call_tool(
             "browser_verify_text_visible",
             {"context": "admin", "text": "Welcome"},
@@ -366,9 +362,7 @@ class TestBrowserVerifyValue:
 
     async def test_modal_guard(self, mcp_client, mock_ctx_mgr):
         page, _ = make_page(mock_ctx_mgr, value="hello")
-        mock_ctx_mgr.get_modal_states = MagicMock(
-            return_value=pending_dialog_states(page)
-        )
+        mock_ctx_mgr.get_modal_states = MagicMock(return_value=pending_dialog_states(page))
         result = await mcp_client.call_tool(
             "browser_verify_value",
             {"context": "admin", "ref": "e1", "expected_value": "hello"},

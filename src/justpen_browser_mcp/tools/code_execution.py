@@ -12,7 +12,7 @@ from fastmcp import FastMCP
 from ..context_manager import ContextManager, assert_no_modal
 from ..errors import BrowserMcpError, EvaluationFailedError
 from ..ref_resolver import resolve_ref
-from ..responses import success_response, error_response
+from ..responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 
@@ -56,9 +56,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         full async API (waiting for selectors, network conditions, etc.).
         """
         if ref is not None and selector is not None:
-            return error_response(
-                context, "invalid_params", "provide ref or selector, not both"
-            )
+            return error_response(context, "invalid_params", "provide ref or selector, not both")
         try:
             await ctx_mgr.get(context)
             async with ctx_mgr.lock_for(context):
@@ -119,7 +117,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                 )
                 try:
                     namespace: dict = {}
-                    exec(wrapper, namespace)
+                    exec(wrapper, namespace)  # noqa: S102 — tool purpose: run agent-supplied Python against the browser
                     result = await namespace["_user_code"](page, ctx, ctx_mgr)
                 except Exception as e:
                     tb = traceback.format_exc()

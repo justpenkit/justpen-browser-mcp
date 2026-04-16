@@ -3,16 +3,18 @@
 browser_resize, browser_pdf_save, browser_generate_locator, browser_tabs.
 """
 
+import asyncio
 import logging
+import os
 import time
 from pathlib import Path
 
 from fastmcp import FastMCP
 
 from ..context_manager import ContextManager, assert_no_modal
-from ..errors import BrowserMcpError, InvalidParamsError
+from ..errors import BrowserMcpError
 from ..ref_resolver import resolve_selector_to_stable
-from ..responses import success_response, error_response
+from ..responses import error_response, success_response
 from .navigation import _normalize_url
 
 logger = logging.getLogger(__name__)
@@ -51,15 +53,16 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
     async def browser_pdf_save(
         context: str,
         file_path: str | None = None,
-        format: str = "A4",
+        paper_format: str = "A4",
+        *,
         landscape: bool = False,
         print_background: bool = False,
     ) -> dict:
         """Render the active page as a PDF and save it to the given file path.
 
         file_path is optional — when omitted, a file named ``page-{timestamp}.pdf``
-        is written in the current working directory. format is a paper size
-        string: "A4" (default), "Letter", "A3", etc. landscape rotates the
+        is written in the current working directory. paper_format is a paper
+        size string: "A4" (default), "Letter", "A3", etc. landscape rotates the
         page to landscape orientation. print_background includes CSS
         backgrounds in the rendered output (off by default to match browser
         print behavior). Parent directories of file_path are created
@@ -80,20 +83,17 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             async with ctx_mgr.lock_for(context):
                 page = await ctx_mgr.active_page(context)
                 pdf_bytes = await page.pdf(
-                    format=format,
+                    format=paper_format,
                     landscape=landscape,
                     print_background=print_background,
                 )
             if file_path is None:
-                import os
-
                 base = os.environ.get("JUSTPEN_WORKSPACE", "/workspace")
                 file_path = f"{base}/output/evidence/page-{int(time.time())}.pdf"
-            Path(file_path).parent.mkdir(parents=True, exist_ok=True)
-            Path(file_path).write_bytes(pdf_bytes)
-            return success_response(
-                context, data={"saved_to": file_path, "size_bytes": len(pdf_bytes)}
-            )
+            pdf_path = Path(file_path)
+            await asyncio.to_thread(pdf_path.parent.mkdir, parents=True, exist_ok=True)
+            await asyncio.to_thread(pdf_path.write_bytes, pdf_bytes)
+            return success_response(context, data={"saved_to": file_path, "size_bytes": len(pdf_bytes)})
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))
         except Exception as e:
@@ -167,6 +167,8 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                 "invalid_params",
                 "exactly one of 'ref' or 'selector' must be provided",
             )
+        if element:
+            logger.debug("browser_generate_locator: %s", element)
         try:
             await ctx_mgr.get(context)
             assert_no_modal(ctx_mgr, context)
@@ -227,43 +229,36 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         try:
             ctx = await ctx_mgr.get(context)
             async with ctx_mgr.lock_for(context):
+                cstate = ctx_mgr.state(context)
                 if action == "list":
                     tabs = [{"index": i, "url": p.url} for i, p in enumerate(ctx.pages)]
                     return success_response(context, data={"tabs": tabs})
-                elif action == "new":
+                if action == "new":
                     page = await ctx.new_page()
                     if url:
                         await page.goto(_normalize_url(url))
                     # The newly added page is always the last in ctx.pages;
                     # make it the logical active tab so subsequent tools
                     # target it.
-                    ctx._active_page_index = len(ctx.pages) - 1
-                    return success_response(
-                        context, data={"index": len(ctx.pages) - 1, "url": page.url}
-                    )
-                elif action == "close":
+                    cstate.active_page_index = len(ctx.pages) - 1
+                    return success_response(context, data={"index": len(ctx.pages) - 1, "url": page.url})
+                if action == "close":
                     if index is None or index < 0 or index >= len(ctx.pages):
-                        raise InvalidParamsError(f"invalid tab index: {index}")
+                        return error_response(context, "invalid_params", f"invalid tab index: {index}")
                     await ctx.pages[index].close()
                     # Adjust the active-page index so it still points at a
                     # valid tab after the close.  When the closed tab was the
                     # active one, select the adjacent remaining tab (clamped)
                     # rather than jumping to 0.
-                    current_active = getattr(ctx, "_active_page_index", 0)
-                    if index < current_active:
-                        new_active = current_active - 1
-                    else:
-                        new_active = current_active
+                    current_active = cstate.active_page_index
+                    new_active = current_active - 1 if index < current_active else current_active
                     remaining = len(ctx.pages)
-                    if remaining == 0:
-                        new_active = 0
-                    else:
-                        new_active = max(0, min(new_active, remaining - 1))
-                    ctx._active_page_index = new_active
+                    new_active = 0 if remaining == 0 else max(0, min(new_active, remaining - 1))
+                    cstate.active_page_index = new_active
                     return success_response(context, data={"closed_index": index})
-                elif action == "select":
+                if action == "select":
                     if index is None or index < 0 or index >= len(ctx.pages):
-                        raise InvalidParamsError(f"invalid tab index: {index}")
+                        return error_response(context, "invalid_params", f"invalid tab index: {index}")
                     # Update the logical active tab first so subsequent tool
                     # calls target the selected page; then bring it to front
                     # for visual focus.

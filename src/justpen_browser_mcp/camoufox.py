@@ -20,7 +20,7 @@ import sys
 
 from camoufox.async_api import AsyncCamoufox
 from camoufox.pkgman import installed_verstr
-from playwright.async_api import Browser
+from playwright.async_api import Browser, Error as PlaywrightError
 
 from .errors import BinaryNotFoundError
 
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 class CamoufoxLauncher:
     """Lazy, idempotent launcher for the single Camoufox browser instance."""
 
-    def __init__(self, headless: bool = True) -> None:
+    def __init__(self, *, headless: bool = True) -> None:
         self._headless = headless
         self._browser: Browser | None = None
         self._cm: AsyncCamoufox | None = None
@@ -52,8 +52,8 @@ class CamoufoxLauncher:
                 logger.warning("Camoufox browser disconnected, cleaning up...")
                 try:
                     await self._cm.__aexit__(None, None, None)
-                except Exception as e:
-                    logger.warning(f"Error cleaning up dead browser: {e}")
+                except (PlaywrightError, OSError, RuntimeError) as e:
+                    logger.warning("Error cleaning up dead browser: %s", e)
                 self._cm = None
                 self._browser = None
             if self._browser is None:
@@ -71,8 +71,8 @@ class CamoufoxLauncher:
                 logger.info("Shutting down Camoufox browser...")
                 try:
                     await self._cm.__aexit__(None, None, None)
-                except Exception as e:
-                    logger.warning(f"Error during Camoufox shutdown: {e}")
+                except (PlaywrightError, OSError, RuntimeError) as e:
+                    logger.warning("Error during Camoufox shutdown: %s", e)
                 self._cm = None
                 self._browser = None
 
@@ -81,12 +81,10 @@ class CamoufoxLauncher:
         try:
             if installed_verstr() is not None:
                 return
-        except Exception as e:
-            logger.debug(f"installed_verstr() raised: {e}")
+        except (OSError, RuntimeError, ValueError) as e:
+            logger.debug("installed_verstr() raised: %s", e)
 
-        logger.warning(
-            "Camoufox binary not found, fetching (one-time download ~150MB)..."
-        )
+        logger.warning("Camoufox binary not found, fetching (one-time download ~150MB)...")
         proc = await asyncio.create_subprocess_exec(
             sys.executable,
             "-m",
@@ -95,9 +93,7 @@ class CamoufoxLauncher:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        stdout, stderr = await proc.communicate()
+        _stdout, stderr = await proc.communicate()
         if proc.returncode != 0:
-            raise BinaryNotFoundError(
-                f"Failed to fetch Camoufox binary: {stderr.decode().strip()}"
-            )
+            raise BinaryNotFoundError(f"Failed to fetch Camoufox binary: {stderr.decode().strip()}")
         logger.info("Camoufox binary fetched successfully")

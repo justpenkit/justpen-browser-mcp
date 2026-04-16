@@ -8,13 +8,14 @@ import logging
 
 from fastmcp import FastMCP
 
+from ..camoufox import CamoufoxLauncher
 from ..context_manager import ContextManager
-from ..responses import success_response, error_response
+from ..responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 
 
-def register(mcp: FastMCP, ctx_mgr: ContextManager, launcher) -> None:
+def register(mcp: FastMCP, ctx_mgr: ContextManager, launcher: CamoufoxLauncher) -> None:
 
     @mcp.tool
     async def browser_status() -> dict:
@@ -38,13 +39,13 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager, launcher) -> None:
         """
         try:
             running = launcher.is_running()
-            contexts = ctx_mgr._contexts
+            names = ctx_mgr.list_names()
             return success_response(
                 context=None,
                 data={
                     "browser_running": running,
-                    "active_context_count": len(contexts),
-                    "active_contexts": [{"context": name} for name in contexts.keys()],
+                    "active_context_count": len(names),
+                    "active_contexts": [{"context": name} for name in names],
                 },
             )
         except Exception as e:

@@ -5,6 +5,7 @@ browser_hover, browser_drag, browser_press_key, browser_file_upload,
 browser_handle_dialog.
 """
 
+import contextlib
 import logging
 
 from fastmcp import FastMCP
@@ -14,7 +15,7 @@ from ..coercion import coerce_bool
 from ..context_manager import ContextManager, assert_no_modal
 from ..errors import BrowserMcpError
 from ..ref_resolver import resolve_ref
-from ..responses import success_response, error_response
+from ..responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
     async def browser_click(
         context: str,
         ref: str,
+        *,
         double_click: bool = False,
         button: str = "left",
         modifiers: list[str] | None = None,
@@ -55,15 +57,11 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         """
         try:
             if button not in _VALID_BUTTONS:
-                return error_response(
-                    context, "invalid_params", f"unknown button: {button!r}"
-                )
+                return error_response(context, "invalid_params", f"unknown button: {button!r}")
             if modifiers:
                 bad = [m for m in modifiers if m not in _VALID_MODIFIERS]
                 if bad:
-                    return error_response(
-                        context, "invalid_params", f"unknown modifiers: {bad!r}"
-                    )
+                    return error_response(context, "invalid_params", f"unknown modifiers: {bad!r}")
             await ctx_mgr.get(context)
             assert_no_modal(ctx_mgr, context)
             async with ctx_mgr.lock_for(context):
@@ -88,6 +86,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         context: str,
         ref: str,
         text: str,
+        *,
         clear_first: bool = True,
         submit: bool = False,
     ) -> dict:
@@ -122,10 +121,8 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     await locator.type(text)
                 if submit:
                     await locator.press("Enter")
-                    try:
+                    with contextlib.suppress(PWTimeout):
                         await page.wait_for_load_state("domcontentloaded", timeout=2000)
-                    except PWTimeout:
-                        pass
             return success_response(context, data={"typed_into": ref})
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))
@@ -194,10 +191,8 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     value = field["value"]
                     if type_ == "textbox":
                         await locator.fill(str(value))
-                    elif type_ == "checkbox":
-                        await locator.set_checked(coerce_bool(value))
-                    elif type_ == "radio":
-                        await locator.set_checked(coerce_bool(value))
+                    elif type_ in ("checkbox", "radio"):
+                        await locator.set_checked(checked=coerce_bool(value))
                     elif type_ == "combobox":
                         await locator.select_option(str(value))
                     else:
@@ -214,9 +209,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             return error_response(context, "internal_error", str(e))
 
     @mcp.tool
-    async def browser_select_option(
-        context: str, ref: str, value: str | list[str]
-    ) -> dict:
+    async def browser_select_option(context: str, ref: str, value: str | list[str]) -> dict:
         """Select an option in a <select> dropdown by its value attribute.
 
         ref is the [ref=eN] of the <select> element from browser_snapshot.
@@ -304,9 +297,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                 source = await resolve_ref(page, source_ref)
                 target = await resolve_ref(page, target_ref)
                 await source.drag_to(target)
-            return success_response(
-                context, data={"dragged": source_ref, "to": target_ref}
-            )
+            return success_response(context, data={"dragged": source_ref, "to": target_ref})
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))
         except Exception as e:
@@ -336,10 +327,8 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                 page = await ctx_mgr.active_page(context)
                 await page.keyboard.press(key)
                 if key.lower() == "enter":
-                    try:
+                    with contextlib.suppress(PWTimeout):
                         await page.wait_for_load_state("domcontentloaded", timeout=2000)
-                    except PWTimeout:
-                        pass
             return success_response(context, data={"pressed": key})
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))
@@ -388,8 +377,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     # would wedge the context behind modal_state_blocked.
                     page = state.get("page")
                     if page is not None and not page.is_closed():
-                        ctx = await ctx_mgr.get(context)
-                        getattr(ctx, "_modal_states", []).insert(0, state)
+                        ctx_mgr.state(context).modal_states.insert(0, state)
                     raise
             return success_response(context, data={"uploaded_count": len(paths)})
         except BrowserMcpError as e:
@@ -399,9 +387,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             return error_response(context, "internal_error", str(e))
 
     @mcp.tool
-    async def browser_handle_dialog(
-        context: str, accept: bool, prompt_text: str | None = None
-    ) -> dict:
+    async def browser_handle_dialog(context: str, *, accept: bool, prompt_text: str | None = None) -> dict:
         """Resolve a pending JavaScript dialog (alert/confirm/prompt).
 
         Consumes a pending dialog captured by the modal-state listener. The
@@ -440,10 +426,8 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                 else:
                     await dialog.dismiss()
                 # Best-effort page stabilization after dialog resolution.
-                try:
+                with contextlib.suppress(Exception):
                     await page.wait_for_load_state("domcontentloaded", timeout=1000)
-                except Exception:
-                    pass
             return success_response(
                 context,
                 data={

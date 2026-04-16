@@ -6,7 +6,7 @@ _TRUTHY = {"true", "1", "checked", "yes"}
 _FALSY = {"false", "0", "unchecked", "no", ""}
 
 
-def coerce_bool(value) -> bool:
+def coerce_bool(value: object) -> bool:
     """Coerce a user-supplied value to a strict bool.
 
     Accepts: real bool, or strings like "true"/"false"/"1"/"0"/"checked"/
