@@ -10,8 +10,9 @@ import time
 from pathlib import Path
 
 from fastmcp import FastMCP
+from playwright.async_api import BrowserContext
 
-from ..context_manager import ContextManager, assert_no_modal
+from ..context_manager import ContextManager, ContextState, assert_no_modal
 from ..errors import BrowserMcpError
 from ..ref_resolver import resolve_selector_to_stable
 from ..responses import error_response, success_response
@@ -203,6 +204,55 @@ def _register_browser_generate_locator(mcp: FastMCP, ctx_mgr: ContextManager) ->
             return error_response(context, "internal_error", str(e))
 
 
+async def _tabs_list(ctx: BrowserContext, context: str) -> dict:
+    tabs = [{"index": i, "url": p.url} for i, p in enumerate(ctx.pages)]
+    return success_response(context, data={"tabs": tabs})
+
+
+async def _tabs_new(
+    ctx: BrowserContext,
+    context: str,
+    cstate: ContextState,
+    url: str | None,
+) -> dict:
+    page = await ctx.new_page()
+    if url:
+        await page.goto(_normalize_url(url))
+    cstate.active_page_index = len(ctx.pages) - 1
+    return success_response(context, data={"index": len(ctx.pages) - 1, "url": page.url})
+
+
+async def _tabs_close(
+    ctx: BrowserContext,
+    context: str,
+    cstate: ContextState,
+    index: int | None,
+) -> dict:
+    if index is None or index < 0 or index >= len(ctx.pages):
+        return error_response(context, "invalid_params", f"invalid tab index: {index}")
+    await ctx.pages[index].close()
+    current_active = cstate.active_page_index
+    new_active = current_active - 1 if index < current_active else current_active
+    remaining = len(ctx.pages)
+    new_active = 0 if remaining == 0 else max(0, min(new_active, remaining - 1))
+    cstate.active_page_index = new_active
+    return success_response(context, data={"closed_index": index})
+
+
+async def _tabs_select(
+    ctx: BrowserContext,
+    context: str,
+    ctx_mgr: ContextManager,
+    index: int | None,
+) -> dict:
+    if index is None or index < 0 or index >= len(ctx.pages):
+        return error_response(context, "invalid_params", f"invalid tab index: {index}")
+    ctx_mgr.set_active_page(context, index)
+    selected = ctx.pages[index]
+    await selected.bring_to_front()
+    return success_response(context, data={"selected_index": index})
+
+
 def _register_browser_tabs(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
@@ -240,41 +290,12 @@ def _register_browser_tabs(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             async with ctx_mgr.lock_for(context):
                 cstate = ctx_mgr.state(context)
                 if action == "list":
-                    tabs = [{"index": i, "url": p.url} for i, p in enumerate(ctx.pages)]
-                    return success_response(context, data={"tabs": tabs})
+                    return await _tabs_list(ctx, context)
                 if action == "new":
-                    page = await ctx.new_page()
-                    if url:
-                        await page.goto(_normalize_url(url))
-                    # The newly added page is always the last in ctx.pages;
-                    # make it the logical active tab so subsequent tools
-                    # target it.
-                    cstate.active_page_index = len(ctx.pages) - 1
-                    return success_response(context, data={"index": len(ctx.pages) - 1, "url": page.url})
+                    return await _tabs_new(ctx, context, cstate, url)
                 if action == "close":
-                    if index is None or index < 0 or index >= len(ctx.pages):
-                        return error_response(context, "invalid_params", f"invalid tab index: {index}")
-                    await ctx.pages[index].close()
-                    # Adjust the active-page index so it still points at a
-                    # valid tab after the close.  When the closed tab was the
-                    # active one, select the adjacent remaining tab (clamped)
-                    # rather than jumping to 0.
-                    current_active = cstate.active_page_index
-                    new_active = current_active - 1 if index < current_active else current_active
-                    remaining = len(ctx.pages)
-                    new_active = 0 if remaining == 0 else max(0, min(new_active, remaining - 1))
-                    cstate.active_page_index = new_active
-                    return success_response(context, data={"closed_index": index})
-                if action == "select":
-                    if index is None or index < 0 or index >= len(ctx.pages):
-                        return error_response(context, "invalid_params", f"invalid tab index: {index}")
-                    # Update the logical active tab first so subsequent tool
-                    # calls target the selected page; then bring it to front
-                    # for visual focus.
-                    ctx_mgr.set_active_page(context, index)
-                    selected = ctx.pages[index]
-                    await selected.bring_to_front()
-                    return success_response(context, data={"selected_index": index})
+                    return await _tabs_close(ctx, context, cstate, index)
+                return await _tabs_select(ctx, context, ctx_mgr, index)
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))
         except Exception as e:
