@@ -190,9 +190,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     value = field["value"]
                     if type_ == "textbox":
                         await locator.fill(str(value))
-                    elif type_ == "checkbox":
-                        await locator.set_checked(coerce_bool(value))
-                    elif type_ == "radio":
+                    elif type_ in ("checkbox", "radio"):
                         await locator.set_checked(coerce_bool(value))
                     elif type_ == "combobox":
                         await locator.select_option(str(value))
