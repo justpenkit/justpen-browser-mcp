@@ -246,15 +246,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     # active one, select the adjacent remaining tab (clamped)
                     # rather than jumping to 0.
                     current_active = getattr(ctx, "_active_page_index", 0)
-                    if index < current_active:
-                        new_active = current_active - 1
-                    else:
-                        new_active = current_active
+                    new_active = current_active - 1 if index < current_active else current_active
                     remaining = len(ctx.pages)
-                    if remaining == 0:
-                        new_active = 0
-                    else:
-                        new_active = max(0, min(new_active, remaining - 1))
+                    new_active = 0 if remaining == 0 else max(0, min(new_active, remaining - 1))
                     ctx._active_page_index = new_active
                     return success_response(context, data={"closed_index": index})
                 if action == "select":
