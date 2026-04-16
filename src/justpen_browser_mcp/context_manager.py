@@ -162,7 +162,10 @@ class ContextManager:
 
             self._contexts[name] = ctx
             self._locks[name] = asyncio.Lock()
-            logger.info(f"Created context '{name}'" + (f" with state from {state_path}" if state_path else ""))
+            if state_path:
+                logger.info("Created context %r with state from %s", name, state_path)
+            else:
+                logger.info("Created context %r", name)
             return ctx
 
     async def get(self, name: str) -> BrowserContext:
