@@ -37,9 +37,10 @@ async def _resolve_ref_in_any_frame(page: Page, ref: str) -> Locator:
         try:
             locator = frame.locator(f"aria-ref={ref}")
             await locator.wait_for(state="attached", timeout=500)
-            return locator
         except PlaywrightError:
             continue
+        else:
+            return locator
     raise StaleRefError(
         f"Ref '{ref}' not found in any frame of the current page snapshot. "
         f"Capture a new snapshot with browser_snapshot."

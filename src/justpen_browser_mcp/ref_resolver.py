@@ -57,7 +57,6 @@ async def resolve_ref(page: Page, ref: str, timeout_ms: int = 1000) -> Locator:
     locator = locator_for_ref(page, ref)
     try:
         await locator.wait_for(state="attached", timeout=timeout_ms)
-        return locator
     except PlaywrightError as e:
         msg = str(e).lower()
         if "aria-ref" in msg or "no element" in msg or "not found" in msg or "resolved to no element" in msg:
@@ -65,6 +64,7 @@ async def resolve_ref(page: Page, ref: str, timeout_ms: int = 1000) -> Locator:
                 f"Ref '{ref}' not found in current page snapshot. Capture a new snapshot with browser_snapshot."
             ) from e
         raise
+    return locator
 
 
 # Playwright internal selector regex parsers, used by _internal_to_python.
