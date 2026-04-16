@@ -11,7 +11,7 @@ from pathlib import Path
 from fastmcp import FastMCP
 
 from ..context_manager import ContextManager, assert_no_modal
-from ..errors import BrowserMcpError, InvalidParamsError
+from ..errors import BrowserMcpError
 from ..ref_resolver import resolve_selector_to_stable
 from ..responses import error_response, success_response
 from .navigation import _normalize_url
@@ -238,7 +238,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     return success_response(context, data={"index": len(ctx.pages) - 1, "url": page.url})
                 if action == "close":
                     if index is None or index < 0 or index >= len(ctx.pages):
-                        raise InvalidParamsError(f"invalid tab index: {index}")
+                        return error_response(context, "invalid_params", f"invalid tab index: {index}")
                     await ctx.pages[index].close()
                     # Adjust the active-page index so it still points at a
                     # valid tab after the close.  When the closed tab was the
@@ -252,7 +252,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     return success_response(context, data={"closed_index": index})
                 if action == "select":
                     if index is None or index < 0 or index >= len(ctx.pages):
-                        raise InvalidParamsError(f"invalid tab index: {index}")
+                        return error_response(context, "invalid_params", f"invalid tab index: {index}")
                     # Update the logical active tab first so subsequent tool
                     # calls target the selected page; then bring it to front
                     # for visual focus.
