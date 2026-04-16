@@ -6,7 +6,7 @@ to make them available as a package, but does NOT eagerly call register;
 that happens in __main__.py at server startup.
 """
 
-from . import (  # noqa: F401
+from . import (
     code_execution,
     cookies,
     inspection,
