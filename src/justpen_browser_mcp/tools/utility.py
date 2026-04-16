@@ -20,7 +20,7 @@ from .navigation import _normalize_url
 logger = logging.getLogger(__name__)
 
 
-def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_resize(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
     async def browser_resize(context: str, width: int, height: int) -> dict:
@@ -48,6 +48,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         except Exception as e:
             logger.exception("browser_resize failed")
             return error_response(context, "internal_error", str(e))
+
+
+def _register_browser_pdf_save(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
     async def browser_pdf_save(
@@ -99,6 +102,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         except Exception as e:
             logger.exception("browser_pdf_save failed")
             return error_response(context, "internal_error", str(e))
+
+
+def _register_browser_generate_locator(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
     async def browser_generate_locator(
@@ -196,6 +202,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             logger.exception("browser_generate_locator failed")
             return error_response(context, "internal_error", str(e))
 
+
+def _register_browser_tabs(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+
     @mcp.tool
     async def browser_tabs(
         context: str,
@@ -271,3 +280,10 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         except Exception as e:
             logger.exception("browser_tabs failed")
             return error_response(context, "internal_error", str(e))
+
+
+def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+    _register_browser_resize(mcp, ctx_mgr)
+    _register_browser_pdf_save(mcp, ctx_mgr)
+    _register_browser_generate_locator(mcp, ctx_mgr)
+    _register_browser_tabs(mcp, ctx_mgr)
