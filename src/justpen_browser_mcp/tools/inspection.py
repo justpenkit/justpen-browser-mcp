@@ -72,9 +72,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                 else:
                     locator = page.locator(selector)
                     snapshot = await locator.aria_snapshot(timeout=5000)
-            return success_response(
-                context, data={"snapshot": snapshot, "url": page.url}
-            )
+            return success_response(context, data={"snapshot": snapshot, "url": page.url})
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))
         except Exception as e:
@@ -82,9 +80,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             return error_response(context, "internal_error", str(e))
 
     @mcp.tool
-    async def browser_screenshot(
-        context: str, format: str = "png", full_page: bool = False
-    ) -> dict:
+    async def browser_screenshot(context: str, format: str = "png", full_page: bool = False) -> dict:
         """Take a visual screenshot of the active page and return it as base64.
 
         format must be "png" (default, lossless) or "jpeg" (lossy, smaller).
@@ -207,9 +203,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             return error_response(context, "internal_error", str(e))
 
     @mcp.tool
-    async def browser_network_requests(
-        context: str, filter: str | None = None, static: bool = False
-    ) -> dict:
+    async def browser_network_requests(context: str, filter: str | None = None, static: bool = False) -> dict:
         """Return all network requests collected since the context was created.
 
         Requests are captured by an event listener attached at context creation.
@@ -257,19 +251,13 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             ctx = await ctx_mgr.get(context)
             requests = list(getattr(ctx, "_network_requests", []))
             if not static:
-                requests = [
-                    r
-                    for r in requests
-                    if r.get("resource_type") not in _STATIC_RESOURCE_TYPES
-                ]
+                requests = [r for r in requests if r.get("resource_type") not in _STATIC_RESOURCE_TYPES]
             if compiled is not None:
                 requests = [r for r in requests if compiled.search(r.get("url", ""))]
             # Strip private bookkeeping keys (e.g. "_id" used by the
             # response listener to match by request identity) before
             # returning to the caller.
-            requests = [
-                {k: v for k, v in r.items() if not k.startswith("_")} for r in requests
-            ]
+            requests = [{k: v for k, v in r.items() if not k.startswith("_")} for r in requests]
             return success_response(context, data={"requests": requests})
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))

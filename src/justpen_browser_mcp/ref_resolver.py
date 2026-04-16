@@ -60,15 +60,9 @@ async def resolve_ref(page: Page, ref: str, timeout_ms: int = 1000) -> Locator:
         return locator
     except PlaywrightError as e:
         msg = str(e).lower()
-        if (
-            "aria-ref" in msg
-            or "no element" in msg
-            or "not found" in msg
-            or "resolved to no element" in msg
-        ):
+        if "aria-ref" in msg or "no element" in msg or "not found" in msg or "resolved to no element" in msg:
             raise StaleRefError(
-                f"Ref '{ref}' not found in current page snapshot. "
-                f"Capture a new snapshot with browser_snapshot."
+                f"Ref '{ref}' not found in current page snapshot. Capture a new snapshot with browser_snapshot."
             ) from e
         raise
 
@@ -179,15 +173,9 @@ async def resolve_selector_to_stable(page: Page, ref: str) -> dict:
         )
     except PlaywrightError as e:
         msg = str(e).lower()
-        if (
-            "aria-ref" in msg
-            or "no element" in msg
-            or "not found" in msg
-            or "resolved to no element" in msg
-        ):
+        if "aria-ref" in msg or "no element" in msg or "not found" in msg or "resolved to no element" in msg:
             raise StaleRefError(
-                f"Ref '{ref}' not found in current page snapshot. "
-                f"Capture a new snapshot with browser_snapshot."
+                f"Ref '{ref}' not found in current page snapshot. Capture a new snapshot with browser_snapshot."
             ) from e
         raise
 

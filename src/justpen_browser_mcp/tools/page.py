@@ -41,9 +41,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             async with ctx_mgr.lock_for(context):
                 ctx = await ctx_mgr.get(context)
                 if not ctx.pages:
-                    return success_response(
-                        context, data={"closed": False, "reason": "no open pages"}
-                    )
+                    return success_response(context, data={"closed": False, "reason": "no open pages"})
                 closed_index = getattr(ctx, "_active_page_index", 0)
                 page = await ctx_mgr.active_page(context)
                 await page.close()

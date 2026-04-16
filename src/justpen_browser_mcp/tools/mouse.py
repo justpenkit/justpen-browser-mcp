@@ -46,16 +46,12 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             assert_no_modal(ctx_mgr, context)
             async with ctx_mgr.lock_for(context):
                 page = await ctx_mgr.active_page(context)
-                await page.mouse.click(
-                    x, y, button=button, click_count=click_count, delay=delay_ms
-                )
+                await page.mouse.click(x, y, button=button, click_count=click_count, delay=delay_ms)
                 try:
                     await page.wait_for_load_state("domcontentloaded", timeout=2000)
                 except PWTimeout:
                     pass
-            return success_response(
-                context, data={"clicked_at": [x, y], "button": button}
-            )
+            return success_response(context, data={"clicked_at": [x, y], "button": button})
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))
         except Exception as e:
@@ -149,9 +145,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             return error_response(context, "internal_error", str(e))
 
     @mcp.tool
-    async def browser_mouse_drag_xy(
-        context: str, from_x: int, from_y: int, to_x: int, to_y: int
-    ) -> dict:
+    async def browser_mouse_drag_xy(context: str, from_x: int, from_y: int, to_x: int, to_y: int) -> dict:
         """Drag the mouse from one absolute pixel position to another.
 
         Performs: move to (from_x, from_y), press left button, move to (to_x, to_y),
@@ -180,9 +174,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     await page.wait_for_load_state("domcontentloaded", timeout=2000)
                 except PWTimeout:
                     pass
-            return success_response(
-                context, data={"from": [from_x, from_y], "to": [to_x, to_y]}
-            )
+            return success_response(context, data={"from": [from_x, from_y], "to": [to_x, to_y]})
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))
         except Exception as e:
@@ -190,9 +182,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             return error_response(context, "internal_error", str(e))
 
     @mcp.tool
-    async def browser_mouse_wheel(
-        context: str, delta_x: int = 0, delta_y: int = 0
-    ) -> dict:
+    async def browser_mouse_wheel(context: str, delta_x: int = 0, delta_y: int = 0) -> dict:
         """Scroll the mouse wheel by the given pixel deltas at the current cursor position.
 
         delta_x is horizontal scroll (positive = right), delta_y is vertical

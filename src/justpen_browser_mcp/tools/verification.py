@@ -119,17 +119,11 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             has_refs = refs is not None
             has_container = container_ref is not None or items is not None
             if has_refs and has_container:
-                raise InvalidParamsError(
-                    "refs and container_ref/items are mutually exclusive"
-                )
+                raise InvalidParamsError("refs and container_ref/items are mutually exclusive")
             if not has_refs and not has_container:
-                raise InvalidParamsError(
-                    "must supply either refs or container_ref+items"
-                )
+                raise InvalidParamsError("must supply either refs or container_ref+items")
             if has_container and (container_ref is None or not items):
-                raise InvalidParamsError(
-                    "container_ref mode requires both container_ref and items"
-                )
+                raise InvalidParamsError("container_ref mode requires both container_ref and items")
             if has_refs and len(refs) == 0:
                 raise InvalidParamsError("refs must not be empty")
 
@@ -145,9 +139,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                         if not await locator.is_visible():
                             missing.append(ref)
                     if missing:
-                        raise VerificationFailedError(
-                            f"These refs are not visible: {missing}"
-                        )
+                        raise VerificationFailedError(f"These refs are not visible: {missing}")
                     return success_response(context, data={"visible_refs": refs})
 
                 # container mode
@@ -158,9 +150,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     if not await inner.first.is_visible():
                         missing_items.append(item_text)
                 if missing_items:
-                    raise VerificationFailedError(
-                        f"These items are not visible in container: {missing_items}"
-                    )
+                    raise VerificationFailedError(f"These items are not visible in container: {missing_items}")
                 return success_response(
                     context,
                     data={
@@ -212,9 +202,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     except Exception:
                         continue
                 if not found:
-                    raise VerificationFailedError(
-                        f"Text {text!r} is not visible on the page"
-                    )
+                    raise VerificationFailedError(f"Text {text!r} is not visible on the page")
             return success_response(context, data={"text": text, "visible": True})
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))
@@ -254,8 +242,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         try:
             if element_type not in ("text", "checkbox", "radio"):
                 raise InvalidParamsError(
-                    f"element_type must be one of 'text', 'checkbox', 'radio'; "
-                    f"got {element_type!r}"
+                    f"element_type must be one of 'text', 'checkbox', 'radio'; got {element_type!r}"
                 )
             await ctx_mgr.get(context)
             async with ctx_mgr.lock_for(context):
@@ -265,17 +252,13 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                 if element_type == "text":
                     actual = await locator.input_value()
                     if actual != expected_value:
-                        raise VerificationFailedError(
-                            f"Element {ref} value is {actual!r}, "
-                            f"expected {expected_value!r}"
-                        )
+                        raise VerificationFailedError(f"Element {ref} value is {actual!r}, expected {expected_value!r}")
                 else:
                     expected_bool = coerce_bool(expected_value)
                     actual = await locator.is_checked()
                     if bool(actual) != expected_bool:
                         raise VerificationFailedError(
-                            f"Element {ref} checked state is {actual!r}, "
-                            f"expected {expected_bool!r}"
+                            f"Element {ref} checked state is {actual!r}, expected {expected_bool!r}"
                         )
             return success_response(
                 context,

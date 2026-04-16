@@ -55,15 +55,11 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         """
         try:
             if button not in _VALID_BUTTONS:
-                return error_response(
-                    context, "invalid_params", f"unknown button: {button!r}"
-                )
+                return error_response(context, "invalid_params", f"unknown button: {button!r}")
             if modifiers:
                 bad = [m for m in modifiers if m not in _VALID_MODIFIERS]
                 if bad:
-                    return error_response(
-                        context, "invalid_params", f"unknown modifiers: {bad!r}"
-                    )
+                    return error_response(context, "invalid_params", f"unknown modifiers: {bad!r}")
             await ctx_mgr.get(context)
             assert_no_modal(ctx_mgr, context)
             async with ctx_mgr.lock_for(context):
@@ -214,9 +210,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             return error_response(context, "internal_error", str(e))
 
     @mcp.tool
-    async def browser_select_option(
-        context: str, ref: str, value: str | list[str]
-    ) -> dict:
+    async def browser_select_option(context: str, ref: str, value: str | list[str]) -> dict:
         """Select an option in a <select> dropdown by its value attribute.
 
         ref is the [ref=eN] of the <select> element from browser_snapshot.
@@ -304,9 +298,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                 source = await resolve_ref(page, source_ref)
                 target = await resolve_ref(page, target_ref)
                 await source.drag_to(target)
-            return success_response(
-                context, data={"dragged": source_ref, "to": target_ref}
-            )
+            return success_response(context, data={"dragged": source_ref, "to": target_ref})
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))
         except Exception as e:
@@ -399,9 +391,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             return error_response(context, "internal_error", str(e))
 
     @mcp.tool
-    async def browser_handle_dialog(
-        context: str, accept: bool, prompt_text: str | None = None
-    ) -> dict:
+    async def browser_handle_dialog(context: str, accept: bool, prompt_text: str | None = None) -> dict:
         """Resolve a pending JavaScript dialog (alert/confirm/prompt).
 
         Consumes a pending dialog captured by the modal-state listener. The

@@ -25,9 +25,7 @@ class TestBrowserEvaluate:
 
     async def test_evaluation_error(self, mcp_client, mock_ctx_mgr):
         page = make_page(mock_ctx_mgr)
-        page.evaluate = AsyncMock(
-            side_effect=Exception("ReferenceError: foo not defined")
-        )
+        page.evaluate = AsyncMock(side_effect=Exception("ReferenceError: foo not defined"))
         result = await mcp_client.call_tool(
             "browser_evaluate",
             {"context": "admin", "expression": "foo"},
@@ -91,9 +89,7 @@ class TestBrowserEvaluate:
         dialog = MagicMock()
         dialog.type = "alert"
         dialog.message = "hi"
-        mock_ctx_mgr.get_modal_states = MagicMock(
-            return_value=[{"kind": "dialog", "object": dialog, "page": page}]
-        )
+        mock_ctx_mgr.get_modal_states = MagicMock(return_value=[{"kind": "dialog", "object": dialog, "page": page}])
         result = await mcp_client.call_tool(
             "browser_evaluate",
             {"context": "admin", "expression": "1"},

@@ -91,9 +91,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                 file_path = f"{base}/output/evidence/page-{int(time.time())}.pdf"
             Path(file_path).parent.mkdir(parents=True, exist_ok=True)
             Path(file_path).write_bytes(pdf_bytes)
-            return success_response(
-                context, data={"saved_to": file_path, "size_bytes": len(pdf_bytes)}
-            )
+            return success_response(context, data={"saved_to": file_path, "size_bytes": len(pdf_bytes)})
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))
         except Exception as e:
@@ -238,9 +236,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     # make it the logical active tab so subsequent tools
                     # target it.
                     ctx._active_page_index = len(ctx.pages) - 1
-                    return success_response(
-                        context, data={"index": len(ctx.pages) - 1, "url": page.url}
-                    )
+                    return success_response(context, data={"index": len(ctx.pages) - 1, "url": page.url})
                 elif action == "close":
                     if index is None or index < 0 or index >= len(ctx.pages):
                         raise InvalidParamsError(f"invalid tab index: {index}")

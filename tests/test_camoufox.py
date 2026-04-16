@@ -103,12 +103,8 @@ class TestCamoufoxLauncher:
 
     async def test_relaunch_after_shutdown(self):
         launcher = CamoufoxLauncher()
-        fake_browser_1 = MagicMock(
-            name="Browser1", **{"is_connected.return_value": True}
-        )
-        fake_browser_2 = MagicMock(
-            name="Browser2", **{"is_connected.return_value": True}
-        )
+        fake_browser_1 = MagicMock(name="Browser1", **{"is_connected.return_value": True})
+        fake_browser_2 = MagicMock(name="Browser2", **{"is_connected.return_value": True})
 
         cm_1 = AsyncMock(name="cm1")
         cm_1.__aenter__.return_value = fake_browser_1
@@ -133,12 +129,8 @@ class TestCamoufoxLauncher:
     async def test_get_browser_relaunches_on_disconnect(self):
         """If the browser disconnects, get_browser should relaunch automatically."""
         launcher = CamoufoxLauncher()
-        dead_browser = MagicMock(
-            name="DeadBrowser", **{"is_connected.return_value": True}
-        )
-        fresh_browser = MagicMock(
-            name="FreshBrowser", **{"is_connected.return_value": True}
-        )
+        dead_browser = MagicMock(name="DeadBrowser", **{"is_connected.return_value": True})
+        fresh_browser = MagicMock(name="FreshBrowser", **{"is_connected.return_value": True})
 
         cm_1 = AsyncMock(name="cm1")
         cm_1.__aenter__.return_value = dead_browser
