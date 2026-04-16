@@ -54,9 +54,7 @@ class TestBrowserPdfSave:
         assert out.exists()
         assert out.read_bytes().startswith(b"%PDF")
 
-    async def test_pdf_save_default_filename(
-        self, mcp_client, mock_ctx_mgr, tmp_path, monkeypatch
-    ):
+    async def test_pdf_save_default_filename(self, mcp_client, mock_ctx_mgr, tmp_path, monkeypatch):
         make_page(mock_ctx_mgr)
         monkeypatch.setenv("JUSTPEN_WORKSPACE", str(tmp_path))
         result = await mcp_client.call_tool("browser_pdf_save", {"context": "admin"})
@@ -99,9 +97,7 @@ class TestBrowserResizeModalGuard:
         dialog = MagicMock()
         dialog.type = "alert"
         dialog.message = "hi"
-        mock_ctx_mgr.get_modal_states = MagicMock(
-            return_value=[{"kind": "dialog", "object": dialog, "page": page}]
-        )
+        mock_ctx_mgr.get_modal_states = MagicMock(return_value=[{"kind": "dialog", "object": dialog, "page": page}])
         result = await mcp_client.call_tool(
             "browser_resize",
             {"context": "admin", "width": 800, "height": 600},
@@ -112,9 +108,7 @@ class TestBrowserResizeModalGuard:
 class TestBrowserTabs:
     async def test_list_tabs(self, mcp_client, mock_ctx_mgr):
         make_page(mock_ctx_mgr)
-        result = await mcp_client.call_tool(
-            "browser_tabs", {"context": "admin", "action": "list"}
-        )
+        result = await mcp_client.call_tool("browser_tabs", {"context": "admin", "action": "list"})
         assert result.data["status"] == "success"
         assert "tabs" in result.data["data"]
 
@@ -266,10 +260,7 @@ class TestBrowserGenerateLocator:
 
         assert result.data["status"] == "success"
         assert result.data["data"]["ref"] == "e5"
-        assert (
-            result.data["data"]["internal_selector"]
-            == 'internal:testid=[data-testid="login-btn"s]'
-        )
+        assert result.data["data"]["internal_selector"] == 'internal:testid=[data-testid="login-btn"s]'
         assert result.data["data"]["python_syntax"] == 'get_by_test_id("login-btn")'
 
     async def test_stale_ref(self, mcp_client, mock_ctx_mgr):

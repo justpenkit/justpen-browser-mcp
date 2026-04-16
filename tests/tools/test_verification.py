@@ -95,9 +95,7 @@ class TestBrowserVerifyElementVisible:
 
     async def test_modal_guard(self, mcp_client, mock_ctx_mgr):
         page, _ = make_page(mock_ctx_mgr)
-        mock_ctx_mgr.get_modal_states = MagicMock(
-            return_value=pending_dialog_states(page)
-        )
+        mock_ctx_mgr.get_modal_states = MagicMock(return_value=pending_dialog_states(page))
         result = await mcp_client.call_tool(
             "browser_verify_element_visible",
             {"context": "admin", "ref": "e1"},
@@ -277,9 +275,7 @@ class TestBrowserVerifyTextVisible:
 
     async def test_modal_guard(self, mcp_client, mock_ctx_mgr):
         page, _ = make_page(mock_ctx_mgr)
-        mock_ctx_mgr.get_modal_states = MagicMock(
-            return_value=pending_dialog_states(page)
-        )
+        mock_ctx_mgr.get_modal_states = MagicMock(return_value=pending_dialog_states(page))
         result = await mcp_client.call_tool(
             "browser_verify_text_visible",
             {"context": "admin", "text": "Welcome"},
@@ -366,9 +362,7 @@ class TestBrowserVerifyValue:
 
     async def test_modal_guard(self, mcp_client, mock_ctx_mgr):
         page, _ = make_page(mock_ctx_mgr, value="hello")
-        mock_ctx_mgr.get_modal_states = MagicMock(
-            return_value=pending_dialog_states(page)
-        )
+        mock_ctx_mgr.get_modal_states = MagicMock(return_value=pending_dialog_states(page))
         result = await mcp_client.call_tool(
             "browser_verify_value",
             {"context": "admin", "ref": "e1", "expected_value": "hello"},

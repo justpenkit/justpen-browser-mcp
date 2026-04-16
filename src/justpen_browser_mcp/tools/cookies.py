@@ -27,8 +27,7 @@ def _verify_origin(page_url: str, requested_origin: str) -> None:
     expected = _extract_origin(requested_origin)
     if actual != expected:
         raise InvalidParamsError(
-            f"Origin mismatch: requested {requested_origin!r} but page "
-            f"landed on {actual!r} (likely redirect)"
+            f"Origin mismatch: requested {requested_origin!r} but page landed on {actual!r} (likely redirect)"
         )
 
 
@@ -181,9 +180,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     await page.goto(origin)
                     _verify_origin(page.url, origin)
                     if key is not None:
-                        value = await page.evaluate(
-                            "(k) => localStorage.getItem(k)", key
-                        )
+                        value = await page.evaluate("(k) => localStorage.getItem(k)", key)
                         return success_response(
                             context,
                             data={"key": key, "value": value, "origin": origin},
@@ -204,9 +201,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             return error_response(context, "internal_error", str(e))
 
     @mcp.tool
-    async def browser_set_local_storage(
-        context: str, origin: str, items: dict[str, str]
-    ) -> dict:
+    async def browser_set_local_storage(context: str, origin: str, items: dict[str, str]) -> dict:
         """Set localStorage key-value pairs for the given origin.
 
         Opens a temporary page that navigates to origin, sets each item via
@@ -228,8 +223,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     await page.goto(origin)
                     _verify_origin(page.url, origin)
                     await page.evaluate(
-                        "(items) => { Object.entries(items).forEach("
-                        "([k, v]) => localStorage.setItem(k, v)); }",
+                        "(items) => { Object.entries(items).forEach(([k, v]) => localStorage.setItem(k, v)); }",
                         items,
                     )
                 finally:
@@ -273,9 +267,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                 if origin is None:
                     page = await ctx_mgr.active_page(context)
                     await page.evaluate("() => localStorage.clear()")
-                    return success_response(
-                        context, data={"cleared": True, "origin": page.url}
-                    )
+                    return success_response(context, data={"cleared": True, "origin": page.url})
                 page = await ctx.new_page()
                 try:
                     await page.goto(origin)

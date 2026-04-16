@@ -9,9 +9,7 @@ from justpen_browser_mcp.errors import (
 
 class TestBrowserCreateContext:
     async def test_success_no_state(self, mcp_client, mock_ctx_mgr):
-        result = await mcp_client.call_tool(
-            "browser_create_context", {"context": "admin"}
-        )
+        result = await mcp_client.call_tool("browser_create_context", {"context": "admin"})
         assert result.data["status"] == "success"
         assert result.data["context"] == "admin"
         mock_ctx_mgr.create.assert_awaited_once_with("admin", state_path=None)
@@ -22,17 +20,11 @@ class TestBrowserCreateContext:
             {"context": "admin", "state_path": "/workspace/state/admin.json"},
         )
         assert result.data["status"] == "success"
-        mock_ctx_mgr.create.assert_awaited_once_with(
-            "admin", state_path="/workspace/state/admin.json"
-        )
+        mock_ctx_mgr.create.assert_awaited_once_with("admin", state_path="/workspace/state/admin.json")
 
     async def test_already_exists_error(self, mcp_client, mock_ctx_mgr):
-        mock_ctx_mgr.create.side_effect = ContextAlreadyExistsError(
-            "Context 'admin' already exists"
-        )
-        result = await mcp_client.call_tool(
-            "browser_create_context", {"context": "admin"}
-        )
+        mock_ctx_mgr.create.side_effect = ContextAlreadyExistsError("Context 'admin' already exists")
+        result = await mcp_client.call_tool("browser_create_context", {"context": "admin"})
         assert result.data["status"] == "error"
         assert result.data["error_type"] == "context_already_exists"
 
@@ -53,14 +45,10 @@ class TestBrowserLoadContextState:
             {"context": "admin", "state_path": "/workspace/state/admin.json"},
         )
         assert result.data["status"] == "success"
-        mock_ctx_mgr.load_state.assert_awaited_once_with(
-            "admin", "/workspace/state/admin.json"
-        )
+        mock_ctx_mgr.load_state.assert_awaited_once_with("admin", "/workspace/state/admin.json")
 
     async def test_unknown_context(self, mcp_client, mock_ctx_mgr):
-        mock_ctx_mgr.load_state.side_effect = ContextNotFoundError(
-            "Context 'admin' does not exist"
-        )
+        mock_ctx_mgr.load_state.side_effect = ContextNotFoundError("Context 'admin' does not exist")
         result = await mcp_client.call_tool(
             "browser_load_context_state",
             {"context": "admin", "state_path": "/x.json"},
@@ -76,9 +64,7 @@ class TestBrowserExportContextState:
             {"context": "admin", "state_path": "/workspace/out.json"},
         )
         assert result.data["status"] == "success"
-        mock_ctx_mgr.export_state.assert_awaited_once_with(
-            "admin", "/workspace/out.json"
-        )
+        mock_ctx_mgr.export_state.assert_awaited_once_with("admin", "/workspace/out.json")
 
     async def test_unknown_context(self, mcp_client, mock_ctx_mgr):
         mock_ctx_mgr.export_state.side_effect = ContextNotFoundError("not here")
@@ -92,17 +78,13 @@ class TestBrowserExportContextState:
 
 class TestBrowserDestroyContext:
     async def test_success(self, mcp_client, mock_ctx_mgr):
-        result = await mcp_client.call_tool(
-            "browser_destroy_context", {"context": "admin"}
-        )
+        result = await mcp_client.call_tool("browser_destroy_context", {"context": "admin"})
         assert result.data["status"] == "success"
         mock_ctx_mgr.destroy.assert_awaited_once_with("admin")
 
     async def test_unknown_context(self, mcp_client, mock_ctx_mgr):
         mock_ctx_mgr.destroy.side_effect = ContextNotFoundError("not here")
-        result = await mcp_client.call_tool(
-            "browser_destroy_context", {"context": "admin"}
-        )
+        result = await mcp_client.call_tool("browser_destroy_context", {"context": "admin"})
         assert result.data["status"] == "error"
         assert result.data["error_type"] == "context_not_found"
 

@@ -26,14 +26,8 @@ async def test_snapshot_for_ai_returns_refs_poc():
     """
     async with AsyncCamoufox(headless=True) as browser:
         page = await browser.new_page()
-        await page.set_content(
-            "<button>Click me</button>"
-            "<a href='/x'>Link</a>"
-            "<input type='text' placeholder='email'>"
-        )
-        snapshot = await page._impl_obj._channel.send(
-            "snapshotForAI", None, {"timeout": 5000}
-        )
+        await page.set_content("<button>Click me</button><a href='/x'>Link</a><input type='text' placeholder='email'>")
+        snapshot = await page._impl_obj._channel.send("snapshotForAI", None, {"timeout": 5000})
 
     assert isinstance(snapshot, str), f"snapshot is not a string: {type(snapshot)}"
     assert "Click me" in snapshot, f"button text missing from snapshot:\n{snapshot}"
@@ -49,9 +43,7 @@ async def test_aria_ref_locator_resolves():
     async with AsyncCamoufox(headless=True) as browser:
         page = await browser.new_page()
         await page.set_content("<button id='btn'>Hello</button>")
-        snapshot = await page._impl_obj._channel.send(
-            "snapshotForAI", None, {"timeout": 5000}
-        )
+        snapshot = await page._impl_obj._channel.send("snapshotForAI", None, {"timeout": 5000})
         match = re.search(r"button[^[]*\[ref=([^\]]+)\]", snapshot)
         assert match, f"Could not find button ref in snapshot:\n{snapshot}"
         ref = match.group(1)
@@ -226,19 +218,13 @@ async def test_relaunch_after_auto_shutdown():
 
     async with Client(mcp) as client:
         await client.call_tool("browser_create_context", {"context": "first"})
-        assert (await client.call_tool("browser_status", {})).data["data"][
-            "browser_running"
-        ]
+        assert (await client.call_tool("browser_status", {})).data["data"]["browser_running"]
 
         await client.call_tool("browser_destroy_context", {"context": "first"})
-        assert not (await client.call_tool("browser_status", {})).data["data"][
-            "browser_running"
-        ]
+        assert not (await client.call_tool("browser_status", {})).data["data"]["browser_running"]
 
         await client.call_tool("browser_create_context", {"context": "second"})
-        assert (await client.call_tool("browser_status", {})).data["data"][
-            "browser_running"
-        ]
+        assert (await client.call_tool("browser_status", {})).data["data"]["browser_running"]
 
         await client.call_tool(
             "browser_navigate",
@@ -272,11 +258,7 @@ async def test_generate_locator_with_real_snapshot():
             "browser_navigate",
             {
                 "context": "loc",
-                "url": (
-                    "data:text/html,"
-                    "<button data-testid='primary-btn'>Submit</button>"
-                    "<input placeholder='Email'>"
-                ),
+                "url": ("data:text/html,<button data-testid='primary-btn'>Submit</button><input placeholder='Email'>"),
             },
         )
         snap = await client.call_tool("browser_snapshot", {"context": "loc"})

@@ -40,11 +40,7 @@ def _normalize_url(url: str) -> str:
     """
     if "://" in url:
         return url
-    if (
-        url == "localhost"
-        or url.startswith("localhost:")
-        or url.startswith("localhost/")
-    ):
+    if url == "localhost" or url.startswith("localhost:") or url.startswith("localhost/"):
         return f"http://{url}"
     # Bare IP addresses default to http://, not https://.
     # Strip path, query, and fragment before checking.
@@ -208,17 +204,13 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     try:
                         await page.get_by_text(text_gone).first.wait_for(state="hidden")
                     except PWTimeout as e:
-                        raise WaitTimeoutError(
-                            f"Text '{text_gone}' did not disappear: {e}"
-                        ) from e
+                        raise WaitTimeoutError(f"Text '{text_gone}' did not disappear: {e}") from e
                     parts.append(f"text_gone={text_gone!r}")
                 if text is not None:
                     try:
                         await page.get_by_text(text).first.wait_for(state="visible")
                     except PWTimeout as e:
-                        raise WaitTimeoutError(
-                            f"Text '{text}' did not appear: {e}"
-                        ) from e
+                        raise WaitTimeoutError(f"Text '{text}' did not appear: {e}") from e
                     parts.append(f"text={text!r}")
                 return success_response(context, data={"waited_for": ", ".join(parts)})
         except BrowserMcpError as e:

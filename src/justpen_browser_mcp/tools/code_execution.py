@@ -56,9 +56,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         full async API (waiting for selectors, network conditions, etc.).
         """
         if ref is not None and selector is not None:
-            return error_response(
-                context, "invalid_params", "provide ref or selector, not both"
-            )
+            return error_response(context, "invalid_params", "provide ref or selector, not both")
         try:
             await ctx_mgr.get(context)
             async with ctx_mgr.lock_for(context):

@@ -84,9 +84,7 @@ class CamoufoxLauncher:
         except Exception as e:
             logger.debug(f"installed_verstr() raised: {e}")
 
-        logger.warning(
-            "Camoufox binary not found, fetching (one-time download ~150MB)..."
-        )
+        logger.warning("Camoufox binary not found, fetching (one-time download ~150MB)...")
         proc = await asyncio.create_subprocess_exec(
             sys.executable,
             "-m",
@@ -97,7 +95,5 @@ class CamoufoxLauncher:
         )
         stdout, stderr = await proc.communicate()
         if proc.returncode != 0:
-            raise BinaryNotFoundError(
-                f"Failed to fetch Camoufox binary: {stderr.decode().strip()}"
-            )
+            raise BinaryNotFoundError(f"Failed to fetch Camoufox binary: {stderr.decode().strip()}")
         logger.info("Camoufox binary fetched successfully")

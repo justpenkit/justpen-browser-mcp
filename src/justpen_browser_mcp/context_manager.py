@@ -69,10 +69,7 @@ class ContextManager:
         """Create a new BrowserContext, optionally pre-loading storage_state."""
         async with self._registry_lock:
             if name in self._contexts:
-                raise ContextAlreadyExistsError(
-                    f"Context '{name}' already exists. "
-                    f"Call browser_destroy_context first."
-                )
+                raise ContextAlreadyExistsError(f"Context '{name}' already exists. Call browser_destroy_context first.")
 
             browser = await self._launcher.get_browser()
 
@@ -149,14 +146,10 @@ class ContextManager:
             ctx._modal_states = []  # list of {"kind": str, "object": Dialog|FileChooser, "page": Page}
 
             def _on_dialog(page, dialog):
-                ctx._modal_states.append(
-                    {"kind": "dialog", "object": dialog, "page": page}
-                )
+                ctx._modal_states.append({"kind": "dialog", "object": dialog, "page": page})
 
             def _on_filechooser(page, file_chooser):
-                ctx._modal_states.append(
-                    {"kind": "filechooser", "object": file_chooser, "page": page}
-                )
+                ctx._modal_states.append({"kind": "filechooser", "object": file_chooser, "page": page})
 
             def _attach_modal_listeners(page):
                 page.on("dialog", lambda dialog: _on_dialog(page, dialog))
@@ -169,19 +162,14 @@ class ContextManager:
 
             self._contexts[name] = ctx
             self._locks[name] = asyncio.Lock()
-            logger.info(
-                f"Created context '{name}'"
-                + (f" with state from {state_path}" if state_path else "")
-            )
+            logger.info(f"Created context '{name}'" + (f" with state from {state_path}" if state_path else ""))
             return ctx
 
     async def get(self, name: str) -> BrowserContext:
         """Look up a context by name. Raises ContextNotFoundError if missing."""
         ctx = self._contexts.get(name)
         if ctx is None:
-            raise ContextNotFoundError(
-                f"Context '{name}' does not exist. Call browser_create_context first."
-            )
+            raise ContextNotFoundError(f"Context '{name}' does not exist. Call browser_create_context first.")
         return ctx
 
     def lock_for(self, name: str) -> asyncio.Lock:
@@ -280,9 +268,7 @@ class ContextManager:
         if ctx is None:
             raise ContextNotFoundError(f"Context '{name}' does not exist.")
         if index < 0 or index >= len(ctx.pages):
-            raise InvalidParamsError(
-                f"tab index {index} out of range (have {len(ctx.pages)} pages)"
-            )
+            raise InvalidParamsError(f"tab index {index} out of range (have {len(ctx.pages)} pages)")
         ctx._active_page_index = index
 
     async def export_state(self, name: str, state_path: str) -> None:
@@ -317,47 +303,28 @@ class ContextManager:
         # step, load_state silently preserves stale localStorage on origins
         # not mentioned by the new file — contradicting the "replace" contract.
         prev_state = await ctx.storage_state()
-        prev_origins = {
-            o["origin"] for o in prev_state.get("origins", []) if o.get("localStorage")
-        }
+        prev_origins = {o["origin"] for o in prev_state.get("origins", []) if o.get("localStorage")}
 
         # Validate cookies and origins structure before mutating any state,
         # so a malformed file cannot leave the context in a half-applied state.
         for cookie in state.get("cookies", []):
-            if (
-                not isinstance(cookie, dict)
-                or "name" not in cookie
-                or "value" not in cookie
-            ):
-                raise InvalidStateFileError(
-                    "Each cookie must be a dict with at least 'name' and 'value' keys"
-                )
+            if not isinstance(cookie, dict) or "name" not in cookie or "value" not in cookie:
+                raise InvalidStateFileError("Each cookie must be a dict with at least 'name' and 'value' keys")
             if "url" not in cookie and "domain" not in cookie:
                 raise InvalidStateFileError(
-                    f"Cookie {cookie.get('name')!r} needs 'url' or 'domain' "
-                    "for Playwright to accept it"
+                    f"Cookie {cookie.get('name')!r} needs 'url' or 'domain' for Playwright to accept it"
                 )
 
         # Validate origins structure.
         for origin_data in state.get("origins", []):
             if not isinstance(origin_data, dict) or "origin" not in origin_data:
-                raise InvalidStateFileError(
-                    "Each entry in 'origins' must be a dict with an 'origin' key"
-                )
+                raise InvalidStateFileError("Each entry in 'origins' must be a dict with an 'origin' key")
             local_storage = origin_data.get("localStorage", [])
             if not isinstance(local_storage, list):
-                raise InvalidStateFileError(
-                    f"'localStorage' for origin {origin_data['origin']!r} must be a list"
-                )
+                raise InvalidStateFileError(f"'localStorage' for origin {origin_data['origin']!r} must be a list")
             for item in local_storage:
-                if (
-                    not isinstance(item, dict)
-                    or "name" not in item
-                    or "value" not in item
-                ):
-                    raise InvalidStateFileError(
-                        "Each localStorage item must have 'name' and 'value' keys"
-                    )
+                if not isinstance(item, dict) or "name" not in item or "value" not in item:
+                    raise InvalidStateFileError("Each localStorage item must have 'name' and 'value' keys")
 
         await ctx.clear_cookies()
         if state.get("cookies"):
@@ -384,12 +351,7 @@ class ContextManager:
                     )
                     failed_origins.append(origin)
                 else:
-                    js_items = json.dumps(
-                        [
-                            {"name": item["name"], "value": item["value"]}
-                            for item in local_storage
-                        ]
-                    )
+                    js_items = json.dumps([{"name": item["name"], "value": item["value"]} for item in local_storage])
                     await page.evaluate(
                         f"localStorage.clear(); "
                         f"const items = {js_items}; "
@@ -473,8 +435,7 @@ class ContextManager:
             raise InvalidStateFileError(f"Invalid JSON in state file: {e}")
         if not isinstance(data, dict) or "cookies" not in data:
             raise InvalidStateFileError(
-                "State file does not look like a Playwright storage_state JSON: "
-                "missing 'cookies' key"
+                "State file does not look like a Playwright storage_state JSON: missing 'cookies' key"
             )
         return data
 

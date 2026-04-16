@@ -40,10 +40,7 @@ def error_response(context: str | None, error_type: str, message: str) -> dict:
         {"status": "error", "context": <name>, "error_type": <type>, "message": <msg>}
     """
     if error_type not in VALID_ERROR_TYPES:
-        raise ValueError(
-            f"Unknown error_type '{error_type}'. "
-            f"Valid: {', '.join(sorted(VALID_ERROR_TYPES))}"
-        )
+        raise ValueError(f"Unknown error_type '{error_type}'. Valid: {', '.join(sorted(VALID_ERROR_TYPES))}")
     return {
         "status": "error",
         "context": context,

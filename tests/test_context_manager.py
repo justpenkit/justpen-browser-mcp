@@ -546,9 +546,7 @@ class TestContextManagerLoadState:
         await mgr.load_state("admin", str(state_file))
 
         ctx.clear_cookies.assert_awaited_once()
-        ctx.add_cookies.assert_awaited_once_with(
-            [{"name": "session", "value": "abc", "domain": "example.com"}]
-        )
+        ctx.add_cookies.assert_awaited_once_with([{"name": "session", "value": "abc", "domain": "example.com"}])
 
     async def test_load_applies_local_storage_per_origin(self, tmp_path):
         launcher, _, ctx = make_launcher_with_browser()
@@ -659,10 +657,7 @@ class TestContextManagerLoadState:
         await mgr.create("admin")
 
         state_file = tmp_path / "admin.json"
-        state_file.write_text(
-            '{"cookies": [], "origins": ['
-            '{"origin": "https://same.example", "localStorage": []}]}'
-        )
+        state_file.write_text('{"cookies": [], "origins": [{"origin": "https://same.example", "localStorage": []}]}')
 
         await mgr.load_state("admin", str(state_file))
 
