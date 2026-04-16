@@ -15,7 +15,7 @@ from ..responses import error_response, success_response
 logger = logging.getLogger(__name__)
 
 
-def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_create_context(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
     async def browser_create_context(context: str, state_path: str | None = None) -> dict:
@@ -49,6 +49,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             logger.exception("browser_create_context failed")
             return error_response(context, "internal_error", str(e))
 
+
+def _register_browser_load_context_state(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+
     @mcp.tool
     async def browser_load_context_state(context: str, state_path: str) -> dict:
         """Replace the context's cookies and localStorage in-place from a saved state file.
@@ -78,6 +81,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             logger.exception("browser_load_context_state failed")
             return error_response(context, "internal_error", str(e))
 
+
+def _register_browser_export_context_state(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+
     @mcp.tool
     async def browser_export_context_state(context: str, state_path: str) -> dict:
         """Write the context's current cookies and localStorage to a JSON file.
@@ -105,6 +111,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             logger.exception("browser_export_context_state failed")
             return error_response(context, "internal_error", str(e))
 
+
+def _register_browser_destroy_context(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+
     @mcp.tool
     async def browser_destroy_context(context: str) -> dict:
         """Close the context and remove it from the server's registry.
@@ -131,6 +140,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             logger.exception("browser_destroy_context failed")
             return error_response(context, "internal_error", str(e))
 
+
+def _register_browser_list_contexts(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+
     @mcp.tool
     async def browser_list_contexts() -> dict:
         """List all active browser contexts with summary information.
@@ -151,3 +163,11 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         except Exception as e:
             logger.exception("browser_list_contexts failed")
             return error_response(None, "internal_error", str(e))
+
+
+def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+    _register_browser_create_context(mcp, ctx_mgr)
+    _register_browser_load_context_state(mcp, ctx_mgr)
+    _register_browser_export_context_state(mcp, ctx_mgr)
+    _register_browser_destroy_context(mcp, ctx_mgr)
+    _register_browser_list_contexts(mcp, ctx_mgr)
