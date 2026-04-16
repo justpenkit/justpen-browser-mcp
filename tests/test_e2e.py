@@ -287,6 +287,6 @@ async def test_generate_locator_with_real_snapshot():
         # data-testid should beat role
         assert "testid" in internal
         assert "primary-btn" in internal
-        assert "get_by_test_id('primary-btn')" == python_syntax
+        assert python_syntax == "get_by_test_id('primary-btn')"
 
         await client.call_tool("browser_destroy_context", {"context": "loc"})
