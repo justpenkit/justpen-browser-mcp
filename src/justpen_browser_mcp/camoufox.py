@@ -53,7 +53,7 @@ class CamoufoxLauncher:
                 try:
                     await self._cm.__aexit__(None, None, None)
                 except Exception as e:
-                    logger.warning(f"Error cleaning up dead browser: {e}")
+                    logger.warning("Error cleaning up dead browser: %s", e)
                 self._cm = None
                 self._browser = None
             if self._browser is None:
@@ -72,7 +72,7 @@ class CamoufoxLauncher:
                 try:
                     await self._cm.__aexit__(None, None, None)
                 except Exception as e:
-                    logger.warning(f"Error during Camoufox shutdown: {e}")
+                    logger.warning("Error during Camoufox shutdown: %s", e)
                 self._cm = None
                 self._browser = None
 
@@ -82,7 +82,7 @@ class CamoufoxLauncher:
             if installed_verstr() is not None:
                 return
         except Exception as e:
-            logger.debug(f"installed_verstr() raised: {e}")
+            logger.debug("installed_verstr() raised: %s", e)
 
         logger.warning("Camoufox binary not found, fetching (one-time download ~150MB)...")
         proc = await asyncio.create_subprocess_exec(

@@ -201,7 +201,7 @@ class ContextManager:
                 await self._contexts[name].close()
                 del self._contexts[name]
                 del self._locks[name]
-            logger.info(f"Destroyed context '{name}'")
+            logger.info("Destroyed context %r", name)
 
             if not self._contexts:
                 logger.info("No contexts remaining, shutting down Camoufox browser")
@@ -285,7 +285,7 @@ class ContextManager:
         path = Path(state_path)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(state, indent=2))
-        logger.info(f"Exported state for '{name}' to {state_path}")
+        logger.info("Exported state for %r to %s", name, state_path)
 
     async def load_state(self, name: str, state_path: str) -> None:
         """Replace the context's cookies + localStorage with state from a file.
@@ -393,7 +393,7 @@ class ContextManager:
             finally:
                 await page.close()
 
-        logger.info(f"Loaded state for '{name}' from {state_path}")
+        logger.info("Loaded state for %r from %s", name, state_path)
         return failed_origins
 
     def get_modal_states(self, name: str) -> list[dict]:
