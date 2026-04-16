@@ -103,20 +103,21 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     default_domain = parsed.hostname
                 processed: list[dict] = []
                 for cookie in cookies:
-                    has_domain = bool(cookie.get("domain"))
-                    has_url = bool(cookie.get("url"))
+                    normalized = cookie
+                    has_domain = bool(normalized.get("domain"))
+                    has_url = bool(normalized.get("url"))
                     if not has_domain and not has_url:
                         if default_domain is None:
                             return error_response(
                                 context,
                                 "invalid_params",
-                                f"cookie {cookie.get('name')!r} has neither "
+                                f"cookie {normalized.get('name')!r} has neither "
                                 "domain nor url, and no active page to default from",
                             )
-                        cookie = {**cookie, "domain": default_domain}
-                    if "path" not in cookie and not cookie.get("url"):
-                        cookie = {**cookie, "path": "/"}
-                    processed.append(cookie)
+                        normalized = {**normalized, "domain": default_domain}
+                    if "path" not in normalized and not normalized.get("url"):
+                        normalized = {**normalized, "path": "/"}
+                    processed.append(normalized)
                 await ctx.add_cookies(processed)
             return success_response(context, data={"set_count": len(processed)})
         except BrowserMcpError as e:
