@@ -371,27 +371,28 @@ class TestBrowserPressKey:
 
 
 class TestBrowserFileUpload:
-    async def test_consumes_pending_filechooser(self, mcp_client, mock_ctx_mgr):
+    async def test_consumes_pending_filechooser(self, mcp_client, mock_ctx_mgr, tmp_path):
         page, _ = make_page_with_locator(mock_ctx_mgr)
         file_chooser = MagicMock()
         file_chooser.set_files = AsyncMock()
         mock_ctx_mgr.consume_modal_state = MagicMock(
             return_value={"kind": "filechooser", "object": file_chooser, "page": page}
         )
+        paths = [str(tmp_path / "a.txt"), str(tmp_path / "b.txt")]
         result = await mcp_client.call_tool(
             "browser_file_upload",
-            {"context": "admin", "paths": ["/tmp/a.txt", "/tmp/b.txt"]},
+            {"context": "admin", "paths": paths},
         )
         assert result.data["status"] == "success"
         assert result.data["data"]["uploaded_count"] == 2
-        file_chooser.set_files.assert_awaited_once_with(["/tmp/a.txt", "/tmp/b.txt"])
+        file_chooser.set_files.assert_awaited_once_with(paths)
 
-    async def test_no_pending_filechooser(self, mcp_client, mock_ctx_mgr):
+    async def test_no_pending_filechooser(self, mcp_client, mock_ctx_mgr, tmp_path):
         make_page_with_locator(mock_ctx_mgr)
         mock_ctx_mgr.consume_modal_state = MagicMock(return_value=None)
         result = await mcp_client.call_tool(
             "browser_file_upload",
-            {"context": "admin", "paths": ["/tmp/a.txt"]},
+            {"context": "admin", "paths": [str(tmp_path / "a.txt")]},
         )
         assert result.data["error_type"] == "modal_state_blocked"
 
