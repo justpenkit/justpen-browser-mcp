@@ -2,6 +2,7 @@
 
 import pytest
 
+from justpen_browser_mcp.errors import VALID_ERROR_TYPES
 from justpen_browser_mcp.responses import error_response, success_response
 
 
@@ -59,8 +60,6 @@ class TestErrorResponse:
             )
 
     def test_all_valid_error_types_accepted(self):
-        from justpen_browser_mcp.errors import VALID_ERROR_TYPES
-
         for et in VALID_ERROR_TYPES:
             resp = error_response(context="admin", error_type=et, message="msg")
             assert resp["error_type"] == et

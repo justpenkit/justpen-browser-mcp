@@ -7,9 +7,11 @@ from playwright.async_api import Error as PlaywrightError
 
 from justpen_browser_mcp.errors import StaleRefError
 from justpen_browser_mcp.ref_resolver import (
+    _internal_to_python,
     capture_snapshot,
     locator_for_ref,
     resolve_ref,
+    resolve_selector_to_stable,
 )
 
 
@@ -71,76 +73,48 @@ class TestResolveRef:
 
 class TestInternalToPython:
     def test_testid(self):
-        from justpen_browser_mcp.ref_resolver import _internal_to_python
-
         assert _internal_to_python('internal:testid=[data-testid="submit-btn"s]') == "get_by_test_id('submit-btn')"
 
     def test_role_with_name(self):
-        from justpen_browser_mcp.ref_resolver import _internal_to_python
-
         assert _internal_to_python('internal:role=button[name="Cancel"i]') == "get_by_role(\"button\", name='Cancel')"
 
     def test_role_with_exact_name(self):
-        from justpen_browser_mcp.ref_resolver import _internal_to_python
-
         assert (
             _internal_to_python('internal:role=link[name="Home"s]') == "get_by_role(\"link\", name='Home', exact=True)"
         )
 
     def test_role_without_name(self):
-        from justpen_browser_mcp.ref_resolver import _internal_to_python
-
         assert _internal_to_python("internal:role=img") == 'get_by_role("img")'
 
     def test_label(self):
-        from justpen_browser_mcp.ref_resolver import _internal_to_python
-
         assert _internal_to_python('internal:label="Password"s') == "get_by_label('Password', exact=True)"
 
     def test_placeholder(self):
-        from justpen_browser_mcp.ref_resolver import _internal_to_python
-
         assert _internal_to_python('internal:attr=[placeholder="Email"i]') == "get_by_placeholder('Email')"
 
     def test_text(self):
-        from justpen_browser_mcp.ref_resolver import _internal_to_python
-
         assert _internal_to_python('internal:text="Hello"i') == "get_by_text('Hello')"
 
     def test_css_fallback(self):
-        from justpen_browser_mcp.ref_resolver import _internal_to_python
-
         assert _internal_to_python("div.class > span") == "locator('div.class > span')"
 
     def test_role_with_escaped_quotes(self):
         """Internal selector contains \\\" to represent a literal double quote
         inside the name. Output must be valid Python literal syntax."""
-        from justpen_browser_mcp.ref_resolver import _internal_to_python
-
         result = _internal_to_python(r'internal:role=button[name="He said \"Go\""i]')
         assert result == 'get_by_role("button", name=\'He said "Go"\')'
 
     def test_label_with_escaped_quotes(self):
-        from justpen_browser_mcp.ref_resolver import _internal_to_python
-
         result = _internal_to_python(r'internal:label="say \"hi\""s')
         assert result == "get_by_label('say \"hi\"', exact=True)"
 
     def test_testid_with_escaped_quotes(self):
-        from justpen_browser_mcp.ref_resolver import _internal_to_python
-
         result = _internal_to_python(r'internal:testid=[data-testid="a\"b"s]')
         assert result == "get_by_test_id('a\"b')"
 
 
 class TestResolveSelectorToStable:
     async def test_happy_path(self):
-        from unittest.mock import AsyncMock, MagicMock
-
-        from justpen_browser_mcp.ref_resolver import (
-            resolve_selector_to_stable,
-        )
-
         page = MagicMock()
         channel = MagicMock()
         channel.send = AsyncMock(return_value='internal:role=button[name="Submit"i]')
@@ -158,16 +132,6 @@ class TestResolveSelectorToStable:
         assert call[2] == {"selector": "aria-ref=e2"}
 
     async def test_stale_ref(self):
-        from unittest.mock import AsyncMock, MagicMock
-
-        import pytest
-        from playwright.async_api import Error as PlaywrightError
-
-        from justpen_browser_mcp.errors import StaleRefError
-        from justpen_browser_mcp.ref_resolver import (
-            resolve_selector_to_stable,
-        )
-
         page = MagicMock()
         channel = MagicMock()
         channel.send = AsyncMock(side_effect=PlaywrightError("No element matching aria-ref=e99"))

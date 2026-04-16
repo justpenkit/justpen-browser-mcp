@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from fastmcp.exceptions import ToolError
 
 from justpen_browser_mcp.errors import (
     StaleRefError,
@@ -209,8 +210,6 @@ class TestBrowserFillForm:
         MCP-level equivalent of invalid_params and is strictly better than
         an internal_error.
         """
-        from fastmcp.exceptions import ToolError
-
         make_page_with_locator(mock_ctx_mgr)
         with pytest.raises(ToolError, match="valid dictionary|dict_type"):
             await mcp_client.call_tool(

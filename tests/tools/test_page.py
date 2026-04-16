@@ -2,6 +2,8 @@
 
 from unittest.mock import AsyncMock, MagicMock
 
+from justpen_browser_mcp.errors import ContextNotFoundError
+
 
 class TestBrowserClose:
     async def test_closes_active_page(self, mcp_client, mock_ctx_mgr):
@@ -18,8 +20,6 @@ class TestBrowserClose:
         page.close.assert_awaited_once()
 
     async def test_unknown_context(self, mcp_client, mock_ctx_mgr):
-        from justpen_browser_mcp.errors import ContextNotFoundError
-
         mock_ctx_mgr.get.side_effect = ContextNotFoundError("missing")
         result = await mcp_client.call_tool("browser_close", {"context": "admin"})
         assert result.data["error_type"] == "context_not_found"
