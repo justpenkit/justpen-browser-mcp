@@ -301,7 +301,7 @@ class ContextManager:
         path.write_text(json.dumps(state, indent=2))
         logger.info("Exported state for %r to %s", name, state_path)
 
-    async def load_state(self, name: str, state_path: str) -> None:
+    async def load_state(self, name: str, state_path: str) -> list[str]:
         """Replace the context's cookies + localStorage with state from a file.
 
         Implementation detail: clears existing cookies, adds new cookies,
@@ -311,9 +311,14 @@ class ContextManager:
         constructing a fresh context with storage_state, but it preserves
         the BrowserContext object reference, enabling mid-session resets
         without invalidating refs/state held by callers.
+
+        Returns the list of origins whose localStorage could not be applied
+        (redirect or playwright failure); cookies/applied origins are still
+        in effect.
         """
         ctx = await self.get(name)
         state = self._load_state_file(state_path)
+        self._validate_state_structure(state)
 
         # Capture previous origins that have localStorage so we can clear any
         # that are omitted from (or empty in) the new state file. Without this
@@ -322,8 +327,23 @@ class ContextManager:
         prev_state = await ctx.storage_state()
         prev_origins = {o["origin"] for o in prev_state.get("origins", []) if o.get("localStorage")}
 
-        # Validate cookies and origins structure before mutating any state,
-        # so a malformed file cannot leave the context in a half-applied state.
+        await ctx.clear_cookies()
+        if state.get("cookies"):
+            await ctx.add_cookies(state["cookies"])
+
+        new_origins_with_data, failed_origins = await self._apply_origins_localstorage(ctx, state.get("origins", []))
+
+        # Clear localStorage on any origin that had data before but is not in
+        # the new state (or is present with an empty list).
+        for stale_origin in prev_origins - new_origins_with_data:
+            await self._clear_origin_localstorage(ctx, stale_origin)
+
+        logger.info("Loaded state for %r from %s", name, state_path)
+        return failed_origins
+
+    @staticmethod
+    def _validate_state_structure(state: dict) -> None:
+        """Validate cookies + origins shape before mutating any browser state."""
         for cookie in state.get("cookies", []):
             if not isinstance(cookie, dict) or "name" not in cookie or "value" not in cookie:
                 raise InvalidStateFileError("Each cookie must be a dict with at least 'name' and 'value' keys")
@@ -331,8 +351,6 @@ class ContextManager:
                 raise InvalidStateFileError(
                     f"Cookie {cookie.get('name')!r} needs 'url' or 'domain' for Playwright to accept it"
                 )
-
-        # Validate origins structure.
         for origin_data in state.get("origins", []):
             if not isinstance(origin_data, dict) or "origin" not in origin_data:
                 raise InvalidStateFileError("Each entry in 'origins' must be a dict with an 'origin' key")
@@ -343,72 +361,81 @@ class ContextManager:
                 if not isinstance(item, dict) or "name" not in item or "value" not in item:
                     raise InvalidStateFileError("Each localStorage item must have 'name' and 'value' keys")
 
-        await ctx.clear_cookies()
-        if state.get("cookies"):
-            await ctx.add_cookies(state["cookies"])
+    async def _apply_origins_localstorage(self, ctx: BrowserContext, origins: list[dict]) -> tuple[set[str], list[str]]:
+        """Apply localStorage for each origin in `origins`.
 
+        Returns (new_origins_with_data, failed_origins). An origin joins
+        new_origins_with_data when either apply succeeded *or* raised — the
+        latter preserves old data from stale-origin cleanup.
+        """
         new_origins_with_data: set[str] = set()
         failed_origins: list[str] = []
-        for origin_data in state.get("origins", []):
+        for origin_data in origins:
             origin = origin_data["origin"]
             local_storage = origin_data.get("localStorage", [])
             if not local_storage:
                 continue
-            page = await ctx.new_page()
             try:
-                await page.goto(origin)
-                # Verify page didn't redirect to a different origin.
-                actual_parts = page.url.rstrip("/").split("/", 3)[:3]
-                expected_parts = origin.rstrip("/").split("/", 3)[:3]
-                if actual_parts != expected_parts:
-                    logger.warning(
-                        "load_state: origin %r redirected to %r, skipping localStorage",
-                        origin,
-                        page.url,
-                    )
-                    failed_origins.append(origin)
-                else:
-                    js_items = json.dumps([{"name": item["name"], "value": item["value"]} for item in local_storage])
-                    await page.evaluate(
-                        f"localStorage.clear(); "
-                        f"const items = {js_items}; "
-                        f"items.forEach(i => localStorage.setItem(i.name, i.value));"
-                    )
-                    new_origins_with_data.add(origin)
+                applied = await self._set_origin_localstorage(ctx, origin, local_storage)
             except Exception as exc:
-                logger.warning(
-                    "load_state: failed to set localStorage for origin %r: %s",
-                    origin,
-                    exc,
-                )
-                # Preserve old localStorage: prevent stale-origin cleanup
-                # from clearing data that was working before this call.
+                logger.warning("load_state: failed to set localStorage for origin %r: %s", origin, exc)
                 new_origins_with_data.add(origin)
                 failed_origins.append(origin)
-            finally:
-                await page.close()
+                continue
+            if applied:
+                new_origins_with_data.add(origin)
+            else:
+                failed_origins.append(origin)
+        return new_origins_with_data, failed_origins
 
-        # Clear localStorage on any origin that had data before but is not in
-        # the new state (or is present with an empty list).
-        for stale_origin in prev_origins - new_origins_with_data:
-            page = await ctx.new_page()
-            try:
-                await page.goto(stale_origin)
-                actual_parts = page.url.rstrip("/").split("/", 3)[:3]
-                expected_parts = stale_origin.rstrip("/").split("/", 3)[:3]
-                if actual_parts != expected_parts:
-                    logger.warning(
-                        "load_state: stale origin %r redirected to %r, skipping clear",
-                        stale_origin,
-                        page.url,
-                    )
-                else:
-                    await page.evaluate("() => localStorage.clear()")
-            finally:
-                await page.close()
+    @staticmethod
+    async def _set_origin_localstorage(ctx: BrowserContext, origin: str, items: list[dict]) -> bool:
+        """Open a temp page on origin and install localStorage items.
 
-        logger.info("Loaded state for %r from %s", name, state_path)
-        return failed_origins
+        Returns False if the page redirected away from the origin (caller
+        records it as failed but allows stale-cleanup later). Propagates
+        playwright errors to the caller.
+        """
+        page = await ctx.new_page()
+        try:
+            await page.goto(origin)
+            actual_parts = page.url.rstrip("/").split("/", 3)[:3]
+            expected_parts = origin.rstrip("/").split("/", 3)[:3]
+            if actual_parts != expected_parts:
+                logger.warning(
+                    "load_state: origin %r redirected to %r, skipping localStorage",
+                    origin,
+                    page.url,
+                )
+                return False
+            js_items = json.dumps([{"name": item["name"], "value": item["value"]} for item in items])
+            await page.evaluate(
+                f"localStorage.clear(); "
+                f"const items = {js_items}; "
+                f"items.forEach(i => localStorage.setItem(i.name, i.value));"
+            )
+            return True
+        finally:
+            await page.close()
+
+    @staticmethod
+    async def _clear_origin_localstorage(ctx: BrowserContext, origin: str) -> None:
+        """Open a temp page on origin and call localStorage.clear()."""
+        page = await ctx.new_page()
+        try:
+            await page.goto(origin)
+            actual_parts = page.url.rstrip("/").split("/", 3)[:3]
+            expected_parts = origin.rstrip("/").split("/", 3)[:3]
+            if actual_parts != expected_parts:
+                logger.warning(
+                    "load_state: stale origin %r redirected to %r, skipping clear",
+                    origin,
+                    page.url,
+                )
+                return
+            await page.evaluate("() => localStorage.clear()")
+        finally:
+            await page.close()
 
     def get_modal_states(self, name: str) -> list[dict]:
         """Return the list of pending modal states for a context.
