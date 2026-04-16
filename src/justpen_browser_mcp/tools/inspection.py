@@ -33,7 +33,7 @@ _STATIC_RESOURCE_TYPES = {"image", "font", "stylesheet", "media", "manifest"}
 _CLAUDE_VISION_MAX_DIM = 1568
 
 
-def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_snapshot(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
     async def browser_snapshot(context: str, selector: str | None = None) -> dict:
@@ -78,6 +78,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         except Exception as e:
             logger.exception("browser_snapshot failed")
             return error_response(context, "internal_error", str(e))
+
+
+def _register_browser_screenshot(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
     async def browser_screenshot(context: str, image_format: str = "png", *, full_page: bool = False) -> dict:
@@ -159,6 +162,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             logger.exception("browser_screenshot failed")
             return error_response(context, "internal_error", str(e))
 
+
+def _register_browser_console_messages(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+
     @mcp.tool
     async def browser_console_messages(context: str, level: str | None = None) -> dict:
         """Return all console messages collected since the context was created.
@@ -201,6 +207,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         except Exception as e:
             logger.exception("browser_console_messages failed")
             return error_response(context, "internal_error", str(e))
+
+
+def _register_browser_network_requests(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
     async def browser_network_requests(context: str, url_filter: str | None = None, *, static: bool = False) -> dict:
@@ -264,3 +273,10 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         except Exception as e:
             logger.exception("browser_network_requests failed")
             return error_response(context, "internal_error", str(e))
+
+
+def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+    _register_browser_snapshot(mcp, ctx_mgr)
+    _register_browser_screenshot(mcp, ctx_mgr)
+    _register_browser_console_messages(mcp, ctx_mgr)
+    _register_browser_network_requests(mcp, ctx_mgr)

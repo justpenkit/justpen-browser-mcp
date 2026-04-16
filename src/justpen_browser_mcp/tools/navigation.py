@@ -53,7 +53,7 @@ def _normalize_url(url: str) -> str:
     return url
 
 
-def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_navigate(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
     async def browser_navigate(context: str, url: str) -> dict:
@@ -120,6 +120,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             logger.exception("browser_navigate failed")
             return error_response(context, "internal_error", str(e))
 
+
+def _register_browser_navigate_back(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+
     @mcp.tool
     async def browser_navigate_back(context: str) -> dict:
         """Navigate back one step in the browser history for the active page.
@@ -156,6 +159,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         except Exception as e:
             logger.exception("browser_navigate_back failed")
             return error_response(context, "internal_error", str(e))
+
+
+def _register_browser_wait_for(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
     async def browser_wait_for(
@@ -217,3 +223,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         except Exception as e:
             logger.exception("browser_wait_for failed")
             return error_response(context, "internal_error", str(e))
+
+
+def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+    _register_browser_navigate(mcp, ctx_mgr)
+    _register_browser_navigate_back(mcp, ctx_mgr)
+    _register_browser_wait_for(mcp, ctx_mgr)
