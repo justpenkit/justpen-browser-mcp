@@ -12,6 +12,7 @@ import pytest
 from fastmcp import FastMCP
 from fastmcp.client import Client
 
+from justpen_browser_mcp.context_manager import ContextState
 from justpen_browser_mcp.tools import register_all
 
 
@@ -29,7 +30,11 @@ def mock_ctx_mgr():
     mgr.active_page = AsyncMock()
     mgr.lock_for = MagicMock()
     mgr.lock_for.return_value = asyncio.Lock()
-    mgr._contexts = {}
+    # Default ContextState so tools that read mgr.state(name).X work out of
+    # the box; tests that care about specific values overwrite on the return
+    # value (e.g. mock_ctx_mgr.state.return_value.console_messages = [...]).
+    mgr.state = MagicMock(return_value=ContextState())
+    mgr.list_names = MagicMock(return_value=[])
     return mgr
 
 

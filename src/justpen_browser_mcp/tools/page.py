@@ -42,16 +42,17 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                 ctx = await ctx_mgr.get(context)
                 if not ctx.pages:
                     return success_response(context, data={"closed": False, "reason": "no open pages"})
-                closed_index = getattr(ctx, "_active_page_index", 0)
+                cstate = ctx_mgr.state(context)
+                closed_index = cstate.active_page_index
                 page = await ctx_mgr.active_page(context)
                 await page.close()
                 # Update active index so the prior tab becomes active,
                 # matching browser_tabs(action="close") behavior.
                 remaining = len(ctx.pages)
                 if remaining == 0:
-                    ctx._active_page_index = 0
+                    cstate.active_page_index = 0
                 else:
-                    ctx._active_page_index = max(0, min(closed_index, remaining - 1))
+                    cstate.active_page_index = max(0, min(closed_index, remaining - 1))
             return success_response(context, data={"closed": True})
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))

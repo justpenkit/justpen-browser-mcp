@@ -40,7 +40,7 @@ async def main() -> None:
     try:
         await mcp.run_async()
     finally:
-        for name in list(ctx_mgr._contexts.keys()):
+        for name in ctx_mgr.list_names():
             try:
                 await ctx_mgr.destroy(name)
             except (PlaywrightError, BrowserMcpError, OSError, RuntimeError) as e:

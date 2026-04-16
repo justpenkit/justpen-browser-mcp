@@ -229,6 +229,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         try:
             ctx = await ctx_mgr.get(context)
             async with ctx_mgr.lock_for(context):
+                cstate = ctx_mgr.state(context)
                 if action == "list":
                     tabs = [{"index": i, "url": p.url} for i, p in enumerate(ctx.pages)]
                     return success_response(context, data={"tabs": tabs})
@@ -239,7 +240,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     # The newly added page is always the last in ctx.pages;
                     # make it the logical active tab so subsequent tools
                     # target it.
-                    ctx._active_page_index = len(ctx.pages) - 1
+                    cstate.active_page_index = len(ctx.pages) - 1
                     return success_response(context, data={"index": len(ctx.pages) - 1, "url": page.url})
                 if action == "close":
                     if index is None or index < 0 or index >= len(ctx.pages):
@@ -249,11 +250,11 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     # valid tab after the close.  When the closed tab was the
                     # active one, select the adjacent remaining tab (clamped)
                     # rather than jumping to 0.
-                    current_active = getattr(ctx, "_active_page_index", 0)
+                    current_active = cstate.active_page_index
                     new_active = current_active - 1 if index < current_active else current_active
                     remaining = len(ctx.pages)
                     new_active = 0 if remaining == 0 else max(0, min(new_active, remaining - 1))
-                    ctx._active_page_index = new_active
+                    cstate.active_page_index = new_active
                     return success_response(context, data={"closed_index": index})
                 if action == "select":
                     if index is None or index < 0 or index >= len(ctx.pages):

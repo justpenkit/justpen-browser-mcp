@@ -377,8 +377,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     # would wedge the context behind modal_state_blocked.
                     page = state.get("page")
                     if page is not None and not page.is_closed():
-                        ctx = await ctx_mgr.get(context)
-                        getattr(ctx, "_modal_states", []).insert(0, state)
+                        ctx_mgr.state(context).modal_states.insert(0, state)
                     raise
             return success_response(context, data={"uploaded_count": len(paths)})
         except BrowserMcpError as e:
