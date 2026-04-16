@@ -21,8 +21,10 @@ import asyncio
 import json
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from playwright.async_api import BrowserContext, Page
+if TYPE_CHECKING:
+    from playwright.async_api import BrowserContext, Page
 
 from .camoufox import CamoufoxLauncher
 from .errors import (
