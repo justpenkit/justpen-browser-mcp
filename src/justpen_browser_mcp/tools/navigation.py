@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 def _looks_like_ip(host: str) -> bool:
     """Return True if *host* is a bare IPv4 address (with optional port)."""
     # Strip port suffix if present.
-    bare = host.split(":")[0]
+    bare = host.split(":", maxsplit=1)[0]
     parts = bare.split(".")
     if len(parts) != 4:
         return False
@@ -44,7 +44,7 @@ def _normalize_url(url: str) -> str:
         return f"http://{url}"
     # Bare IP addresses default to http://, not https://.
     # Strip path, query, and fragment before checking.
-    host_part = url.split("/")[0].split("?")[0].split("#")[0]
+    host_part = url.split("/", maxsplit=1)[0].split("?", maxsplit=1)[0].split("#", maxsplit=1)[0]
     if _looks_like_ip(host_part):
         return f"http://{url}"
     if "." in url:
