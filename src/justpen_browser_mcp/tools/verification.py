@@ -47,7 +47,7 @@ async def _resolve_ref_in_any_frame(page: Page, ref: str) -> Locator:
     )
 
 
-def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_verify_element_visible(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
     async def browser_verify_element_visible(context: str, ref: str) -> dict:
@@ -83,6 +83,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         if not visible:
             return error_response(context, "verification_failed", f"Element {ref} is not visible")
         return success_response(context, data={"visible": True, "ref": ref})
+
+
+def _register_browser_verify_list_visible(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
     async def browser_verify_list_visible(
@@ -172,6 +175,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             logger.exception("browser_verify_list_visible failed")
             return error_response(context, "internal_error", str(e))
 
+
+def _register_browser_verify_text_visible(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+
     @mcp.tool
     async def browser_verify_text_visible(context: str, text: str) -> dict:
         """Verify that the given text is currently visible somewhere on the active page.
@@ -217,6 +223,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         if not found:
             return error_response(context, "verification_failed", f"Text {text!r} is not visible on the page")
         return success_response(context, data={"text": text, "visible": True})
+
+
+def _register_browser_verify_value(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
     async def browser_verify_value(
@@ -285,3 +294,10 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         except Exception as e:
             logger.exception("browser_verify_value failed")
             return error_response(context, "internal_error", str(e))
+
+
+def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+    _register_browser_verify_element_visible(mcp, ctx_mgr)
+    _register_browser_verify_list_visible(mcp, ctx_mgr)
+    _register_browser_verify_text_visible(mcp, ctx_mgr)
+    _register_browser_verify_value(mcp, ctx_mgr)
