@@ -54,6 +54,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         context: str,
         file_path: str | None = None,
         format: str = "A4",
+        *,
         landscape: bool = False,
         print_background: bool = False,
     ) -> dict:
