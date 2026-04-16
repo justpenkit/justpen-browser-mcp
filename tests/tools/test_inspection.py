@@ -4,6 +4,8 @@ import base64
 from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from PIL import Image
+
 
 def make_page(mock_ctx_mgr):
     page = MagicMock()
@@ -24,8 +26,6 @@ def make_page(mock_ctx_mgr):
 
 
 def _pil_png_bytes(width: int, height: int) -> bytes:
-    from PIL import Image
-
     img = Image.new("RGB", (width, height), color=(128, 64, 32))
     buf = BytesIO()
     img.save(buf, format="PNG")
@@ -76,8 +76,6 @@ class TestBrowserScreenshot:
 
     async def test_jpeg_format(self, mcp_client, mock_ctx_mgr):
         page = make_page(mock_ctx_mgr)
-        from PIL import Image
-
         img = Image.new("RGB", (100, 50), color=(0, 0, 0))
         buf = BytesIO()
         img.save(buf, format="JPEG")
@@ -110,8 +108,6 @@ class TestBrowserScreenshot:
         assert max(w, h) == 1568
         # Decoded bytes should be a valid PNG that actually matches the width
         decoded = base64.b64decode(result.data["data"]["image_base64"])
-        from PIL import Image
-
         img = Image.open(BytesIO(decoded))
         assert img.width == w
         assert img.height == h

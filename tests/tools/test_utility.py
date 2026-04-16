@@ -1,7 +1,9 @@
 """Tests for tools/utility.py — 3 utility tools."""
 
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
+
+from justpen_browser_mcp.errors import ContextNotFoundError, StaleRefError
 
 
 def make_page(mock_ctx_mgr):
@@ -235,8 +237,6 @@ class TestBrowserTabs:
 
 class TestBrowserGenerateLocator:
     async def test_success_testid(self, mcp_client, mock_ctx_mgr):
-        from unittest.mock import AsyncMock, MagicMock, patch
-
         page = MagicMock()
         mock_ctx_mgr.active_page.return_value = page
         mock_ctx_mgr.get.return_value = MagicMock()
@@ -262,10 +262,6 @@ class TestBrowserGenerateLocator:
         assert result.data["data"]["python_syntax"] == 'get_by_test_id("login-btn")'
 
     async def test_stale_ref(self, mcp_client, mock_ctx_mgr):
-        from unittest.mock import AsyncMock, MagicMock, patch
-
-        from justpen_browser_mcp.errors import StaleRefError
-
         mock_ctx_mgr.active_page.return_value = MagicMock()
         mock_ctx_mgr.get.return_value = MagicMock()
         mock_ctx_mgr.get_modal_states = MagicMock(return_value=[])
@@ -283,8 +279,6 @@ class TestBrowserGenerateLocator:
         assert result.data["error_type"] == "stale_ref"
 
     async def test_unknown_context(self, mcp_client, mock_ctx_mgr):
-        from justpen_browser_mcp.errors import ContextNotFoundError
-
         mock_ctx_mgr.get.side_effect = ContextNotFoundError("missing")
 
         result = await mcp_client.call_tool(

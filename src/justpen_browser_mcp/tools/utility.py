@@ -4,6 +4,7 @@ browser_resize, browser_pdf_save, browser_generate_locator, browser_tabs.
 """
 
 import logging
+import os
 import time
 from pathlib import Path
 
@@ -85,8 +86,6 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     print_background=print_background,
                 )
             if file_path is None:
-                import os
-
                 base = os.environ.get("JUSTPEN_WORKSPACE", "/workspace")
                 file_path = f"{base}/output/evidence/page-{int(time.time())}.pdf"
             Path(file_path).parent.mkdir(parents=True, exist_ok=True)

@@ -1,14 +1,18 @@
 """Tests for justpen_browser_mcp.context_manager — registry + locks."""
 
 import asyncio
+import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from justpen_browser_mcp.context_manager import ContextManager
+from justpen_browser_mcp.context_manager import ContextManager, assert_no_modal
 from justpen_browser_mcp.errors import (
     ContextAlreadyExistsError,
     ContextNotFoundError,
+    InvalidParamsError,
+    InvalidStateFileError,
+    ModalStateBlockedError,
 )
 
 
@@ -260,8 +264,6 @@ class TestContextManagerSetActivePage:
         assert ctx._active_page_index == 1
 
     async def test_set_active_page_out_of_range_raises(self):
-        from justpen_browser_mcp.errors import InvalidParamsError
-
         launcher, _, ctx = make_launcher_with_browser()
         ctx.pages = [MagicMock(), MagicMock()]
         mgr = ContextManager(launcher)
@@ -507,8 +509,6 @@ class TestContextManagerExportState:
         await mgr.export_state("admin", str(out_path))
 
         assert out_path.exists()
-        import json
-
         data = json.loads(out_path.read_text())
         assert data["cookies"] == [{"name": "session", "value": "abc"}]
 
@@ -671,8 +671,6 @@ class TestContextManagerLoadState:
         await mgr.create("admin")
         bad = tmp_path / "bad.json"
         bad.write_text("not json at all")
-        from justpen_browser_mcp.errors import InvalidStateFileError
-
         with pytest.raises(InvalidStateFileError):
             await mgr.load_state("admin", str(bad))
 
@@ -704,8 +702,6 @@ class TestContextManagerModalState:
         mgr = ContextManager(launcher)
         await mgr.create("admin")
         # Simulate a dialog appearing
-        from unittest.mock import MagicMock
-
         fake_dialog = MagicMock(type="confirm", message="Are you sure?")
         ctx._modal_states.append(
             {
@@ -728,8 +724,6 @@ class TestContextManagerModalState:
         launcher, _, ctx = make_launcher_with_browser()
         mgr = ContextManager(launcher)
         await mgr.create("admin")
-        from unittest.mock import MagicMock
-
         fake_dialog = MagicMock()
         ctx._modal_states.append(
             {
@@ -747,8 +741,6 @@ class TestContextManagerModalState:
         launcher, _, ctx = make_launcher_with_browser()
         mgr = ContextManager(launcher)
         await mgr.create("admin")
-        from unittest.mock import MagicMock
-
         ctx._modal_states.append(
             {
                 "kind": "filechooser",
@@ -770,8 +762,6 @@ class TestContextManagerModalState:
 
 class TestAssertNoModal:
     async def test_no_modals_passes(self):
-        from justpen_browser_mcp.context_manager import assert_no_modal
-
         launcher, _, _ = make_launcher_with_browser()
         mgr = ContextManager(launcher)
         await mgr.create("admin")
@@ -779,14 +769,9 @@ class TestAssertNoModal:
         assert_no_modal(mgr, "admin")
 
     async def test_dialog_pending_raises(self):
-        from justpen_browser_mcp.context_manager import assert_no_modal
-        from justpen_browser_mcp.errors import ModalStateBlockedError
-
         launcher, _, ctx = make_launcher_with_browser()
         mgr = ContextManager(launcher)
         await mgr.create("admin")
-        from unittest.mock import MagicMock
-
         fake_dialog = MagicMock(type="confirm", message="Are you sure?")
         ctx._modal_states.append(
             {
@@ -799,14 +784,9 @@ class TestAssertNoModal:
             assert_no_modal(mgr, "admin")
 
     async def test_filechooser_pending_raises(self):
-        from justpen_browser_mcp.context_manager import assert_no_modal
-        from justpen_browser_mcp.errors import ModalStateBlockedError
-
         launcher, _, ctx = make_launcher_with_browser()
         mgr = ContextManager(launcher)
         await mgr.create("admin")
-        from unittest.mock import MagicMock
-
         ctx._modal_states.append(
             {
                 "kind": "filechooser",

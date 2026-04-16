@@ -12,7 +12,12 @@ from pathlib import Path
 
 import pytest
 from camoufox.async_api import AsyncCamoufox
+from fastmcp import FastMCP
 from fastmcp.client import Client
+
+from justpen_browser_mcp.camoufox import CamoufoxLauncher
+from justpen_browser_mcp.context_manager import ContextManager
+from justpen_browser_mcp.tools import register_all
 
 
 @pytest.mark.e2e
@@ -57,12 +62,6 @@ async def test_full_server_lifecycle_with_real_browser():
     """Boot the MCP server, create a context, navigate, snapshot,
     destroy. Verify lazy launch + auto-shutdown work end-to-end.
     """
-    from fastmcp import FastMCP
-
-    from justpen_browser_mcp.camoufox import CamoufoxLauncher
-    from justpen_browser_mcp.context_manager import ContextManager
-    from justpen_browser_mcp.tools import register_all
-
     mcp = FastMCP("camoufox-mcp-e2e")
     launcher = CamoufoxLauncher(headless=True)
     ctx_mgr = ContextManager(launcher)
@@ -101,12 +100,6 @@ async def test_full_server_lifecycle_with_real_browser():
 async def test_storage_state_round_trip(tmp_path):
     """Create a context, set a cookie, export state, destroy, create a new
     context loading that state, verify the cookie is restored."""
-    from fastmcp import FastMCP
-
-    from justpen_browser_mcp.camoufox import CamoufoxLauncher
-    from justpen_browser_mcp.context_manager import ContextManager
-    from justpen_browser_mcp.tools import register_all
-
     mcp = FastMCP("camoufox-mcp-e2e-roundtrip")
     launcher = CamoufoxLauncher(headless=True)
     ctx_mgr = ContextManager(launcher)
@@ -169,12 +162,6 @@ async def test_concurrent_multi_context_operations():
     responses on the same stream). The intent — isolation between
     contexts — is still fully validated.
     """
-    from fastmcp import FastMCP
-
-    from justpen_browser_mcp.camoufox import CamoufoxLauncher
-    from justpen_browser_mcp.context_manager import ContextManager
-    from justpen_browser_mcp.tools import register_all
-
     mcp = FastMCP("camoufox-mcp-e2e-concurrent")
     launcher = CamoufoxLauncher(headless=True)
     ctx_mgr = ContextManager(launcher)
@@ -209,12 +196,6 @@ async def test_concurrent_multi_context_operations():
 async def test_relaunch_after_auto_shutdown():
     """Create a context, destroy it (auto-shutdown), then create a new
     context — verify the browser re-launches cleanly."""
-    from fastmcp import FastMCP
-
-    from justpen_browser_mcp.camoufox import CamoufoxLauncher
-    from justpen_browser_mcp.context_manager import ContextManager
-    from justpen_browser_mcp.tools import register_all
-
     mcp = FastMCP("camoufox-mcp-e2e-relaunch")
     launcher = CamoufoxLauncher(headless=True)
     ctx_mgr = ContextManager(launcher)
@@ -244,15 +225,6 @@ async def test_relaunch_after_auto_shutdown():
 async def test_generate_locator_with_real_snapshot():
     """End-to-end: take a real snapshot, extract a ref, call resolveSelector,
     verify the returned internal selector resolves back to the same element."""
-    import re
-
-    from fastmcp import FastMCP
-    from fastmcp.client import Client
-
-    from justpen_browser_mcp.camoufox import CamoufoxLauncher
-    from justpen_browser_mcp.context_manager import ContextManager
-    from justpen_browser_mcp.tools import register_all
-
     mcp = FastMCP("camoufox-mcp-e2e-generate-locator")
     launcher = CamoufoxLauncher(headless=True)
     ctx_mgr = ContextManager(launcher)
