@@ -23,7 +23,7 @@ _VALID_BUTTONS = {"left", "right", "middle"}
 _VALID_MODIFIERS = {"Alt", "Control", "ControlOrMeta", "Meta", "Shift"}
 
 
-def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_click(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
     async def browser_click(
@@ -81,6 +81,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             logger.exception("browser_click failed")
             return error_response(context, "internal_error", str(e))
 
+
+def _register_browser_type(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+
     @mcp.tool
     async def browser_type(
         context: str,
@@ -129,6 +132,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         except Exception as e:
             logger.exception("browser_type failed")
             return error_response(context, "internal_error", str(e))
+
+
+def _register_browser_fill_form(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
     async def browser_fill_form(context: str, fields: list[dict]) -> dict:
@@ -208,6 +214,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             logger.exception("browser_fill_form failed")
             return error_response(context, "internal_error", str(e))
 
+
+def _register_browser_select_option(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+
     @mcp.tool
     async def browser_select_option(context: str, ref: str, value: str | list[str]) -> dict:
         """Select an option in a <select> dropdown by its value attribute.
@@ -242,6 +251,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             logger.exception("browser_select_option failed")
             return error_response(context, "internal_error", str(e))
 
+
+def _register_browser_hover(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+
     @mcp.tool
     async def browser_hover(context: str, ref: str) -> dict:
         """Hover the mouse over an element identified by its accessibility ref.
@@ -271,6 +283,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         except Exception as e:
             logger.exception("browser_hover failed")
             return error_response(context, "internal_error", str(e))
+
+
+def _register_browser_drag(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
     async def browser_drag(context: str, source_ref: str, target_ref: str) -> dict:
@@ -304,6 +319,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             logger.exception("browser_drag failed")
             return error_response(context, "internal_error", str(e))
 
+
+def _register_browser_press_key(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+
     @mcp.tool
     async def browser_press_key(context: str, key: str) -> dict:
         """Press a keyboard key on the active page (sent to whatever has focus).
@@ -335,6 +353,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         except Exception as e:
             logger.exception("browser_press_key failed")
             return error_response(context, "internal_error", str(e))
+
+
+def _register_browser_file_upload(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
     async def browser_file_upload(context: str, paths: list[str] | None = None) -> dict:
@@ -385,6 +406,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         except Exception as e:
             logger.exception("browser_file_upload failed")
             return error_response(context, "internal_error", str(e))
+
+
+def _register_browser_handle_dialog(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
     async def browser_handle_dialog(context: str, *, accept: bool, prompt_text: str | None = None) -> dict:
@@ -441,3 +465,15 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         except Exception as e:
             logger.exception("browser_handle_dialog failed")
             return error_response(context, "internal_error", str(e))
+
+
+def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+    _register_browser_click(mcp, ctx_mgr)
+    _register_browser_type(mcp, ctx_mgr)
+    _register_browser_fill_form(mcp, ctx_mgr)
+    _register_browser_select_option(mcp, ctx_mgr)
+    _register_browser_hover(mcp, ctx_mgr)
+    _register_browser_drag(mcp, ctx_mgr)
+    _register_browser_press_key(mcp, ctx_mgr)
+    _register_browser_file_upload(mcp, ctx_mgr)
+    _register_browser_handle_dialog(mcp, ctx_mgr)
