@@ -1,6 +1,5 @@
 """Tests for tools/utility.py — 3 utility tools."""
 
-import re
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
