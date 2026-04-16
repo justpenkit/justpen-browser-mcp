@@ -53,7 +53,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
     async def browser_pdf_save(
         context: str,
         file_path: str | None = None,
-        format: str = "A4",
+        paper_format: str = "A4",
         *,
         landscape: bool = False,
         print_background: bool = False,
@@ -61,8 +61,8 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         """Render the active page as a PDF and save it to the given file path.
 
         file_path is optional — when omitted, a file named ``page-{timestamp}.pdf``
-        is written in the current working directory. format is a paper size
-        string: "A4" (default), "Letter", "A3", etc. landscape rotates the
+        is written in the current working directory. paper_format is a paper
+        size string: "A4" (default), "Letter", "A3", etc. landscape rotates the
         page to landscape orientation. print_background includes CSS
         backgrounds in the rendered output (off by default to match browser
         print behavior). Parent directories of file_path are created
@@ -83,7 +83,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             async with ctx_mgr.lock_for(context):
                 page = await ctx_mgr.active_page(context)
                 pdf_bytes = await page.pdf(
-                    format=format,
+                    format=paper_format,
                     landscape=landscape,
                     print_background=print_background,
                 )
