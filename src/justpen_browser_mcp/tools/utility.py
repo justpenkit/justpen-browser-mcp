@@ -167,6 +167,8 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                 "invalid_params",
                 "exactly one of 'ref' or 'selector' must be provided",
             )
+        if element:
+            logger.debug("browser_generate_locator: %s", element)
         try:
             await ctx_mgr.get(context)
             assert_no_modal(ctx_mgr, context)
