@@ -440,7 +440,7 @@ class ContextManager:
         return data
 
 
-def assert_no_modal(ctx_mgr: "ContextManager", context: str) -> None:
+def assert_no_modal(ctx_mgr: ContextManager, context: str) -> None:
     """Raise ModalStateBlockedError if any dialog or file-chooser is pending.
 
     Tool dispatch handlers call this BEFORE executing any Playwright action
