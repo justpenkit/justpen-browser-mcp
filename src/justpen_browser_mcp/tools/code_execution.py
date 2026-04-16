@@ -117,7 +117,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                 )
                 try:
                     namespace: dict = {}
-                    exec(wrapper, namespace)
+                    exec(wrapper, namespace)  # noqa: S102 — tool purpose: run agent-supplied Python against the browser
                     result = await namespace["_user_code"](page, ctx, ctx_mgr)
                 except Exception as e:
                     tb = traceback.format_exc()
