@@ -39,7 +39,7 @@ async def main() -> None:
             try:
                 await ctx_mgr.destroy(name)
             except Exception as e:
-                logging.warning(f"Error destroying context '{name}' on shutdown: {e}")
+                logging.warning("Error destroying context '%s' on shutdown: %s", name, e)
         await launcher.shutdown()
 
 
