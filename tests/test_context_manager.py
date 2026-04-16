@@ -595,7 +595,7 @@ class TestContextManagerLoadState:
         with pytest.raises(ContextNotFoundError):
             await mgr.load_state("nonexistent", str(state_file))
 
-    async def test_load_state_clears_localStorage_from_omitted_origin(self, tmp_path):
+    async def test_load_state_clears_local_storage_from_omitted_origin(self, tmp_path):
         launcher, _, ctx = make_launcher_with_browser()
         ctx.clear_cookies = AsyncMock()
         ctx.add_cookies = AsyncMock()
