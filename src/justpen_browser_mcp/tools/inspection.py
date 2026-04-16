@@ -80,7 +80,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             return error_response(context, "internal_error", str(e))
 
     @mcp.tool
-    async def browser_screenshot(context: str, format: str = "png", full_page: bool = False) -> dict:
+    async def browser_screenshot(context: str, format: str = "png", *, full_page: bool = False) -> dict:
         """Take a visual screenshot of the active page and return it as base64.
 
         format must be "png" (default, lossless) or "jpeg" (lossy, smaller).
@@ -203,7 +203,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             return error_response(context, "internal_error", str(e))
 
     @mcp.tool
-    async def browser_network_requests(context: str, filter: str | None = None, static: bool = False) -> dict:
+    async def browser_network_requests(context: str, filter: str | None = None, *, static: bool = False) -> dict:
         """Return all network requests collected since the context was created.
 
         Requests are captured by an event listener attached at context creation.

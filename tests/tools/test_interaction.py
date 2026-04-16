@@ -251,7 +251,7 @@ class TestBrowserFillForm:
             },
         )
         assert result.data["status"] == "success"
-        locator.set_checked.assert_awaited_once_with(False)
+        locator.set_checked.assert_awaited_once_with(checked=False)
 
     async def test_fill_form_checkbox_string_zero_unchecks(self, mcp_client, mock_ctx_mgr):
         _page, locator = make_page_with_locator(mock_ctx_mgr)
@@ -263,7 +263,7 @@ class TestBrowserFillForm:
             },
         )
         assert result.data["status"] == "success"
-        locator.set_checked.assert_awaited_once_with(False)
+        locator.set_checked.assert_awaited_once_with(checked=False)
 
     async def test_fill_form_checkbox_string_true_checks(self, mcp_client, mock_ctx_mgr):
         _page, locator = make_page_with_locator(mock_ctx_mgr)
@@ -275,7 +275,7 @@ class TestBrowserFillForm:
             },
         )
         assert result.data["status"] == "success"
-        locator.set_checked.assert_awaited_once_with(True)
+        locator.set_checked.assert_awaited_once_with(checked=True)
 
     async def test_fill_form_checkbox_real_bool(self, mcp_client, mock_ctx_mgr):
         _page, locator = make_page_with_locator(mock_ctx_mgr)
@@ -287,7 +287,7 @@ class TestBrowserFillForm:
             },
         )
         assert result.data["status"] == "success"
-        locator.set_checked.assert_awaited_once_with(False)
+        locator.set_checked.assert_awaited_once_with(checked=False)
 
     async def test_fill_form_checkbox_invalid_value(self, mcp_client, mock_ctx_mgr):
         _page, locator = make_page_with_locator(mock_ctx_mgr)
@@ -311,7 +311,7 @@ class TestBrowserFillForm:
             },
         )
         assert result.data["status"] == "success"
-        locator.set_checked.assert_awaited_once_with(False)
+        locator.set_checked.assert_awaited_once_with(checked=False)
 
 
 class TestBrowserSelectOption:

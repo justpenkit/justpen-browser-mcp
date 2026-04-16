@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 class CamoufoxLauncher:
     """Lazy, idempotent launcher for the single Camoufox browser instance."""
 
-    def __init__(self, headless: bool = True) -> None:
+    def __init__(self, *, headless: bool = True) -> None:
         self._headless = headless
         self._browser: Browser | None = None
         self._cm: AsyncCamoufox | None = None

@@ -29,6 +29,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
     async def browser_click(
         context: str,
         ref: str,
+        *,
         double_click: bool = False,
         button: str = "left",
         modifiers: list[str] | None = None,
@@ -85,6 +86,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         context: str,
         ref: str,
         text: str,
+        *,
         clear_first: bool = True,
         submit: bool = False,
     ) -> dict:
@@ -190,7 +192,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     if type_ == "textbox":
                         await locator.fill(str(value))
                     elif type_ in ("checkbox", "radio"):
-                        await locator.set_checked(coerce_bool(value))
+                        await locator.set_checked(checked=coerce_bool(value))
                     elif type_ == "combobox":
                         await locator.select_option(str(value))
                     else:
@@ -386,7 +388,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             return error_response(context, "internal_error", str(e))
 
     @mcp.tool
-    async def browser_handle_dialog(context: str, accept: bool, prompt_text: str | None = None) -> dict:
+    async def browser_handle_dialog(context: str, *, accept: bool, prompt_text: str | None = None) -> dict:
         """Resolve a pending JavaScript dialog (alert/confirm/prompt).
 
         Consumes a pending dialog captured by the modal-state listener. The
