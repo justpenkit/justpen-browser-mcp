@@ -3,6 +3,7 @@
 browser_navigate, browser_navigate_back, browser_wait_for.
 """
 
+import contextlib
 import logging
 
 from fastmcp import FastMCP
@@ -107,10 +108,8 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                             },
                         )
                     raise NavigationFailedError(str(e)) from e
-                try:
+                with contextlib.suppress(PWTimeout):
                     await page.wait_for_load_state("load", timeout=5000)
-                except PWTimeout:
-                    pass
                 return success_response(
                     context,
                     data={"url": page.url, "title": await page.title()},

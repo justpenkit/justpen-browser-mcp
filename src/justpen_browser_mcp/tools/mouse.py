@@ -1,5 +1,6 @@
 """Mouse positional tools — 6 tools."""
 
+import contextlib
 import logging
 
 from fastmcp import FastMCP
@@ -47,10 +48,8 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             async with ctx_mgr.lock_for(context):
                 page = await ctx_mgr.active_page(context)
                 await page.mouse.click(x, y, button=button, click_count=click_count, delay=delay_ms)
-                try:
+                with contextlib.suppress(PWTimeout):
                     await page.wait_for_load_state("domcontentloaded", timeout=2000)
-                except PWTimeout:
-                    pass
             return success_response(context, data={"clicked_at": [x, y], "button": button})
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))
@@ -170,10 +169,8 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                 await page.mouse.down()
                 await page.mouse.move(to_x, to_y)
                 await page.mouse.up()
-                try:
+                with contextlib.suppress(PWTimeout):
                     await page.wait_for_load_state("domcontentloaded", timeout=2000)
-                except PWTimeout:
-                    pass
             return success_response(context, data={"from": [from_x, from_y], "to": [to_x, to_y]})
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))

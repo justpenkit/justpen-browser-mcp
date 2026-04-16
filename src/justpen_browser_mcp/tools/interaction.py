@@ -5,6 +5,7 @@ browser_hover, browser_drag, browser_press_key, browser_file_upload,
 browser_handle_dialog.
 """
 
+import contextlib
 import logging
 
 from fastmcp import FastMCP
@@ -118,10 +119,8 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     await locator.type(text)
                 if submit:
                     await locator.press("Enter")
-                    try:
+                    with contextlib.suppress(PWTimeout):
                         await page.wait_for_load_state("domcontentloaded", timeout=2000)
-                    except PWTimeout:
-                        pass
             return success_response(context, data={"typed_into": ref})
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))
@@ -326,10 +325,8 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                 page = await ctx_mgr.active_page(context)
                 await page.keyboard.press(key)
                 if key.lower() == "enter":
-                    try:
+                    with contextlib.suppress(PWTimeout):
                         await page.wait_for_load_state("domcontentloaded", timeout=2000)
-                    except PWTimeout:
-                        pass
             return success_response(context, data={"pressed": key})
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))
@@ -428,10 +425,8 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                 else:
                     await dialog.dismiss()
                 # Best-effort page stabilization after dialog resolution.
-                try:
+                with contextlib.suppress(Exception):
                     await page.wait_for_load_state("domcontentloaded", timeout=1000)
-                except Exception:
-                    pass
             return success_response(
                 context,
                 data={
