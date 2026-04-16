@@ -47,6 +47,25 @@ async def _resolve_ref_in_any_frame(page: Page, ref: str) -> Locator:
     )
 
 
+def _validate_list_visible_params(
+    refs: list[str] | None,
+    container_ref: str | None,
+    items: list[str] | None,
+) -> str | None:
+    """Return an error message string if mode params are invalid, else None."""
+    has_refs = refs is not None
+    has_container = container_ref is not None or items is not None
+    if has_refs and has_container:
+        return "refs and container_ref/items are mutually exclusive"
+    if not has_refs and not has_container:
+        return "must supply either refs or container_ref+items"
+    if has_container and (container_ref is None or not items):
+        return "container_ref mode requires both container_ref and items"
+    if has_refs and len(refs) == 0:
+        return "refs must not be empty"
+    return None
+
+
 async def _verify_refs_visible(page: Page, refs: list[str]) -> list[str]:
     """Return list of refs that are not visible (empty on full success)."""
     missing: list[str] = []
@@ -142,16 +161,9 @@ def _register_browser_verify_list_visible(mcp: FastMCP, ctx_mgr: ContextManager)
 
         Useful for post-action assertions (e.g. verify all rows of a list).
         """
-        has_refs = refs is not None
-        has_container = container_ref is not None or items is not None
-        if has_refs and has_container:
-            return error_response(context, "invalid_params", "refs and container_ref/items are mutually exclusive")
-        if not has_refs and not has_container:
-            return error_response(context, "invalid_params", "must supply either refs or container_ref+items")
-        if has_container and (container_ref is None or not items):
-            return error_response(context, "invalid_params", "container_ref mode requires both container_ref and items")
-        if has_refs and len(refs) == 0:
-            return error_response(context, "invalid_params", "refs must not be empty")
+        validation_error = _validate_list_visible_params(refs, container_ref, items)
+        if validation_error is not None:
+            return error_response(context, "invalid_params", validation_error)
 
         try:
             await ctx_mgr.get(context)
@@ -159,7 +171,7 @@ def _register_browser_verify_list_visible(mcp: FastMCP, ctx_mgr: ContextManager)
                 assert_no_modal(ctx_mgr, context)
                 page = await ctx_mgr.active_page(context)
 
-                if has_refs:
+                if refs is not None:
                     missing = await _verify_refs_visible(page, refs)
                     if missing:
                         return error_response(
