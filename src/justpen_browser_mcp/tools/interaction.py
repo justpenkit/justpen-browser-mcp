@@ -9,7 +9,7 @@ import contextlib
 import logging
 
 from fastmcp import FastMCP
-from playwright.async_api import TimeoutError as PWTimeout
+from playwright.async_api import Page, TimeoutError as PWTimeout
 
 from ..coercion import coerce_bool
 from ..context_manager import ContextManager, assert_no_modal
@@ -134,6 +134,28 @@ def _register_browser_type(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             return error_response(context, "internal_error", str(e))
 
 
+async def _fill_form_field(page: Page, field: dict) -> str | None:
+    """Fill one form field; return None on success or an error message on validation failure."""
+    if not isinstance(field, dict):
+        return f"field must be a dict, got {type(field).__name__}"
+    if "ref" not in field:
+        return "field is missing required 'ref' key"
+    if "value" not in field:
+        return "field is missing required 'value' key"
+    type_ = field.get("type", "textbox")
+    locator = await resolve_ref(page, field["ref"])
+    value = field["value"]
+    if type_ == "textbox":
+        await locator.fill(str(value))
+    elif type_ in ("checkbox", "radio"):
+        await locator.set_checked(checked=coerce_bool(value))
+    elif type_ == "combobox":
+        await locator.select_option(str(value))
+    else:
+        return f"unknown field type: {type_!r}"
+    return None
+
+
 def _register_browser_fill_form(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
@@ -174,39 +196,9 @@ def _register_browser_fill_form(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             async with ctx_mgr.lock_for(context):
                 page = await ctx_mgr.active_page(context)
                 for field in fields:
-                    if not isinstance(field, dict):
-                        return error_response(
-                            context,
-                            "invalid_params",
-                            f"field must be a dict, got {type(field).__name__}",
-                        )
-                    if "ref" not in field:
-                        return error_response(
-                            context,
-                            "invalid_params",
-                            "field is missing required 'ref' key",
-                        )
-                    if "value" not in field:
-                        return error_response(
-                            context,
-                            "invalid_params",
-                            "field is missing required 'value' key",
-                        )
-                    type_ = field.get("type", "textbox")
-                    locator = await resolve_ref(page, field["ref"])
-                    value = field["value"]
-                    if type_ == "textbox":
-                        await locator.fill(str(value))
-                    elif type_ in ("checkbox", "radio"):
-                        await locator.set_checked(checked=coerce_bool(value))
-                    elif type_ == "combobox":
-                        await locator.select_option(str(value))
-                    else:
-                        return error_response(
-                            context,
-                            "invalid_params",
-                            f"unknown field type: {type_!r}",
-                        )
+                    error = await _fill_form_field(page, field)
+                    if error is not None:
+                        return error_response(context, "invalid_params", error)
             return success_response(context, data={"filled_count": len(fields)})
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))
