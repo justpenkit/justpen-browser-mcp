@@ -124,24 +124,22 @@ class TestBrowserScreenshot:
 
 class TestBrowserConsoleMessages:
     async def test_returns_collected_messages(self, mcp_client, mock_ctx_mgr):
-        ctx = MagicMock()
-        ctx._console_messages = [
+        mock_ctx_mgr.state.return_value.console_messages = [
             {"type": "log", "text": "hello", "location": None},
             {"type": "error", "text": "boom", "location": "app.js:1:2"},
         ]
-        mock_ctx_mgr.get.return_value = ctx
+        mock_ctx_mgr.get.return_value = MagicMock()
         result = await mcp_client.call_tool("browser_console_messages", {"context": "admin"})
         assert result.data["status"] == "success"
         assert len(result.data["data"]["messages"]) == 2
 
     async def test_level_filter(self, mcp_client, mock_ctx_mgr):
-        ctx = MagicMock()
-        ctx._console_messages = [
+        mock_ctx_mgr.state.return_value.console_messages = [
             {"type": "log", "text": "a", "location": None},
             {"type": "error", "text": "b", "location": None},
             {"type": "warning", "text": "c", "location": None},
         ]
-        mock_ctx_mgr.get.return_value = ctx
+        mock_ctx_mgr.get.return_value = MagicMock()
         result = await mcp_client.call_tool("browser_console_messages", {"context": "admin", "level": "error"})
         assert result.data["status"] == "success"
         messages = result.data["data"]["messages"]
@@ -149,27 +147,24 @@ class TestBrowserConsoleMessages:
         assert messages[0]["type"] == "error"
 
     async def test_invalid_level(self, mcp_client, mock_ctx_mgr):
-        ctx = MagicMock()
-        ctx._console_messages = []
-        mock_ctx_mgr.get.return_value = ctx
+        mock_ctx_mgr.state.return_value.console_messages = []
+        mock_ctx_mgr.get.return_value = MagicMock()
         result = await mcp_client.call_tool("browser_console_messages", {"context": "admin", "level": "bogus"})
         assert result.data["error_type"] == "invalid_params"
 
     async def test_no_filter_returns_all(self, mcp_client, mock_ctx_mgr):
-        ctx = MagicMock()
-        ctx._console_messages = [
+        mock_ctx_mgr.state.return_value.console_messages = [
             {"type": "log", "text": "a", "location": None},
             {"type": "error", "text": "b", "location": None},
         ]
-        mock_ctx_mgr.get.return_value = ctx
+        mock_ctx_mgr.get.return_value = MagicMock()
         result = await mcp_client.call_tool("browser_console_messages", {"context": "admin"})
         assert len(result.data["data"]["messages"]) == 2
 
 
 class TestBrowserNetworkRequests:
     async def test_returns_collected_requests(self, mcp_client, mock_ctx_mgr):
-        ctx = MagicMock()
-        ctx._network_requests = [
+        mock_ctx_mgr.state.return_value.network_requests = [
             {
                 "url": "https://x.com/api",
                 "method": "GET",
@@ -178,14 +173,13 @@ class TestBrowserNetworkRequests:
                 "failure": None,
             },
         ]
-        mock_ctx_mgr.get.return_value = ctx
+        mock_ctx_mgr.get.return_value = MagicMock()
         result = await mcp_client.call_tool("browser_network_requests", {"context": "admin"})
         assert result.data["status"] == "success"
         assert len(result.data["data"]["requests"]) == 1
 
     async def test_static_filter_default(self, mcp_client, mock_ctx_mgr):
-        ctx = MagicMock()
-        ctx._network_requests = [
+        mock_ctx_mgr.state.return_value.network_requests = [
             {
                 "url": "https://x.com/logo.png",
                 "method": "GET",
@@ -201,15 +195,14 @@ class TestBrowserNetworkRequests:
                 "failure": None,
             },
         ]
-        mock_ctx_mgr.get.return_value = ctx
+        mock_ctx_mgr.get.return_value = MagicMock()
         result = await mcp_client.call_tool("browser_network_requests", {"context": "admin"})
         reqs = result.data["data"]["requests"]
         assert len(reqs) == 1
         assert reqs[0]["resource_type"] == "fetch"
 
     async def test_static_true_returns_all(self, mcp_client, mock_ctx_mgr):
-        ctx = MagicMock()
-        ctx._network_requests = [
+        mock_ctx_mgr.state.return_value.network_requests = [
             {
                 "url": "https://x.com/logo.png",
                 "method": "GET",
@@ -225,14 +218,13 @@ class TestBrowserNetworkRequests:
                 "failure": None,
             },
         ]
-        mock_ctx_mgr.get.return_value = ctx
+        mock_ctx_mgr.get.return_value = MagicMock()
         result = await mcp_client.call_tool("browser_network_requests", {"context": "admin", "static": True})
         reqs = result.data["data"]["requests"]
         assert len(reqs) == 2
 
     async def test_url_regex_filter(self, mcp_client, mock_ctx_mgr):
-        ctx = MagicMock()
-        ctx._network_requests = [
+        mock_ctx_mgr.state.return_value.network_requests = [
             {
                 "url": "https://x.com/api/users",
                 "method": "GET",
@@ -248,7 +240,7 @@ class TestBrowserNetworkRequests:
                 "failure": None,
             },
         ]
-        mock_ctx_mgr.get.return_value = ctx
+        mock_ctx_mgr.get.return_value = MagicMock()
         result = await mcp_client.call_tool(
             "browser_network_requests",
             {"context": "admin", "url_filter": "api/users"},
@@ -258,15 +250,13 @@ class TestBrowserNetworkRequests:
         assert "api/users" in reqs[0]["url"]
 
     async def test_invalid_regex(self, mcp_client, mock_ctx_mgr):
-        ctx = MagicMock()
-        ctx._network_requests = []
-        mock_ctx_mgr.get.return_value = ctx
+        mock_ctx_mgr.state.return_value.network_requests = []
+        mock_ctx_mgr.get.return_value = MagicMock()
         result = await mcp_client.call_tool("browser_network_requests", {"context": "admin", "url_filter": "["})
         assert result.data["error_type"] == "invalid_params"
 
     async def test_network_requests_strips_internal_id(self, mcp_client, mock_ctx_mgr):
-        ctx = MagicMock()
-        ctx._network_requests = [
+        mock_ctx_mgr.state.return_value.network_requests = [
             {
                 "_id": 12345,
                 "url": "https://x.com/api",
@@ -276,7 +266,7 @@ class TestBrowserNetworkRequests:
                 "failure": None,
             }
         ]
-        mock_ctx_mgr.get.return_value = ctx
+        mock_ctx_mgr.get.return_value = MagicMock()
         result = await mcp_client.call_tool("browser_network_requests", {"context": "admin"})
         reqs = result.data["data"]["requests"]
         assert len(reqs) == 1

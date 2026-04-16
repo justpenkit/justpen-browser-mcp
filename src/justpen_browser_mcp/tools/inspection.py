@@ -191,8 +191,8 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                 f"level must be one of {sorted(_VALID_CONSOLE_LEVELS)}, got {level!r}",
             )
         try:
-            ctx = await ctx_mgr.get(context)
-            messages = list(getattr(ctx, "_console_messages", []))
+            await ctx_mgr.get(context)
+            messages = list(ctx_mgr.state(context).console_messages)
             if level is not None:
                 messages = [m for m in messages if m.get("type") == level]
             return success_response(context, data={"messages": messages})
@@ -248,8 +248,8 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     f"url_filter is not a valid regular expression: {e}",
                 )
         try:
-            ctx = await ctx_mgr.get(context)
-            requests = list(getattr(ctx, "_network_requests", []))
+            await ctx_mgr.get(context)
+            requests = list(ctx_mgr.state(context).network_requests)
             if not static:
                 requests = [r for r in requests if r.get("resource_type") not in _STATIC_RESOURCE_TYPES]
             if compiled is not None:

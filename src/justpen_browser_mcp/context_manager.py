@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -36,6 +37,18 @@ if TYPE_CHECKING:
     )
 
     from .camoufox import CamoufoxLauncher
+
+
+@dataclass
+class ContextState:
+    """Per-context bookkeeping owned by ContextManager (not stashed on Playwright's BrowserContext)."""
+
+    console_messages: list[dict] = field(default_factory=list)
+    network_requests: list[dict] = field(default_factory=list)
+    network_request_index: dict[int, dict] = field(default_factory=dict)
+    active_page_index: int = 0
+    modal_states: list[dict] = field(default_factory=list)
+
 
 from .errors import (
     ContextAlreadyExistsError,
@@ -74,8 +87,23 @@ class ContextManager:
     def __init__(self, launcher: CamoufoxLauncher) -> None:
         self._launcher = launcher
         self._contexts: dict[str, BrowserContext] = {}
+        self._state: dict[str, ContextState] = {}
         self._locks: dict[str, asyncio.Lock] = {}
         self._registry_lock = asyncio.Lock()
+
+    def state(self, name: str) -> ContextState:
+        """Return the ContextState for a named context.
+
+        Raises ContextNotFoundError if the context does not exist.
+        """
+        cs = self._state.get(name)
+        if cs is None:
+            raise ContextNotFoundError(f"Context '{name}' does not exist.")
+        return cs
+
+    def list_names(self) -> list[str]:
+        """Return the names of all active contexts."""
+        return list(self._contexts.keys())
 
     async def create(self, name: str, state_path: str | None = None) -> BrowserContext:
         """Create a new BrowserContext, optionally pre-loading storage_state."""
@@ -91,16 +119,12 @@ class ContextManager:
 
             ctx = await browser.new_context(**kwargs)
 
-            ctx._console_messages = []
-            ctx._network_requests = []
-            ctx._network_request_index = {}
-            ctx._active_page_index = 0
-            ctx._modal_states = []
-
-            self._wire_event_listeners(ctx)
-            self._wire_modal_listeners(ctx)
+            state = ContextState()
+            self._wire_event_listeners(ctx, state)
+            self._wire_modal_listeners(ctx, state)
 
             self._contexts[name] = ctx
+            self._state[name] = state
             self._locks[name] = asyncio.Lock()
             if state_path:
                 logger.info("Created context %r with state from %s", name, state_path)
@@ -108,7 +132,7 @@ class ContextManager:
                 logger.info("Created context %r", name)
             return ctx
 
-    def _wire_event_listeners(self, ctx: BrowserContext) -> None:
+    def _wire_event_listeners(self, ctx: BrowserContext, state: ContextState) -> None:
         """Attach console, pageerror, and network listeners to all current and future pages."""
 
         def _on_request(req: Request) -> None:
@@ -120,23 +144,23 @@ class ContextManager:
                 "resource_type": req.resource_type,
                 "failure": None,
             }
-            ctx._network_requests.append(entry)
-            ctx._network_request_index[id(req)] = entry
+            state.network_requests.append(entry)
+            state.network_request_index[id(req)] = entry
 
         def _on_response(response: Response) -> None:
-            entry = ctx._network_request_index.get(id(response.request))
+            entry = state.network_request_index.get(id(response.request))
             if entry is not None:
                 entry["status"] = response.status
 
         def _on_requestfailed(request: Request) -> None:
-            entry = ctx._network_request_index.get(id(request))
+            entry = state.network_request_index.get(id(request))
             if entry is not None:
                 entry["failure"] = request.failure or "unknown"
 
         def _attach(page: Page) -> None:
             page.on(
                 "console",
-                lambda msg: ctx._console_messages.append(
+                lambda msg: state.console_messages.append(
                     {
                         "type": msg.type,
                         "text": msg.text,
@@ -146,7 +170,7 @@ class ContextManager:
             )
             page.on(
                 "pageerror",
-                lambda exc: ctx._console_messages.append(
+                lambda exc: state.console_messages.append(
                     {
                         "type": "error",
                         "text": str(exc),
@@ -162,19 +186,19 @@ class ContextManager:
         for existing_page in ctx.pages:
             _attach(existing_page)
 
-    def _wire_modal_listeners(self, ctx: BrowserContext) -> None:
+    def _wire_modal_listeners(self, ctx: BrowserContext, state: ContextState) -> None:
         """Attach dialog + file-chooser listeners so tools can handle or refuse modals.
 
         Modal tracking (CC-1, CC-2, CC-3 from 2026-04-08 audit) routes each
-        dialog/filechooser into ctx._modal_states; assert_no_modal checks that
+        dialog/filechooser into state.modal_states; assert_no_modal checks that
         list, and browser_handle_dialog / browser_file_upload consume entries.
         """
 
         def _on_dialog(page: Page, dialog: Dialog) -> None:
-            ctx._modal_states.append({"kind": "dialog", "object": dialog, "page": page})
+            state.modal_states.append({"kind": "dialog", "object": dialog, "page": page})
 
         def _on_filechooser(page: Page, file_chooser: FileChooser) -> None:
-            ctx._modal_states.append({"kind": "filechooser", "object": file_chooser, "page": page})
+            state.modal_states.append({"kind": "filechooser", "object": file_chooser, "page": page})
 
         def _attach(page: Page) -> None:
             page.on("dialog", lambda dialog: _on_dialog(page, dialog))
@@ -216,6 +240,7 @@ class ContextManager:
             async with per_context_lock:
                 await self._contexts[name].close()
                 del self._contexts[name]
+                del self._state[name]
                 del self._locks[name]
             logger.info("Destroyed context %r", name)
 
@@ -241,8 +266,9 @@ class ContextManager:
                 # Context was destroyed concurrently; skip it.
                 continue
             pages = ctx.pages
-            if pages:
-                idx = getattr(ctx, "_active_page_index", 0)
+            cstate = self._state.get(name)
+            if pages and cstate is not None:
+                idx = cstate.active_page_index
                 if idx < 0 or idx >= len(pages):
                     idx = 0
                 active_url = pages[idx].url
@@ -261,19 +287,20 @@ class ContextManager:
     async def active_page(self, name: str) -> Page:
         """Return the active page for a context, creating one if none exist.
 
-        Honors the per-context ``_active_page_index`` set by browser_tabs
+        Honors the per-context ``active_page_index`` set by browser_tabs
         (select/new/close). If the stored index is out of range, it is
         clamped to 0 so subsequent calls remain consistent.
         """
         ctx = await self.get(name)
+        cstate = self.state(name)
         if not ctx.pages:
             page = await ctx.new_page()
-            ctx._active_page_index = 0
+            cstate.active_page_index = 0
             return page
-        idx = getattr(ctx, "_active_page_index", 0)
+        idx = cstate.active_page_index
         if idx < 0 or idx >= len(ctx.pages):
             idx = 0
-            ctx._active_page_index = 0
+            cstate.active_page_index = 0
         return ctx.pages[idx]
 
     def set_active_page(self, name: str, index: int) -> None:
@@ -288,7 +315,7 @@ class ContextManager:
             raise ContextNotFoundError(f"Context '{name}' does not exist.")
         if index < 0 or index >= len(ctx.pages):
             raise InvalidParamsError(f"tab index {index} out of range (have {len(ctx.pages)} pages)")
-        ctx._active_page_index = index
+        self._state[name].active_page_index = index
 
     async def export_state(self, name: str, state_path: str) -> None:
         """Dump the context's current cookies + localStorage to a JSON file.
@@ -446,10 +473,10 @@ class ContextManager:
         Empty list means no modals are pending. Entries whose page has
         closed are pruned automatically so they cannot block future tools.
         """
-        ctx = self._contexts.get(name)
-        if ctx is None:
+        cstate = self._state.get(name)
+        if cstate is None:
             raise ContextNotFoundError(f"Context '{name}' does not exist.")
-        states = getattr(ctx, "_modal_states", [])
+        states = cstate.modal_states
         # Prune entries from closed pages so stale modals don't block tools.
         states[:] = [s for s in states if not s["page"].is_closed()]
         return list(states)
@@ -461,10 +488,10 @@ class ContextManager:
         (kind='filechooser') to retrieve and acknowledge the pending modal.
         Returns None if no modal of that kind is pending.
         """
-        ctx = self._contexts.get(name)
-        if ctx is None:
+        cstate = self._state.get(name)
+        if cstate is None:
             raise ContextNotFoundError(f"Context '{name}' does not exist.")
-        states = getattr(ctx, "_modal_states", [])
+        states = cstate.modal_states
         for i, state in enumerate(states):
             if state["kind"] == kind:
                 return states.pop(i)

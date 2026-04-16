@@ -11,7 +11,7 @@ class TestBrowserClose:
         page.close = AsyncMock()
         ctx = MagicMock()
         ctx.pages = [page]
-        ctx._active_page_index = 0
+        mock_ctx_mgr.state.return_value.active_page_index = 0
         mock_ctx_mgr.get.return_value = ctx
         mock_ctx_mgr.active_page.return_value = page
 

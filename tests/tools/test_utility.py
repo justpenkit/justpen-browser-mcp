@@ -127,7 +127,7 @@ class TestBrowserTabs:
         page1 = MagicMock(bring_to_front=AsyncMock(), url="https://b")
         ctx = MagicMock()
         ctx.pages = [page0, page1]
-        ctx._active_page_index = 0
+        mock_ctx_mgr.state.return_value.active_page_index = 0
         mock_ctx_mgr.get.return_value = ctx
         mock_ctx_mgr.set_active_page = MagicMock()
 
@@ -151,7 +151,7 @@ class TestBrowserTabs:
         page1.close.side_effect = close_page1
         ctx = MagicMock()
         ctx.pages = pages
-        ctx._active_page_index = 1
+        mock_ctx_mgr.state.return_value.active_page_index = 1
         mock_ctx_mgr.get.return_value = ctx
 
         result = await mcp_client.call_tool(
@@ -159,7 +159,7 @@ class TestBrowserTabs:
             {"context": "admin", "action": "close", "index": 1},
         )
         assert result.data["status"] == "success"
-        assert ctx._active_page_index == 0
+        assert mock_ctx_mgr.state.return_value.active_page_index == 0
 
     async def test_tabs_close_lower_decrements(self, mcp_client, mock_ctx_mgr):
         make_page(mock_ctx_mgr)
@@ -174,7 +174,7 @@ class TestBrowserTabs:
         page0.close.side_effect = close_page0
         ctx = MagicMock()
         ctx.pages = pages
-        ctx._active_page_index = 2
+        mock_ctx_mgr.state.return_value.active_page_index = 2
         mock_ctx_mgr.get.return_value = ctx
 
         result = await mcp_client.call_tool(
@@ -182,13 +182,13 @@ class TestBrowserTabs:
             {"context": "admin", "action": "close", "index": 0},
         )
         assert result.data["status"] == "success"
-        assert ctx._active_page_index == 1
+        assert mock_ctx_mgr.state.return_value.active_page_index == 1
 
     async def test_tabs_close_negative_index_invalid(self, mcp_client, mock_ctx_mgr):
         make_page(mock_ctx_mgr)
         ctx = MagicMock()
         ctx.pages = [MagicMock(close=AsyncMock())]
-        ctx._active_page_index = 0
+        mock_ctx_mgr.state.return_value.active_page_index = 0
         mock_ctx_mgr.get.return_value = ctx
         result = await mcp_client.call_tool(
             "browser_tabs",
@@ -200,7 +200,7 @@ class TestBrowserTabs:
         make_page(mock_ctx_mgr)
         ctx = MagicMock()
         ctx.pages = [MagicMock(bring_to_front=AsyncMock())]
-        ctx._active_page_index = 0
+        mock_ctx_mgr.state.return_value.active_page_index = 0
         mock_ctx_mgr.get.return_value = ctx
         result = await mcp_client.call_tool(
             "browser_tabs",
@@ -224,7 +224,7 @@ class TestBrowserTabs:
 
         ctx = MagicMock()
         ctx.pages = pages
-        ctx._active_page_index = 0
+        mock_ctx_mgr.state.return_value.active_page_index = 0
         ctx.new_page = AsyncMock(side_effect=add_page)
         mock_ctx_mgr.get.return_value = ctx
 
@@ -233,7 +233,7 @@ class TestBrowserTabs:
             {"context": "admin", "action": "new", "url": "https://new.example"},
         )
         assert result.data["status"] == "success"
-        assert ctx._active_page_index == 1
+        assert mock_ctx_mgr.state.return_value.active_page_index == 1
 
 
 class TestBrowserGenerateLocator:

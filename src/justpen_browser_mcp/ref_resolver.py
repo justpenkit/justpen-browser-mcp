@@ -40,7 +40,7 @@ async def capture_snapshot(page: Page) -> str:
     because the high-level Python API does not expose it.
     See https://github.com/microsoft/playwright-python/issues/2867
     """
-    return await page._impl_obj._channel.send(
+    return await page._impl_obj._channel.send(  # noqa: SLF001 — playwright has no public API for snapshotForAI; see github.com/microsoft/playwright-python/issues/2867
         "snapshotForAI",
         None,
         {"timeout": SNAPSHOT_TIMEOUT_MS},
@@ -166,7 +166,7 @@ async def resolve_selector_to_stable(page: Page, ref: str) -> dict:
     Raises StaleRefError if the ref is not found in the current page state.
     """
     try:
-        internal = await page._impl_obj.main_frame._channel.send(
+        internal = await page._impl_obj.main_frame._channel.send(  # noqa: SLF001 — playwright has no public API for resolveSelector; see github.com/microsoft/playwright-python/issues/2867
             "resolveSelector",
             None,
             {"selector": f"aria-ref={ref}"},

@@ -39,13 +39,13 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager, launcher: CamoufoxLauncher) 
         """
         try:
             running = launcher.is_running()
-            contexts = ctx_mgr._contexts
+            names = ctx_mgr.list_names()
             return success_response(
                 context=None,
                 data={
                     "browser_running": running,
-                    "active_context_count": len(contexts),
-                    "active_contexts": [{"context": name} for name in contexts],
+                    "active_context_count": len(names),
+                    "active_contexts": [{"context": name} for name in names],
                 },
             )
         except Exception as e:
