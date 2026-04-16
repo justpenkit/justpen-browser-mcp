@@ -32,7 +32,7 @@ def _verify_origin(page_url: str, requested_origin: str) -> None:
         )
 
 
-def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_get_cookies(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
     async def browser_get_cookies(
@@ -70,6 +70,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             return error_response(context, e.error_type, str(e))
         except (PlaywrightError, OSError, RuntimeError, ValueError, TypeError) as e:
             return error_response(context, "internal_error", str(e))
+
+
+def _register_browser_set_cookies(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
     async def browser_set_cookies(context: str, cookies: list[dict]) -> dict:
@@ -126,6 +129,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         except (PlaywrightError, OSError, RuntimeError, ValueError, TypeError) as e:
             return error_response(context, "internal_error", str(e))
 
+
+def _register_browser_clear_cookies(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+
     @mcp.tool
     async def browser_clear_cookies(context: str) -> dict:
         """Remove all cookies from the context.
@@ -149,6 +155,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             return error_response(context, e.error_type, str(e))
         except (PlaywrightError, OSError, RuntimeError, ValueError, TypeError) as e:
             return error_response(context, "internal_error", str(e))
+
+
+def _register_browser_get_local_storage(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
     async def browser_get_local_storage(
@@ -202,6 +211,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             logger.exception("browser_get_local_storage failed")
             return error_response(context, "internal_error", str(e))
 
+
+def _register_browser_set_local_storage(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+
     @mcp.tool
     async def browser_set_local_storage(context: str, origin: str, items: dict[str, str]) -> dict:
         """Set localStorage key-value pairs for the given origin.
@@ -239,6 +251,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         except Exception as e:
             logger.exception("browser_set_local_storage failed")
             return error_response(context, "internal_error", str(e))
+
+
+def _register_browser_clear_local_storage(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
     async def browser_clear_local_storage(
@@ -283,3 +298,12 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         except Exception as e:
             logger.exception("browser_clear_local_storage failed")
             return error_response(context, "internal_error", str(e))
+
+
+def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+    _register_browser_get_cookies(mcp, ctx_mgr)
+    _register_browser_set_cookies(mcp, ctx_mgr)
+    _register_browser_clear_cookies(mcp, ctx_mgr)
+    _register_browser_get_local_storage(mcp, ctx_mgr)
+    _register_browser_set_local_storage(mcp, ctx_mgr)
+    _register_browser_clear_local_storage(mcp, ctx_mgr)

@@ -13,7 +13,7 @@ from ..responses import error_response, success_response
 logger = logging.getLogger(__name__)
 
 
-def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_mouse_click_xy(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
     async def browser_mouse_click_xy(
@@ -57,6 +57,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             logger.exception("browser_mouse_click_xy failed")
             return error_response(context, "internal_error", str(e))
 
+
+def _register_browser_mouse_move_xy(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+
     @mcp.tool
     async def browser_mouse_move_xy(context: str, x: int, y: int) -> dict:
         """Move the mouse cursor to an absolute pixel position without clicking.
@@ -87,6 +90,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             logger.exception("browser_mouse_move_xy failed")
             return error_response(context, "internal_error", str(e))
 
+
+def _register_browser_mouse_down(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+
     @mcp.tool
     async def browser_mouse_down(context: str, button: str = "left") -> dict:
         """Press a mouse button down (without releasing it).
@@ -115,6 +121,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             logger.exception("browser_mouse_down failed")
             return error_response(context, "internal_error", str(e))
 
+
+def _register_browser_mouse_up(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+
     @mcp.tool
     async def browser_mouse_up(context: str, button: str = "left") -> dict:
         """Release a previously pressed mouse button.
@@ -142,6 +151,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         except Exception as e:
             logger.exception("browser_mouse_up failed")
             return error_response(context, "internal_error", str(e))
+
+
+def _register_browser_mouse_drag_xy(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
     async def browser_mouse_drag_xy(context: str, from_x: int, from_y: int, to_x: int, to_y: int) -> dict:
@@ -177,6 +189,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         except Exception as e:
             logger.exception("browser_mouse_drag_xy failed")
             return error_response(context, "internal_error", str(e))
+
+
+def _register_browser_mouse_wheel(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
     async def browser_mouse_wheel(context: str, delta_x: int = 0, delta_y: int = 0) -> dict:
@@ -214,3 +229,12 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         except Exception as e:
             logger.exception("browser_mouse_wheel failed")
             return error_response(context, "internal_error", str(e))
+
+
+def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+    _register_browser_mouse_click_xy(mcp, ctx_mgr)
+    _register_browser_mouse_move_xy(mcp, ctx_mgr)
+    _register_browser_mouse_down(mcp, ctx_mgr)
+    _register_browser_mouse_up(mcp, ctx_mgr)
+    _register_browser_mouse_drag_xy(mcp, ctx_mgr)
+    _register_browser_mouse_wheel(mcp, ctx_mgr)

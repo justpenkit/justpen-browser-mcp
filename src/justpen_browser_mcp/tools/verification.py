@@ -47,7 +47,51 @@ async def _resolve_ref_in_any_frame(page: Page, ref: str) -> Locator:
     )
 
 
-def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _validate_list_visible_params(
+    refs: list[str] | None,
+    container_ref: str | None,
+    items: list[str] | None,
+) -> str | None:
+    """Return an error message string if mode params are invalid, else None."""
+    has_refs = refs is not None
+    has_container = container_ref is not None or items is not None
+    if has_refs and has_container:
+        return "refs and container_ref/items are mutually exclusive"
+    if not has_refs and not has_container:
+        return "must supply either refs or container_ref+items"
+    if has_container and (container_ref is None or not items):
+        return "container_ref mode requires both container_ref and items"
+    if has_refs and len(refs) == 0:
+        return "refs must not be empty"
+    return None
+
+
+async def _verify_refs_visible(page: Page, refs: list[str]) -> list[str]:
+    """Return list of refs that are not visible (empty on full success)."""
+    missing: list[str] = []
+    for ref in refs:
+        locator = await _resolve_ref_in_any_frame(page, ref)
+        if not await locator.is_visible():
+            missing.append(ref)
+    return missing
+
+
+async def _verify_items_in_container(
+    page: Page,
+    container_ref: str,
+    items: list[str],
+) -> list[str]:
+    """Return list of item texts that are not visible in the container (empty on full success)."""
+    container_locator = await _resolve_ref_in_any_frame(page, container_ref)
+    missing: list[str] = []
+    for item_text in items:
+        inner = container_locator.get_by_text(item_text)
+        if not await inner.first.is_visible():
+            missing.append(item_text)
+    return missing
+
+
+def _register_browser_verify_element_visible(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
     async def browser_verify_element_visible(context: str, ref: str) -> dict:
@@ -84,6 +128,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             return error_response(context, "verification_failed", f"Element {ref} is not visible")
         return success_response(context, data={"visible": True, "ref": ref})
 
+
+def _register_browser_verify_list_visible(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+
     @mcp.tool
     async def browser_verify_list_visible(
         context: str,
@@ -114,17 +161,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
         Useful for post-action assertions (e.g. verify all rows of a list).
         """
-        # Mode validation — before any IO.
-        has_refs = refs is not None
-        has_container = container_ref is not None or items is not None
-        if has_refs and has_container:
-            return error_response(context, "invalid_params", "refs and container_ref/items are mutually exclusive")
-        if not has_refs and not has_container:
-            return error_response(context, "invalid_params", "must supply either refs or container_ref+items")
-        if has_container and (container_ref is None or not items):
-            return error_response(context, "invalid_params", "container_ref mode requires both container_ref and items")
-        if has_refs and len(refs) == 0:
-            return error_response(context, "invalid_params", "refs must not be empty")
+        validation_error = _validate_list_visible_params(refs, container_ref, items)
+        if validation_error is not None:
+            return error_response(context, "invalid_params", validation_error)
 
         try:
             await ctx_mgr.get(context)
@@ -132,12 +171,8 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                 assert_no_modal(ctx_mgr, context)
                 page = await ctx_mgr.active_page(context)
 
-                if has_refs:
-                    missing = []
-                    for ref in refs:
-                        locator = await _resolve_ref_in_any_frame(page, ref)
-                        if not await locator.is_visible():
-                            missing.append(ref)
+                if refs is not None:
+                    missing = await _verify_refs_visible(page, refs)
                     if missing:
                         return error_response(
                             context,
@@ -146,13 +181,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                         )
                     return success_response(context, data={"visible_refs": refs})
 
-                # container mode
-                container_locator = await _resolve_ref_in_any_frame(page, container_ref)
-                missing_items = []
-                for item_text in items:
-                    inner = container_locator.get_by_text(item_text)
-                    if not await inner.first.is_visible():
-                        missing_items.append(item_text)
+                missing_items = await _verify_items_in_container(page, container_ref, items)
                 if missing_items:
                     return error_response(
                         context,
@@ -171,6 +200,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         except Exception as e:
             logger.exception("browser_verify_list_visible failed")
             return error_response(context, "internal_error", str(e))
+
+
+def _register_browser_verify_text_visible(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
     async def browser_verify_text_visible(context: str, text: str) -> dict:
@@ -217,6 +249,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         if not found:
             return error_response(context, "verification_failed", f"Text {text!r} is not visible on the page")
         return success_response(context, data={"text": text, "visible": True})
+
+
+def _register_browser_verify_value(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
     async def browser_verify_value(
@@ -285,3 +320,10 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         except Exception as e:
             logger.exception("browser_verify_value failed")
             return error_response(context, "internal_error", str(e))
+
+
+def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+    _register_browser_verify_element_visible(mcp, ctx_mgr)
+    _register_browser_verify_list_visible(mcp, ctx_mgr)
+    _register_browser_verify_text_visible(mcp, ctx_mgr)
+    _register_browser_verify_value(mcp, ctx_mgr)
