@@ -280,7 +280,7 @@ class TestContextManagerSetActivePage:
 
 class TestContextManagerConsoleNetworkCapture:
     async def test_create_installs_page_listeners(self):
-        launcher, browser, ctx = make_launcher_with_browser()
+        launcher, _browser, ctx = make_launcher_with_browser()
         mgr = ContextManager(launcher)
         await mgr.create("admin")
         assert hasattr(ctx, "_console_messages")
@@ -480,7 +480,7 @@ class TestContextManagerListenerBehavior:
         assert entry_b["failure"] == "net::ERR_B"
 
     async def test_listeners_attach_to_existing_pages(self):
-        launcher, _, ctx, page = _make_launcher_with_page()
+        launcher, _, _ctx, page = _make_launcher_with_page()
         mgr = ContextManager(launcher)
         await mgr.create("admin")
         # The existing page should have received .on() calls for the

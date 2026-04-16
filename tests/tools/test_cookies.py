@@ -158,7 +158,7 @@ class TestBrowserClearCookies:
 
 class TestBrowserGetLocalStorage:
     async def test_reads_local_storage_for_origin(self, mcp_client, mock_ctx_mgr):
-        ctx, page = make_ctx_with_page(
+        _ctx, page = make_ctx_with_page(
             mock_ctx_mgr,
             eval_result={"auth_token": "xyz", "theme": "dark"},
         )
@@ -171,7 +171,7 @@ class TestBrowserGetLocalStorage:
         page.goto.assert_awaited_once_with("https://app.example.com")
 
     async def test_get_local_storage_key(self, mcp_client, mock_ctx_mgr):
-        ctx, page = make_ctx_with_page(mock_ctx_mgr, eval_result="dark")
+        _ctx, page = make_ctx_with_page(mock_ctx_mgr, eval_result="dark")
         result = await mcp_client.call_tool(
             "browser_get_local_storage",
             {
@@ -189,7 +189,7 @@ class TestBrowserGetLocalStorage:
 
 class TestBrowserSetLocalStorage:
     async def test_sets_items(self, mcp_client, mock_ctx_mgr):
-        ctx, page = make_ctx_with_page(mock_ctx_mgr)
+        _ctx, page = make_ctx_with_page(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_set_local_storage",
             {
@@ -202,7 +202,7 @@ class TestBrowserSetLocalStorage:
         page.evaluate.assert_awaited_once()
 
     async def test_set_local_storage_safe_eval(self, mcp_client, mock_ctx_mgr):
-        ctx, page = make_ctx_with_page(mock_ctx_mgr)
+        _ctx, page = make_ctx_with_page(mock_ctx_mgr)
         items = {"auth_token": "xyz", "theme": "dark"}
         result = await mcp_client.call_tool(
             "browser_set_local_storage",
@@ -226,7 +226,7 @@ class TestBrowserSetLocalStorage:
 
 class TestBrowserClearLocalStorage:
     async def test_clears_specific_origin(self, mcp_client, mock_ctx_mgr):
-        ctx, page = make_ctx_with_page(mock_ctx_mgr)
+        _ctx, page = make_ctx_with_page(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_clear_local_storage",
             {"context": "admin", "origin": "https://app.example.com"},
