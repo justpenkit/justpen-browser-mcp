@@ -3,6 +3,7 @@
 browser_resize, browser_pdf_save, browser_generate_locator, browser_tabs.
 """
 
+import asyncio
 import logging
 import os
 import time
@@ -88,8 +89,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             if file_path is None:
                 base = os.environ.get("JUSTPEN_WORKSPACE", "/workspace")
                 file_path = f"{base}/output/evidence/page-{int(time.time())}.pdf"
-            Path(file_path).parent.mkdir(parents=True, exist_ok=True)
-            Path(file_path).write_bytes(pdf_bytes)
+            pdf_path = Path(file_path)
+            await asyncio.to_thread(pdf_path.parent.mkdir, parents=True, exist_ok=True)
+            await asyncio.to_thread(pdf_path.write_bytes, pdf_bytes)
             return success_response(context, data={"saved_to": file_path, "size_bytes": len(pdf_bytes)})
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))

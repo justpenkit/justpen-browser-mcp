@@ -299,8 +299,8 @@ class ContextManager:
         ctx = await self.get(name)
         state = await ctx.storage_state()
         path = Path(state_path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(state, indent=2))
+        await asyncio.to_thread(path.parent.mkdir, parents=True, exist_ok=True)
+        await asyncio.to_thread(path.write_text, json.dumps(state, indent=2))
         logger.info("Exported state for %r to %s", name, state_path)
 
     async def load_state(self, name: str, state_path: str) -> list[str]:
