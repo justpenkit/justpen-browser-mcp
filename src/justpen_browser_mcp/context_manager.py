@@ -478,7 +478,7 @@ class ContextManager:
         try:
             data = json.loads(path.read_text())
         except json.JSONDecodeError as e:
-            raise InvalidStateFileError(f"Invalid JSON in state file: {e}")
+            raise InvalidStateFileError(f"Invalid JSON in state file: {e}") from e
         if not isinstance(data, dict) or "cookies" not in data:
             raise InvalidStateFileError(
                 "State file does not look like a Playwright storage_state JSON: missing 'cookies' key"
