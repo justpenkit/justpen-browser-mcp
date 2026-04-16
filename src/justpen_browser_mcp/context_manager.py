@@ -26,7 +26,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from playwright.async_api import BrowserContext, Page
 
-from .camoufox import CamoufoxLauncher
+    from .camoufox import CamoufoxLauncher
+
 from .errors import (
     ContextAlreadyExistsError,
     ContextNotFoundError,
