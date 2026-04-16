@@ -47,6 +47,31 @@ async def _resolve_ref_in_any_frame(page: Page, ref: str) -> Locator:
     )
 
 
+async def _verify_refs_visible(page: Page, refs: list[str]) -> list[str]:
+    """Return list of refs that are not visible (empty on full success)."""
+    missing: list[str] = []
+    for ref in refs:
+        locator = await _resolve_ref_in_any_frame(page, ref)
+        if not await locator.is_visible():
+            missing.append(ref)
+    return missing
+
+
+async def _verify_items_in_container(
+    page: Page,
+    container_ref: str,
+    items: list[str],
+) -> list[str]:
+    """Return list of item texts that are not visible in the container (empty on full success)."""
+    container_locator = await _resolve_ref_in_any_frame(page, container_ref)
+    missing: list[str] = []
+    for item_text in items:
+        inner = container_locator.get_by_text(item_text)
+        if not await inner.first.is_visible():
+            missing.append(item_text)
+    return missing
+
+
 def _register_browser_verify_element_visible(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
@@ -117,7 +142,6 @@ def _register_browser_verify_list_visible(mcp: FastMCP, ctx_mgr: ContextManager)
 
         Useful for post-action assertions (e.g. verify all rows of a list).
         """
-        # Mode validation — before any IO.
         has_refs = refs is not None
         has_container = container_ref is not None or items is not None
         if has_refs and has_container:
@@ -136,11 +160,7 @@ def _register_browser_verify_list_visible(mcp: FastMCP, ctx_mgr: ContextManager)
                 page = await ctx_mgr.active_page(context)
 
                 if has_refs:
-                    missing = []
-                    for ref in refs:
-                        locator = await _resolve_ref_in_any_frame(page, ref)
-                        if not await locator.is_visible():
-                            missing.append(ref)
+                    missing = await _verify_refs_visible(page, refs)
                     if missing:
                         return error_response(
                             context,
@@ -149,13 +169,7 @@ def _register_browser_verify_list_visible(mcp: FastMCP, ctx_mgr: ContextManager)
                         )
                     return success_response(context, data={"visible_refs": refs})
 
-                # container mode
-                container_locator = await _resolve_ref_in_any_frame(page, container_ref)
-                missing_items = []
-                for item_text in items:
-                    inner = container_locator.get_by_text(item_text)
-                    if not await inner.first.is_visible():
-                        missing_items.append(item_text)
+                missing_items = await _verify_items_in_container(page, container_ref, items)
                 if missing_items:
                     return error_response(
                         context,
