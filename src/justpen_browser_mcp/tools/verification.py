@@ -3,7 +3,7 @@
 import logging
 
 from fastmcp import FastMCP
-from playwright.async_api import Page
+from playwright.async_api import Locator, Page
 
 from ..coercion import coerce_bool
 from ..context_manager import ContextManager, assert_no_modal
@@ -19,7 +19,7 @@ from ..responses import error_response, success_response
 logger = logging.getLogger(__name__)
 
 
-async def _resolve_ref_in_any_frame(page: Page, ref: str):
+async def _resolve_ref_in_any_frame(page: Page, ref: str) -> Locator:
     """Resolve a ref against the main frame first, then any child frame.
 
     Microsoft Playwright MCP's refs are page-scoped but elements can live in
