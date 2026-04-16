@@ -44,7 +44,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager, launcher) -> None:
                 data={
                     "browser_running": running,
                     "active_context_count": len(contexts),
-                    "active_contexts": [{"context": name} for name in contexts.keys()],
+                    "active_contexts": [{"context": name} for name in contexts],
                 },
             )
         except Exception as e:
