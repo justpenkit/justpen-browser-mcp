@@ -50,7 +50,7 @@ class TestBrowserClick:
         locator.click.assert_awaited_once_with(button="left")
 
     async def test_double_click_calls_dblclick(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_click",
             {"context": "admin", "ref": "e2", "double_click": True},
@@ -60,7 +60,7 @@ class TestBrowserClick:
         locator.click.assert_not_awaited()
 
     async def test_button_right(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_click",
             {"context": "admin", "ref": "e2", "button": "right"},
@@ -69,7 +69,7 @@ class TestBrowserClick:
         locator.click.assert_awaited_once_with(button="right")
 
     async def test_modifiers(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_click",
             {"context": "admin", "ref": "e2", "modifiers": ["Shift", "Control"]},
@@ -114,7 +114,7 @@ class TestBrowserClick:
 
 class TestBrowserType:
     async def test_clear_first_default(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_type",
             {"context": "admin", "ref": "e3", "text": "hello"},
@@ -123,7 +123,7 @@ class TestBrowserType:
         locator.fill.assert_awaited_once_with("hello")
 
     async def test_no_clear_first_uses_type(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_type",
             {"context": "admin", "ref": "e3", "text": "x", "clear_first": False},
@@ -145,7 +145,7 @@ class TestBrowserType:
 
 class TestBrowserFillForm:
     async def test_fills_each_field_textbox_default(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_fill_form",
             {
@@ -160,7 +160,7 @@ class TestBrowserFillForm:
         assert locator.fill.await_count == 2
 
     async def test_routes_by_type(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_fill_form",
             {
@@ -242,7 +242,7 @@ class TestBrowserFillForm:
         assert result.data["error_type"] == "modal_state_blocked"
 
     async def test_fill_form_checkbox_string_false_unchecks(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_fill_form",
             {
@@ -254,7 +254,7 @@ class TestBrowserFillForm:
         locator.set_checked.assert_awaited_once_with(False)
 
     async def test_fill_form_checkbox_string_zero_unchecks(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_fill_form",
             {
@@ -266,7 +266,7 @@ class TestBrowserFillForm:
         locator.set_checked.assert_awaited_once_with(False)
 
     async def test_fill_form_checkbox_string_true_checks(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_fill_form",
             {
@@ -278,7 +278,7 @@ class TestBrowserFillForm:
         locator.set_checked.assert_awaited_once_with(True)
 
     async def test_fill_form_checkbox_real_bool(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_fill_form",
             {
@@ -290,7 +290,7 @@ class TestBrowserFillForm:
         locator.set_checked.assert_awaited_once_with(False)
 
     async def test_fill_form_checkbox_invalid_value(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_fill_form",
             {
@@ -302,7 +302,7 @@ class TestBrowserFillForm:
         locator.set_checked.assert_not_awaited()
 
     async def test_fill_form_radio_string_false_unchecks(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_fill_form",
             {
@@ -316,7 +316,7 @@ class TestBrowserFillForm:
 
 class TestBrowserSelectOption:
     async def test_success(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_select_option",
             {"context": "admin", "ref": "e4", "value": "blue"},
@@ -325,7 +325,7 @@ class TestBrowserSelectOption:
         locator.select_option.assert_awaited_once_with("blue")
 
     async def test_list_value(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_select_option",
             {"context": "admin", "ref": "e4", "value": ["red", "green"]},
@@ -337,7 +337,7 @@ class TestBrowserSelectOption:
 
 class TestBrowserHover:
     async def test_success(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool("browser_hover", {"context": "admin", "ref": "e5"})
         assert result.data["status"] == "success"
         locator.hover.assert_awaited_once()
@@ -345,7 +345,7 @@ class TestBrowserHover:
 
 class TestBrowserDrag:
     async def test_success(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_drag",
             {"context": "admin", "source_ref": "e1", "target_ref": "e2"},
