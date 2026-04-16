@@ -26,6 +26,15 @@ from typing import TYPE_CHECKING
 
 from playwright.async_api import Error as PlaywrightError
 
+from .errors import (
+    ContextAlreadyExistsError,
+    ContextNotFoundError,
+    InvalidParamsError,
+    InvalidStateFileError,
+    ModalStateBlockedError,
+    StateFileNotFoundError,
+)
+
 if TYPE_CHECKING:
     from playwright.async_api import (
         BrowserContext,
@@ -49,15 +58,6 @@ class ContextState:
     active_page_index: int = 0
     modal_states: list[dict] = field(default_factory=list)
 
-
-from .errors import (
-    ContextAlreadyExistsError,
-    ContextNotFoundError,
-    InvalidParamsError,
-    InvalidStateFileError,
-    ModalStateBlockedError,
-    StateFileNotFoundError,
-)
 
 logger = logging.getLogger(__name__)
 
