@@ -20,7 +20,7 @@ import sys
 
 from camoufox.async_api import AsyncCamoufox
 from camoufox.pkgman import installed_verstr
-from playwright.async_api import Browser
+from playwright.async_api import Browser, Error as PlaywrightError
 
 from .errors import BinaryNotFoundError
 
@@ -52,7 +52,7 @@ class CamoufoxLauncher:
                 logger.warning("Camoufox browser disconnected, cleaning up...")
                 try:
                     await self._cm.__aexit__(None, None, None)
-                except Exception as e:
+                except (PlaywrightError, OSError, RuntimeError) as e:
                     logger.warning("Error cleaning up dead browser: %s", e)
                 self._cm = None
                 self._browser = None
@@ -71,7 +71,7 @@ class CamoufoxLauncher:
                 logger.info("Shutting down Camoufox browser...")
                 try:
                     await self._cm.__aexit__(None, None, None)
-                except Exception as e:
+                except (PlaywrightError, OSError, RuntimeError) as e:
                     logger.warning("Error during Camoufox shutdown: %s", e)
                 self._cm = None
                 self._browser = None
@@ -81,7 +81,7 @@ class CamoufoxLauncher:
         try:
             if installed_verstr() is not None:
                 return
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError) as e:
             logger.debug("installed_verstr() raised: %s", e)
 
         logger.warning("Camoufox binary not found, fetching (one-time download ~150MB)...")

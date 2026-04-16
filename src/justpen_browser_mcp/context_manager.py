@@ -23,6 +23,8 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from playwright.async_api import Error as PlaywrightError
+
 if TYPE_CHECKING:
     from playwright.async_api import (
         BrowserContext,
@@ -235,7 +237,7 @@ class ContextManager:
         for name, ctx in snapshot:
             try:
                 cookies = await ctx.cookies()
-            except Exception:
+            except (PlaywrightError, RuntimeError):
                 # Context was destroyed concurrently; skip it.
                 continue
             pages = ctx.pages
@@ -377,7 +379,7 @@ class ContextManager:
                 continue
             try:
                 applied = await self._set_origin_localstorage(ctx, origin, local_storage)
-            except Exception as exc:
+            except (PlaywrightError, TypeError, ValueError) as exc:
                 logger.warning("load_state: failed to set localStorage for origin %r: %s", origin, exc)
                 new_origins_with_data.add(origin)
                 failed_origins.append(origin)

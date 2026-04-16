@@ -8,10 +8,13 @@ import logging
 import os
 import sys
 
+from playwright.async_api import Error as PlaywrightError
+
 from .app import mcp
 from .camoufox import CamoufoxLauncher
 from .config import BrowserServerConfig
 from .context_manager import ContextManager
+from .errors import BrowserMcpError
 from .tools import register_all
 
 logger = logging.getLogger(__name__)
@@ -40,7 +43,7 @@ async def main() -> None:
         for name in list(ctx_mgr._contexts.keys()):
             try:
                 await ctx_mgr.destroy(name)
-            except Exception as e:
+            except (PlaywrightError, BrowserMcpError, OSError, RuntimeError) as e:
                 logger.warning("Error destroying context '%s' on shutdown: %s", name, e)
         await launcher.shutdown()
 

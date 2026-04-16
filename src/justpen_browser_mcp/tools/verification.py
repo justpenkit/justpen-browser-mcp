@@ -3,7 +3,7 @@
 import logging
 
 from fastmcp import FastMCP
-from playwright.async_api import Locator, Page
+from playwright.async_api import Error as PlaywrightError, Locator, Page
 
 from ..coercion import coerce_bool
 from ..context_manager import ContextManager, assert_no_modal
@@ -40,7 +40,7 @@ async def _resolve_ref_in_any_frame(page: Page, ref: str) -> Locator:
             locator = frame.locator(f"aria-ref={ref}")
             await locator.wait_for(state="attached", timeout=500)
             return locator
-        except Exception:
+        except PlaywrightError:
             continue
     raise StaleRefError(
         f"Ref '{ref}' not found in any frame of the current page snapshot. "
@@ -200,7 +200,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                         if await locator.is_visible():
                             found = True
                             break
-                    except Exception:
+                    except PlaywrightError:
                         continue
                 if not found:
                     raise VerificationFailedError(f"Text {text!r} is not visible on the page")
