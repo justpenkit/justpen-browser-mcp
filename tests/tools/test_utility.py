@@ -1,5 +1,6 @@
 """Tests for tools/utility.py — 3 utility tools."""
 
+import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -61,7 +62,7 @@ class TestBrowserPdfSave:
         assert result.data["status"] == "success"
         saved = result.data["data"]["saved_to"]
         assert "output/evidence/page-" in saved
-        assert Path(saved).exists()
+        assert await asyncio.to_thread(Path(saved).exists)
 
     async def test_pdf_save_landscape(self, mcp_client, mock_ctx_mgr, tmp_path):
         page = make_page(mock_ctx_mgr)

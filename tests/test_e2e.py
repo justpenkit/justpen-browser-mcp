@@ -133,8 +133,9 @@ async def test_storage_state_round_trip(tmp_path):
         )
         await client.call_tool("browser_destroy_context", {"context": "phase1"})
 
-        assert Path(state_file).exists()
-        saved = json.loads(Path(state_file).read_text())
+        state_path = Path(state_file)
+        assert await asyncio.to_thread(state_path.exists)
+        saved = json.loads(await asyncio.to_thread(state_path.read_text))
         cookie_names = {c["name"] for c in saved["cookies"]}
         assert "round_trip_test" in cookie_names
 
