@@ -13,7 +13,7 @@ from ..errors import (
     VerificationFailedError,
 )
 from ..ref_resolver import resolve_ref
-from ..responses import success_response, error_response
+from ..responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 

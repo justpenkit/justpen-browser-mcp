@@ -12,7 +12,7 @@ from fastmcp import FastMCP
 from ..context_manager import ContextManager, assert_no_modal
 from ..errors import BrowserMcpError, InvalidParamsError
 from ..ref_resolver import resolve_selector_to_stable
-from ..responses import success_response, error_response
+from ..responses import error_response, success_response
 from .navigation import _normalize_url
 
 logger = logging.getLogger(__name__)

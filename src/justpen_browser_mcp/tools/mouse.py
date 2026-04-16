@@ -7,7 +7,7 @@ from playwright.async_api import TimeoutError as PWTimeout
 
 from ..context_manager import ContextManager, assert_no_modal
 from ..errors import BrowserMcpError
-from ..responses import success_response, error_response
+from ..responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 

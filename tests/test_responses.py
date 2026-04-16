@@ -2,7 +2,7 @@
 
 import pytest
 
-from justpen_browser_mcp.responses import success_response, error_response
+from justpen_browser_mcp.responses import error_response, success_response
 
 
 class TestSuccessResponse:

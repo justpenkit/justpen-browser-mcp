@@ -7,7 +7,7 @@ from fastmcp import FastMCP
 
 from ..context_manager import ContextManager
 from ..errors import BrowserMcpError, InvalidParamsError
-from ..responses import success_response, error_response
+from ..responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 

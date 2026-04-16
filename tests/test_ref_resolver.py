@@ -5,12 +5,12 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from playwright.async_api import Error as PlaywrightError
 
+from justpen_browser_mcp.errors import StaleRefError
 from justpen_browser_mcp.ref_resolver import (
     capture_snapshot,
     locator_for_ref,
     resolve_ref,
 )
-from justpen_browser_mcp.errors import StaleRefError
 
 
 class TestCaptureSnapshot:
@@ -136,6 +136,7 @@ class TestInternalToPython:
 class TestResolveSelectorToStable:
     async def test_happy_path(self):
         from unittest.mock import AsyncMock, MagicMock
+
         from justpen_browser_mcp.ref_resolver import (
             resolve_selector_to_stable,
         )
@@ -158,12 +159,14 @@ class TestResolveSelectorToStable:
 
     async def test_stale_ref(self):
         from unittest.mock import AsyncMock, MagicMock
+
+        import pytest
         from playwright.async_api import Error as PlaywrightError
+
+        from justpen_browser_mcp.errors import StaleRefError
         from justpen_browser_mcp.ref_resolver import (
             resolve_selector_to_stable,
         )
-        from justpen_browser_mcp.errors import StaleRefError
-        import pytest
 
         page = MagicMock()
         channel = MagicMock()

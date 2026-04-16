@@ -12,7 +12,7 @@ from fastmcp import FastMCP
 from ..context_manager import ContextManager, assert_no_modal
 from ..errors import BrowserMcpError, EvaluationFailedError
 from ..ref_resolver import resolve_ref
-from ..responses import success_response, error_response
+from ..responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 

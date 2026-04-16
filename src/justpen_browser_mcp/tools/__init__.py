@@ -7,17 +7,17 @@ that happens in __main__.py at server startup.
 """
 
 from . import (  # noqa: F401
-    lifecycle,
-    cookies,
-    navigation,
-    interaction,
-    mouse,
-    inspection,
-    verification,
     code_execution,
-    utility,
+    cookies,
+    inspection,
+    interaction,
+    lifecycle,
+    mouse,
+    navigation,
     page,
     server_tools,
+    utility,
+    verification,
 )
 
 

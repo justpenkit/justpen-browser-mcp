@@ -2,7 +2,6 @@
 
 import re
 from pathlib import Path
-
 from unittest.mock import AsyncMock, MagicMock
 
 
@@ -265,6 +264,7 @@ class TestBrowserGenerateLocator:
 
     async def test_stale_ref(self, mcp_client, mock_ctx_mgr):
         from unittest.mock import AsyncMock, MagicMock, patch
+
         from justpen_browser_mcp.errors import StaleRefError
 
         mock_ctx_mgr.active_page.return_value = MagicMock()

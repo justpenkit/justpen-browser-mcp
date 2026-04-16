@@ -7,8 +7,8 @@ import pytest
 
 from justpen_browser_mcp.context_manager import ContextManager
 from justpen_browser_mcp.errors import (
-    ContextNotFoundError,
     ContextAlreadyExistsError,
+    ContextNotFoundError,
 )
 
 

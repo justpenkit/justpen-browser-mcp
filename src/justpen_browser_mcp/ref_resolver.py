@@ -23,7 +23,7 @@ This module exists to:
 import logging
 import re
 
-from playwright.async_api import Page, Locator, Error as PlaywrightError
+from playwright.async_api import Error as PlaywrightError, Locator, Page
 
 from .errors import StaleRefError
 
