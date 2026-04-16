@@ -211,7 +211,7 @@ class TestBrowserFillForm:
         an internal_error.
         """
         make_page_with_locator(mock_ctx_mgr)
-        with pytest.raises(ToolError, match="valid dictionary|dict_type"):
+        with pytest.raises(ToolError, match=r"valid dictionary|dict_type"):
             await mcp_client.call_tool(
                 "browser_fill_form",
                 {
