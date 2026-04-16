@@ -14,6 +14,8 @@ from .config import BrowserServerConfig
 from .context_manager import ContextManager
 from .tools import register_all
 
+logger = logging.getLogger(__name__)
+
 
 def _setup_logging(level: str) -> None:
     logging.basicConfig(
@@ -39,7 +41,7 @@ async def main() -> None:
             try:
                 await ctx_mgr.destroy(name)
             except Exception as e:
-                logging.warning("Error destroying context '%s' on shutdown: %s", name, e)
+                logger.warning("Error destroying context '%s' on shutdown: %s", name, e)
         await launcher.shutdown()
 
 
