@@ -201,6 +201,6 @@ class TestCamoufoxLauncher:
                 "asyncio.create_subprocess_exec",
                 new=AsyncMock(return_value=fake_proc),
             ),
+            pytest.raises(BinaryNotFoundError, match="network error"),
         ):
-            with pytest.raises(BinaryNotFoundError, match="network error"):
-                await launcher._ensure_binary()
+            await launcher._ensure_binary()
