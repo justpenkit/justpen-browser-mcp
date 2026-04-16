@@ -89,86 +89,14 @@ class ContextManager:
 
             ctx = await browser.new_context(**kwargs)
 
-            # Initialize event capture buffers for the inspection tools.
             ctx._console_messages = []
             ctx._network_requests = []
-            # O(1) lookup index: maps request object id → list entry
             ctx._network_request_index = {}
-            # Track which tab (by index) is the logical "active" page for
-            # subsequent tool calls. Updated by browser_tabs(select/close/new).
             ctx._active_page_index = 0
+            ctx._modal_states = []
 
-            def _on_request(req: Request) -> None:
-                entry = {
-                    "_id": id(req),
-                    "url": req.url,
-                    "method": req.method,
-                    "status": None,
-                    "resource_type": req.resource_type,
-                    "failure": None,
-                }
-                ctx._network_requests.append(entry)
-                ctx._network_request_index[id(req)] = entry
-
-            def _on_response(response: Response) -> None:
-                entry = ctx._network_request_index.get(id(response.request))
-                if entry is not None:
-                    entry["status"] = response.status
-
-            def _on_requestfailed(request: Request) -> None:
-                entry = ctx._network_request_index.get(id(request))
-                if entry is not None:
-                    entry["failure"] = request.failure or "unknown"
-
-            def _attach_page_listeners(page: Page) -> None:
-                page.on(
-                    "console",
-                    lambda msg: ctx._console_messages.append(
-                        {
-                            "type": msg.type,
-                            "text": msg.text,
-                            "location": _format_console_location(msg.location),
-                        }
-                    ),
-                )
-                page.on(
-                    "pageerror",
-                    lambda exc: ctx._console_messages.append(
-                        {
-                            "type": "error",
-                            "text": str(exc),
-                            "location": None,
-                        }
-                    ),
-                )
-                page.on("request", _on_request)
-                page.on("response", _on_response)
-                page.on("requestfailed", _on_requestfailed)
-
-            ctx.on("page", _attach_page_listeners)
-            for existing_page in ctx.pages:
-                _attach_page_listeners(existing_page)
-
-            # Initialize modal state tracking (CC-1, CC-2, CC-3 from 2026-04-08 audit).
-            # When a dialog or file-chooser appears, store it on the context so
-            # tools can either consume it (browser_handle_dialog, browser_file_upload)
-            # or refuse to execute (assert_no_modal guard).
-            ctx._modal_states = []  # list of {"kind": str, "object": Dialog|FileChooser, "page": Page}
-
-            def _on_dialog(page: Page, dialog: Dialog) -> None:
-                ctx._modal_states.append({"kind": "dialog", "object": dialog, "page": page})
-
-            def _on_filechooser(page: Page, file_chooser: FileChooser) -> None:
-                ctx._modal_states.append({"kind": "filechooser", "object": file_chooser, "page": page})
-
-            def _attach_modal_listeners(page: Page) -> None:
-                page.on("dialog", lambda dialog: _on_dialog(page, dialog))
-                page.on("filechooser", lambda fc: _on_filechooser(page, fc))
-
-            # Wire to all current and future pages
-            ctx.on("page", _attach_modal_listeners)
-            for existing_page in ctx.pages:
-                _attach_modal_listeners(existing_page)
+            self._wire_event_listeners(ctx)
+            self._wire_modal_listeners(ctx)
 
             self._contexts[name] = ctx
             self._locks[name] = asyncio.Lock()
@@ -177,6 +105,82 @@ class ContextManager:
             else:
                 logger.info("Created context %r", name)
             return ctx
+
+    def _wire_event_listeners(self, ctx: BrowserContext) -> None:
+        """Attach console, pageerror, and network listeners to all current and future pages."""
+
+        def _on_request(req: Request) -> None:
+            entry = {
+                "_id": id(req),
+                "url": req.url,
+                "method": req.method,
+                "status": None,
+                "resource_type": req.resource_type,
+                "failure": None,
+            }
+            ctx._network_requests.append(entry)
+            ctx._network_request_index[id(req)] = entry
+
+        def _on_response(response: Response) -> None:
+            entry = ctx._network_request_index.get(id(response.request))
+            if entry is not None:
+                entry["status"] = response.status
+
+        def _on_requestfailed(request: Request) -> None:
+            entry = ctx._network_request_index.get(id(request))
+            if entry is not None:
+                entry["failure"] = request.failure or "unknown"
+
+        def _attach(page: Page) -> None:
+            page.on(
+                "console",
+                lambda msg: ctx._console_messages.append(
+                    {
+                        "type": msg.type,
+                        "text": msg.text,
+                        "location": _format_console_location(msg.location),
+                    }
+                ),
+            )
+            page.on(
+                "pageerror",
+                lambda exc: ctx._console_messages.append(
+                    {
+                        "type": "error",
+                        "text": str(exc),
+                        "location": None,
+                    }
+                ),
+            )
+            page.on("request", _on_request)
+            page.on("response", _on_response)
+            page.on("requestfailed", _on_requestfailed)
+
+        ctx.on("page", _attach)
+        for existing_page in ctx.pages:
+            _attach(existing_page)
+
+    def _wire_modal_listeners(self, ctx: BrowserContext) -> None:
+        """Attach dialog + file-chooser listeners so tools can handle or refuse modals.
+
+        Modal tracking (CC-1, CC-2, CC-3 from 2026-04-08 audit) routes each
+        dialog/filechooser into ctx._modal_states; assert_no_modal checks that
+        list, and browser_handle_dialog / browser_file_upload consume entries.
+        """
+
+        def _on_dialog(page: Page, dialog: Dialog) -> None:
+            ctx._modal_states.append({"kind": "dialog", "object": dialog, "page": page})
+
+        def _on_filechooser(page: Page, file_chooser: FileChooser) -> None:
+            ctx._modal_states.append({"kind": "filechooser", "object": file_chooser, "page": page})
+
+        def _attach(page: Page) -> None:
+            page.on("dialog", lambda dialog: _on_dialog(page, dialog))
+            page.on("filechooser", lambda fc: _on_filechooser(page, fc))
+
+        ctx.on("page", _attach)
+        for existing_page in ctx.pages:
+            _attach(existing_page)
 
     async def get(self, name: str) -> BrowserContext:
         """Look up a context by name. Raises ContextNotFoundError if missing."""
