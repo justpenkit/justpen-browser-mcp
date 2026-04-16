@@ -4,6 +4,7 @@ import logging
 from urllib.parse import urlparse
 
 from fastmcp import FastMCP
+from playwright.async_api import Error as PlaywrightError
 
 from ..context_manager import ContextManager
 from ..errors import BrowserMcpError, InvalidParamsError
@@ -67,7 +68,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             return success_response(context, data={"cookies": cookies})
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))
-        except Exception as e:
+        except (PlaywrightError, OSError, RuntimeError, ValueError, TypeError) as e:
             return error_response(context, "internal_error", str(e))
 
     @mcp.tool
@@ -122,7 +123,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             return success_response(context, data={"set_count": len(processed)})
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))
-        except Exception as e:
+        except (PlaywrightError, OSError, RuntimeError, ValueError, TypeError) as e:
             return error_response(context, "internal_error", str(e))
 
     @mcp.tool
@@ -146,7 +147,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             return success_response(context, data={"cleared": True})
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))
-        except Exception as e:
+        except (PlaywrightError, OSError, RuntimeError, ValueError, TypeError) as e:
             return error_response(context, "internal_error", str(e))
 
     @mcp.tool
