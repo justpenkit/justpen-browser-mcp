@@ -1,14 +1,18 @@
 """Tests for justpen_browser_mcp.context_manager — registry + locks."""
 
 import asyncio
+import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from justpen_browser_mcp.context_manager import ContextManager
+from justpen_browser_mcp.context_manager import ContextManager, assert_no_modal
 from justpen_browser_mcp.errors import (
-    ContextNotFoundError,
     ContextAlreadyExistsError,
+    ContextNotFoundError,
+    InvalidParamsError,
+    InvalidStateFileError,
+    ModalStateBlockedError,
 )
 
 
@@ -155,7 +159,7 @@ class TestContextManagerList:
         ctx.cookies = AsyncMock(return_value=[])
         mgr = ContextManager(launcher)
         await mgr.create("admin")
-        ctx._active_page_index = 1
+        mgr.state("admin").active_page_index = 1
         result = await mgr.list()
         assert result[0]["active_url"] == "https://b.example/"
 
@@ -166,7 +170,7 @@ class TestContextManagerList:
         ctx.cookies = AsyncMock(return_value=[])
         mgr = ContextManager(launcher)
         await mgr.create("admin")
-        ctx._active_page_index = 5
+        mgr.state("admin").active_page_index = 5
         result = await mgr.list()
         assert result[0]["active_url"] == "https://a.example/"
 
@@ -176,16 +180,18 @@ class TestContextManagerList:
         propagating the error."""
         launcher, _, _ = make_launcher_with_browser()
         mgr = ContextManager(launcher)
+        # Seed both contexts via the real create() path so ContextState
+        # objects exist alongside the contexts (list() looks them up by name).
+        await mgr.create("good")
+        await mgr.create("broken")
 
         good_ctx = MagicMock(name="GoodCtx")
         good_ctx.pages = [MagicMock(url="https://good.example/")]
         good_ctx.cookies = AsyncMock(return_value=[{"name": "c"}])
-        good_ctx._active_page_index = 0
 
         broken_ctx = MagicMock(name="BrokenCtx")
         broken_ctx.pages = [MagicMock(url="https://broken.example/")]
         broken_ctx.cookies = AsyncMock(side_effect=RuntimeError("context was closed"))
-        broken_ctx._active_page_index = 0
 
         mgr._contexts["good"] = good_ctx
         mgr._contexts["broken"] = broken_ctx
@@ -223,7 +229,7 @@ class TestContextManagerActivePage:
         ctx.pages = [page0, page1]
         mgr = ContextManager(launcher)
         await mgr.create("admin")
-        ctx._active_page_index = 1
+        mgr.state("admin").active_page_index = 1
         page = await mgr.active_page("admin")
         assert page is page1
 
@@ -233,20 +239,20 @@ class TestContextManagerActivePage:
         ctx.pages = [only_page]
         mgr = ContextManager(launcher)
         await mgr.create("admin")
-        ctx._active_page_index = 5
+        mgr.state("admin").active_page_index = 5
         page = await mgr.active_page("admin")
         assert page is only_page
-        assert ctx._active_page_index == 0
+        assert mgr.state("admin").active_page_index == 0
 
     async def test_active_page_creates_when_empty_resets_index(self):
         launcher, _, ctx = make_launcher_with_browser()
         ctx.pages = []
         mgr = ContextManager(launcher)
         await mgr.create("admin")
-        ctx._active_page_index = 7
+        mgr.state("admin").active_page_index = 7
         page = await mgr.active_page("admin")
         assert page is not None
-        assert ctx._active_page_index == 0
+        assert mgr.state("admin").active_page_index == 0
         ctx.new_page.assert_awaited()
 
 
@@ -257,11 +263,9 @@ class TestContextManagerSetActivePage:
         mgr = ContextManager(launcher)
         await mgr.create("admin")
         mgr.set_active_page("admin", 1)
-        assert ctx._active_page_index == 1
+        assert mgr.state("admin").active_page_index == 1
 
     async def test_set_active_page_out_of_range_raises(self):
-        from justpen_browser_mcp.errors import InvalidParamsError
-
         launcher, _, ctx = make_launcher_with_browser()
         ctx.pages = [MagicMock(), MagicMock()]
         mgr = ContextManager(launcher)
@@ -278,13 +282,12 @@ class TestContextManagerSetActivePage:
 
 class TestContextManagerConsoleNetworkCapture:
     async def test_create_installs_page_listeners(self):
-        launcher, browser, ctx = make_launcher_with_browser()
+        launcher, _browser, ctx = make_launcher_with_browser()
         mgr = ContextManager(launcher)
         await mgr.create("admin")
-        assert hasattr(ctx, "_console_messages")
-        assert hasattr(ctx, "_network_requests")
-        assert ctx._console_messages == []
-        assert ctx._network_requests == []
+        state = mgr.state("admin")
+        assert state.console_messages == []
+        assert state.network_requests == []
         # Verify ctx.on("page", ...) was called at least once (once for console/network,
         # once for modal state listeners — both use ctx.on("page", handler)).
         page_calls = [c for c in ctx.on.call_args_list if c[0] and c[0][0] == "page"]
@@ -309,7 +312,7 @@ def _handler_for(page, event_name):
 
 class TestContextManagerListenerBehavior:
     async def test_console_listener_captures_location(self):
-        launcher, _, ctx, page = _make_launcher_with_page()
+        launcher, _, _ctx, page = _make_launcher_with_page()
         mgr = ContextManager(launcher)
         await mgr.create("admin")
         handler = _handler_for(page, "console")
@@ -320,39 +323,39 @@ class TestContextManagerListenerBehavior:
             location={"url": "a.js", "lineNumber": 10, "columnNumber": 5},
         )
         handler(msg)
-        assert ctx._console_messages[-1] == {
+        assert mgr.state("admin").console_messages[-1] == {
             "type": "log",
             "text": "hi",
             "location": "a.js:10:5",
         }
 
     async def test_console_listener_handles_empty_location(self):
-        launcher, _, ctx, page = _make_launcher_with_page()
+        launcher, _, _ctx, page = _make_launcher_with_page()
         mgr = ContextManager(launcher)
         await mgr.create("admin")
         handler = _handler_for(page, "console")
         msg_none = MagicMock(type="log", text="a", location=None)
         handler(msg_none)
-        assert ctx._console_messages[-1]["location"] is None
+        assert mgr.state("admin").console_messages[-1]["location"] is None
         msg_empty = MagicMock(type="log", text="b", location={})
         handler(msg_empty)
-        assert ctx._console_messages[-1]["location"] is None
+        assert mgr.state("admin").console_messages[-1]["location"] is None
 
     async def test_pageerror_listener_captures_exception(self):
-        launcher, _, ctx, page = _make_launcher_with_page()
+        launcher, _, _ctx, page = _make_launcher_with_page()
         mgr = ContextManager(launcher)
         await mgr.create("admin")
         handler = _handler_for(page, "pageerror")
         assert handler is not None
         exc = "TypeError: boom\n  at foo.js:1:1"
         handler(exc)
-        entry = ctx._console_messages[-1]
+        entry = mgr.state("admin").console_messages[-1]
         assert entry["type"] == "error"
         assert "TypeError" in entry["text"]
         assert entry["location"] is None
 
     async def test_request_listener_seeds_status_and_resource_type(self):
-        launcher, _, ctx, page = _make_launcher_with_page()
+        launcher, _, _ctx, page = _make_launcher_with_page()
         mgr = ContextManager(launcher)
         await mgr.create("admin")
         handler = _handler_for(page, "request")
@@ -363,7 +366,7 @@ class TestContextManagerListenerBehavior:
             resource_type="document",
         )
         handler(req)
-        entry = ctx._network_requests[-1]
+        entry = mgr.state("admin").network_requests[-1]
         # Compare ignoring the private _id bookkeeping key.
         public = {k: v for k, v in entry.items() if not k.startswith("_")}
         assert public == {
@@ -376,7 +379,7 @@ class TestContextManagerListenerBehavior:
         assert entry["_id"] == id(req)
 
     async def test_response_listener_populates_status(self):
-        launcher, _, ctx, page = _make_launcher_with_page()
+        launcher, _, _ctx, page = _make_launcher_with_page()
         mgr = ContextManager(launcher)
         await mgr.create("admin")
         req_handler = _handler_for(page, "request")
@@ -386,12 +389,12 @@ class TestContextManagerListenerBehavior:
         req_handler(req)
         response = MagicMock(status=200, request=req)
         resp_handler(response)
-        entry = ctx._network_requests[-1]
+        entry = mgr.state("admin").network_requests[-1]
         assert entry["status"] == 200
         assert entry["resource_type"] == "document"
 
     async def test_requestfailed_listener_marks_failure(self):
-        launcher, _, ctx, page = _make_launcher_with_page()
+        launcher, _, _ctx, page = _make_launcher_with_page()
         mgr = ContextManager(launcher)
         await mgr.create("admin")
         req_handler = _handler_for(page, "request")
@@ -405,7 +408,7 @@ class TestContextManagerListenerBehavior:
         )
         req_handler(req)
         fail_handler(req)
-        entry = ctx._network_requests[-1]
+        entry = mgr.state("admin").network_requests[-1]
         assert entry["failure"] == "net::ERR_FAILED"
         assert entry["status"] is None
 
@@ -413,7 +416,7 @@ class TestContextManagerListenerBehavior:
         """Two concurrent requests with the same url+method must not be
         confused by the response listener even when completions arrive
         out of order — we match on id(request)."""
-        launcher, _, ctx, page = _make_launcher_with_page()
+        launcher, _, _ctx, page = _make_launcher_with_page()
         mgr = ContextManager(launcher)
         await mgr.create("admin")
         req_handler = _handler_for(page, "request")
@@ -432,10 +435,11 @@ class TestContextManagerListenerBehavior:
         req_handler(req_a)
         req_handler(req_b)
 
-        assert len(ctx._network_requests) == 2
-        assert ctx._network_requests[0]["_id"] == id(req_a)
-        assert ctx._network_requests[1]["_id"] == id(req_b)
-        assert ctx._network_requests[0]["_id"] != ctx._network_requests[1]["_id"]
+        network_requests = mgr.state("admin").network_requests
+        assert len(network_requests) == 2
+        assert network_requests[0]["_id"] == id(req_a)
+        assert network_requests[1]["_id"] == id(req_b)
+        assert network_requests[0]["_id"] != network_requests[1]["_id"]
 
         resp_a = MagicMock(status=200, request=req_a)
         resp_b = MagicMock(status=401, request=req_b)
@@ -443,13 +447,13 @@ class TestContextManagerListenerBehavior:
         resp_handler(resp_b)
         resp_handler(resp_a)
 
-        entry_a = next(e for e in ctx._network_requests if e["_id"] == id(req_a))
-        entry_b = next(e for e in ctx._network_requests if e["_id"] == id(req_b))
+        entry_a = next(e for e in network_requests if e["_id"] == id(req_a))
+        entry_b = next(e for e in network_requests if e["_id"] == id(req_b))
         assert entry_a["status"] == 200
         assert entry_b["status"] == 401
 
     async def test_requestfailed_listener_matches_by_request_identity(self):
-        launcher, _, ctx, page = _make_launcher_with_page()
+        launcher, _, _ctx, page = _make_launcher_with_page()
         mgr = ContextManager(launcher)
         await mgr.create("admin")
         req_handler = _handler_for(page, "request")
@@ -472,13 +476,14 @@ class TestContextManagerListenerBehavior:
         fail_handler(req_b)
         fail_handler(req_a)
 
-        entry_a = next(e for e in ctx._network_requests if e["_id"] == id(req_a))
-        entry_b = next(e for e in ctx._network_requests if e["_id"] == id(req_b))
+        network_requests = mgr.state("admin").network_requests
+        entry_a = next(e for e in network_requests if e["_id"] == id(req_a))
+        entry_b = next(e for e in network_requests if e["_id"] == id(req_b))
         assert entry_a["failure"] == "net::ERR_A"
         assert entry_b["failure"] == "net::ERR_B"
 
     async def test_listeners_attach_to_existing_pages(self):
-        launcher, _, ctx, page = _make_launcher_with_page()
+        launcher, _, _ctx, page = _make_launcher_with_page()
         mgr = ContextManager(launcher)
         await mgr.create("admin")
         # The existing page should have received .on() calls for the
@@ -507,8 +512,6 @@ class TestContextManagerExportState:
         await mgr.export_state("admin", str(out_path))
 
         assert out_path.exists()
-        import json
-
         data = json.loads(out_path.read_text())
         assert data["cookies"] == [{"name": "session", "value": "abc"}]
 
@@ -546,9 +549,7 @@ class TestContextManagerLoadState:
         await mgr.load_state("admin", str(state_file))
 
         ctx.clear_cookies.assert_awaited_once()
-        ctx.add_cookies.assert_awaited_once_with(
-            [{"name": "session", "value": "abc", "domain": "example.com"}]
-        )
+        ctx.add_cookies.assert_awaited_once_with([{"name": "session", "value": "abc", "domain": "example.com"}])
 
     async def test_load_applies_local_storage_per_origin(self, tmp_path):
         launcher, _, ctx = make_launcher_with_browser()
@@ -597,7 +598,7 @@ class TestContextManagerLoadState:
         with pytest.raises(ContextNotFoundError):
             await mgr.load_state("nonexistent", str(state_file))
 
-    async def test_load_state_clears_localStorage_from_omitted_origin(self, tmp_path):
+    async def test_load_state_clears_local_storage_from_omitted_origin(self, tmp_path):
         launcher, _, ctx = make_launcher_with_browser()
         ctx.clear_cookies = AsyncMock()
         ctx.add_cookies = AsyncMock()
@@ -659,10 +660,7 @@ class TestContextManagerLoadState:
         await mgr.create("admin")
 
         state_file = tmp_path / "admin.json"
-        state_file.write_text(
-            '{"cookies": [], "origins": ['
-            '{"origin": "https://same.example", "localStorage": []}]}'
-        )
+        state_file.write_text('{"cookies": [], "origins": [{"origin": "https://same.example", "localStorage": []}]}')
 
         await mgr.load_state("admin", str(state_file))
 
@@ -676,19 +674,16 @@ class TestContextManagerLoadState:
         await mgr.create("admin")
         bad = tmp_path / "bad.json"
         bad.write_text("not json at all")
-        from justpen_browser_mcp.errors import InvalidStateFileError
-
         with pytest.raises(InvalidStateFileError):
             await mgr.load_state("admin", str(bad))
 
 
 class TestContextManagerModalState:
     async def test_create_initializes_modal_states_buffer(self):
-        launcher, _, ctx = make_launcher_with_browser()
+        launcher, _, _ctx = make_launcher_with_browser()
         mgr = ContextManager(launcher)
         await mgr.create("admin")
-        assert hasattr(ctx, "_modal_states")
-        assert ctx._modal_states == []
+        assert mgr.state("admin").modal_states == []
 
     async def test_create_attaches_modal_listeners_via_on_page(self):
         launcher, _, ctx = make_launcher_with_browser()
@@ -705,14 +700,12 @@ class TestContextManagerModalState:
         assert mgr.get_modal_states("admin") == []
 
     async def test_get_modal_states_returns_pending_dialog(self):
-        launcher, _, ctx = make_launcher_with_browser()
+        launcher, _, _ctx = make_launcher_with_browser()
         mgr = ContextManager(launcher)
         await mgr.create("admin")
         # Simulate a dialog appearing
-        from unittest.mock import MagicMock
-
         fake_dialog = MagicMock(type="confirm", message="Are you sure?")
-        ctx._modal_states.append(
+        mgr.state("admin").modal_states.append(
             {
                 "kind": "dialog",
                 "object": fake_dialog,
@@ -730,13 +723,11 @@ class TestContextManagerModalState:
             mgr.get_modal_states("nope")
 
     async def test_consume_modal_state_pops_dialog(self):
-        launcher, _, ctx = make_launcher_with_browser()
+        launcher, _, _ctx = make_launcher_with_browser()
         mgr = ContextManager(launcher)
         await mgr.create("admin")
-        from unittest.mock import MagicMock
-
         fake_dialog = MagicMock()
-        ctx._modal_states.append(
+        mgr.state("admin").modal_states.append(
             {
                 "kind": "dialog",
                 "object": fake_dialog,
@@ -746,15 +737,13 @@ class TestContextManagerModalState:
         consumed = mgr.consume_modal_state("admin", "dialog")
         assert consumed is not None
         assert consumed["kind"] == "dialog"
-        assert ctx._modal_states == []
+        assert mgr.state("admin").modal_states == []
 
     async def test_consume_modal_state_wrong_kind_returns_none(self):
-        launcher, _, ctx = make_launcher_with_browser()
+        launcher, _, _ctx = make_launcher_with_browser()
         mgr = ContextManager(launcher)
         await mgr.create("admin")
-        from unittest.mock import MagicMock
-
-        ctx._modal_states.append(
+        mgr.state("admin").modal_states.append(
             {
                 "kind": "filechooser",
                 "object": MagicMock(),
@@ -764,7 +753,7 @@ class TestContextManagerModalState:
         consumed = mgr.consume_modal_state("admin", "dialog")
         assert consumed is None
         # The filechooser entry should still be there
-        assert len(ctx._modal_states) == 1
+        assert len(mgr.state("admin").modal_states) == 1
 
     async def test_consume_modal_state_unknown_context_raises(self):
         launcher, _, _ = make_launcher_with_browser()
@@ -775,8 +764,6 @@ class TestContextManagerModalState:
 
 class TestAssertNoModal:
     async def test_no_modals_passes(self):
-        from justpen_browser_mcp.context_manager import assert_no_modal
-
         launcher, _, _ = make_launcher_with_browser()
         mgr = ContextManager(launcher)
         await mgr.create("admin")
@@ -784,16 +771,11 @@ class TestAssertNoModal:
         assert_no_modal(mgr, "admin")
 
     async def test_dialog_pending_raises(self):
-        from justpen_browser_mcp.context_manager import assert_no_modal
-        from justpen_browser_mcp.errors import ModalStateBlockedError
-
-        launcher, _, ctx = make_launcher_with_browser()
+        launcher, _, _ctx = make_launcher_with_browser()
         mgr = ContextManager(launcher)
         await mgr.create("admin")
-        from unittest.mock import MagicMock
-
         fake_dialog = MagicMock(type="confirm", message="Are you sure?")
-        ctx._modal_states.append(
+        mgr.state("admin").modal_states.append(
             {
                 "kind": "dialog",
                 "object": fake_dialog,
@@ -804,15 +786,10 @@ class TestAssertNoModal:
             assert_no_modal(mgr, "admin")
 
     async def test_filechooser_pending_raises(self):
-        from justpen_browser_mcp.context_manager import assert_no_modal
-        from justpen_browser_mcp.errors import ModalStateBlockedError
-
-        launcher, _, ctx = make_launcher_with_browser()
+        launcher, _, _ctx = make_launcher_with_browser()
         mgr = ContextManager(launcher)
         await mgr.create("admin")
-        from unittest.mock import MagicMock
-
-        ctx._modal_states.append(
+        mgr.state("admin").modal_states.append(
             {
                 "kind": "filechooser",
                 "object": MagicMock(),

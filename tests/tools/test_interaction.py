@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from fastmcp.exceptions import ToolError
 
 from justpen_browser_mcp.errors import (
     StaleRefError,
@@ -43,15 +44,13 @@ def make_page_with_locator(mock_ctx_mgr):
 class TestBrowserClick:
     async def test_success(self, mcp_client, mock_ctx_mgr):
         page, locator = make_page_with_locator(mock_ctx_mgr)
-        result = await mcp_client.call_tool(
-            "browser_click", {"context": "admin", "ref": "e2"}
-        )
+        result = await mcp_client.call_tool("browser_click", {"context": "admin", "ref": "e2"})
         assert result.data["status"] == "success"
         page.locator.assert_called_with("aria-ref=e2")
         locator.click.assert_awaited_once_with(button="left")
 
     async def test_double_click_calls_dblclick(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_click",
             {"context": "admin", "ref": "e2", "double_click": True},
@@ -61,7 +60,7 @@ class TestBrowserClick:
         locator.click.assert_not_awaited()
 
     async def test_button_right(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_click",
             {"context": "admin", "ref": "e2", "button": "right"},
@@ -70,15 +69,13 @@ class TestBrowserClick:
         locator.click.assert_awaited_once_with(button="right")
 
     async def test_modifiers(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_click",
             {"context": "admin", "ref": "e2", "modifiers": ["Shift", "Control"]},
         )
         assert result.data["status"] == "success"
-        locator.click.assert_awaited_once_with(
-            button="left", modifiers=["Shift", "Control"]
-        )
+        locator.click.assert_awaited_once_with(button="left", modifiers=["Shift", "Control"])
 
     async def test_invalid_button(self, mcp_client, mock_ctx_mgr):
         make_page_with_locator(mock_ctx_mgr)
@@ -102,9 +99,7 @@ class TestBrowserClick:
             "justpen_browser_mcp.tools.interaction.resolve_ref",
             side_effect=StaleRefError("ref e2 not found"),
         ):
-            result = await mcp_client.call_tool(
-                "browser_click", {"context": "admin", "ref": "e2"}
-            )
+            result = await mcp_client.call_tool("browser_click", {"context": "admin", "ref": "e2"})
         assert result.data["error_type"] == "stale_ref"
 
     async def test_blocked_by_modal(self, mcp_client, mock_ctx_mgr):
@@ -112,18 +107,14 @@ class TestBrowserClick:
         dialog = MagicMock()
         dialog.type = "confirm"
         dialog.message = "Are you sure?"
-        mock_ctx_mgr.get_modal_states = MagicMock(
-            return_value=[{"kind": "dialog", "object": dialog, "page": page}]
-        )
-        result = await mcp_client.call_tool(
-            "browser_click", {"context": "admin", "ref": "e2"}
-        )
+        mock_ctx_mgr.get_modal_states = MagicMock(return_value=[{"kind": "dialog", "object": dialog, "page": page}])
+        result = await mcp_client.call_tool("browser_click", {"context": "admin", "ref": "e2"})
         assert result.data["error_type"] == "modal_state_blocked"
 
 
 class TestBrowserType:
     async def test_clear_first_default(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_type",
             {"context": "admin", "ref": "e3", "text": "hello"},
@@ -132,7 +123,7 @@ class TestBrowserType:
         locator.fill.assert_awaited_once_with("hello")
 
     async def test_no_clear_first_uses_type(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_type",
             {"context": "admin", "ref": "e3", "text": "x", "clear_first": False},
@@ -154,7 +145,7 @@ class TestBrowserType:
 
 class TestBrowserFillForm:
     async def test_fills_each_field_textbox_default(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_fill_form",
             {
@@ -169,7 +160,7 @@ class TestBrowserFillForm:
         assert locator.fill.await_count == 2
 
     async def test_routes_by_type(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_fill_form",
             {
@@ -219,10 +210,8 @@ class TestBrowserFillForm:
         MCP-level equivalent of invalid_params and is strictly better than
         an internal_error.
         """
-        from fastmcp.exceptions import ToolError
-
         make_page_with_locator(mock_ctx_mgr)
-        with pytest.raises(ToolError, match="valid dictionary|dict_type"):
+        with pytest.raises(ToolError, match=r"valid dictionary|dict_type"):
             await mcp_client.call_tool(
                 "browser_fill_form",
                 {
@@ -245,19 +234,15 @@ class TestBrowserFillForm:
     async def test_blocked_by_modal(self, mcp_client, mock_ctx_mgr):
         page, _ = make_page_with_locator(mock_ctx_mgr)
         fc = MagicMock()
-        mock_ctx_mgr.get_modal_states = MagicMock(
-            return_value=[{"kind": "filechooser", "object": fc, "page": page}]
-        )
+        mock_ctx_mgr.get_modal_states = MagicMock(return_value=[{"kind": "filechooser", "object": fc, "page": page}])
         result = await mcp_client.call_tool(
             "browser_fill_form",
             {"context": "admin", "fields": [{"ref": "e1", "value": "x"}]},
         )
         assert result.data["error_type"] == "modal_state_blocked"
 
-    async def test_fill_form_checkbox_string_false_unchecks(
-        self, mcp_client, mock_ctx_mgr
-    ):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+    async def test_fill_form_checkbox_string_false_unchecks(self, mcp_client, mock_ctx_mgr):
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_fill_form",
             {
@@ -266,12 +251,10 @@ class TestBrowserFillForm:
             },
         )
         assert result.data["status"] == "success"
-        locator.set_checked.assert_awaited_once_with(False)
+        locator.set_checked.assert_awaited_once_with(checked=False)
 
-    async def test_fill_form_checkbox_string_zero_unchecks(
-        self, mcp_client, mock_ctx_mgr
-    ):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+    async def test_fill_form_checkbox_string_zero_unchecks(self, mcp_client, mock_ctx_mgr):
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_fill_form",
             {
@@ -280,12 +263,10 @@ class TestBrowserFillForm:
             },
         )
         assert result.data["status"] == "success"
-        locator.set_checked.assert_awaited_once_with(False)
+        locator.set_checked.assert_awaited_once_with(checked=False)
 
-    async def test_fill_form_checkbox_string_true_checks(
-        self, mcp_client, mock_ctx_mgr
-    ):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+    async def test_fill_form_checkbox_string_true_checks(self, mcp_client, mock_ctx_mgr):
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_fill_form",
             {
@@ -294,10 +275,10 @@ class TestBrowserFillForm:
             },
         )
         assert result.data["status"] == "success"
-        locator.set_checked.assert_awaited_once_with(True)
+        locator.set_checked.assert_awaited_once_with(checked=True)
 
     async def test_fill_form_checkbox_real_bool(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_fill_form",
             {
@@ -306,10 +287,10 @@ class TestBrowserFillForm:
             },
         )
         assert result.data["status"] == "success"
-        locator.set_checked.assert_awaited_once_with(False)
+        locator.set_checked.assert_awaited_once_with(checked=False)
 
     async def test_fill_form_checkbox_invalid_value(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_fill_form",
             {
@@ -320,10 +301,8 @@ class TestBrowserFillForm:
         assert result.data["error_type"] == "invalid_params"
         locator.set_checked.assert_not_awaited()
 
-    async def test_fill_form_radio_string_false_unchecks(
-        self, mcp_client, mock_ctx_mgr
-    ):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+    async def test_fill_form_radio_string_false_unchecks(self, mcp_client, mock_ctx_mgr):
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_fill_form",
             {
@@ -332,12 +311,12 @@ class TestBrowserFillForm:
             },
         )
         assert result.data["status"] == "success"
-        locator.set_checked.assert_awaited_once_with(False)
+        locator.set_checked.assert_awaited_once_with(checked=False)
 
 
 class TestBrowserSelectOption:
     async def test_success(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_select_option",
             {"context": "admin", "ref": "e4", "value": "blue"},
@@ -346,7 +325,7 @@ class TestBrowserSelectOption:
         locator.select_option.assert_awaited_once_with("blue")
 
     async def test_list_value(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_select_option",
             {"context": "admin", "ref": "e4", "value": ["red", "green"]},
@@ -358,17 +337,15 @@ class TestBrowserSelectOption:
 
 class TestBrowserHover:
     async def test_success(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
-        result = await mcp_client.call_tool(
-            "browser_hover", {"context": "admin", "ref": "e5"}
-        )
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
+        result = await mcp_client.call_tool("browser_hover", {"context": "admin", "ref": "e5"})
         assert result.data["status"] == "success"
         locator.hover.assert_awaited_once()
 
 
 class TestBrowserDrag:
     async def test_success(self, mcp_client, mock_ctx_mgr):
-        page, locator = make_page_with_locator(mock_ctx_mgr)
+        _page, locator = make_page_with_locator(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_drag",
             {"context": "admin", "source_ref": "e1", "target_ref": "e2"},
@@ -380,47 +357,42 @@ class TestBrowserDrag:
 class TestBrowserPressKey:
     async def test_success(self, mcp_client, mock_ctx_mgr):
         page, _ = make_page_with_locator(mock_ctx_mgr)
-        result = await mcp_client.call_tool(
-            "browser_press_key", {"context": "admin", "key": "Tab"}
-        )
+        result = await mcp_client.call_tool("browser_press_key", {"context": "admin", "key": "Tab"})
         assert result.data["status"] == "success"
         page.keyboard.press.assert_awaited_once_with("Tab")
         page.wait_for_load_state.assert_not_awaited()
 
     async def test_enter_waits_for_load_state(self, mcp_client, mock_ctx_mgr):
         page, _ = make_page_with_locator(mock_ctx_mgr)
-        result = await mcp_client.call_tool(
-            "browser_press_key", {"context": "admin", "key": "Enter"}
-        )
+        result = await mcp_client.call_tool("browser_press_key", {"context": "admin", "key": "Enter"})
         assert result.data["status"] == "success"
         page.keyboard.press.assert_awaited_once_with("Enter")
-        page.wait_for_load_state.assert_awaited_once_with(
-            "domcontentloaded", timeout=2000
-        )
+        page.wait_for_load_state.assert_awaited_once_with("domcontentloaded", timeout=2000)
 
 
 class TestBrowserFileUpload:
-    async def test_consumes_pending_filechooser(self, mcp_client, mock_ctx_mgr):
+    async def test_consumes_pending_filechooser(self, mcp_client, mock_ctx_mgr, tmp_path):
         page, _ = make_page_with_locator(mock_ctx_mgr)
         file_chooser = MagicMock()
         file_chooser.set_files = AsyncMock()
         mock_ctx_mgr.consume_modal_state = MagicMock(
             return_value={"kind": "filechooser", "object": file_chooser, "page": page}
         )
+        paths = [str(tmp_path / "a.txt"), str(tmp_path / "b.txt")]
         result = await mcp_client.call_tool(
             "browser_file_upload",
-            {"context": "admin", "paths": ["/tmp/a.txt", "/tmp/b.txt"]},
+            {"context": "admin", "paths": paths},
         )
         assert result.data["status"] == "success"
         assert result.data["data"]["uploaded_count"] == 2
-        file_chooser.set_files.assert_awaited_once_with(["/tmp/a.txt", "/tmp/b.txt"])
+        file_chooser.set_files.assert_awaited_once_with(paths)
 
-    async def test_no_pending_filechooser(self, mcp_client, mock_ctx_mgr):
+    async def test_no_pending_filechooser(self, mcp_client, mock_ctx_mgr, tmp_path):
         make_page_with_locator(mock_ctx_mgr)
         mock_ctx_mgr.consume_modal_state = MagicMock(return_value=None)
         result = await mcp_client.call_tool(
             "browser_file_upload",
-            {"context": "admin", "paths": ["/tmp/a.txt"]},
+            {"context": "admin", "paths": [str(tmp_path / "a.txt")]},
         )
         assert result.data["error_type"] == "modal_state_blocked"
 
@@ -448,9 +420,7 @@ class TestBrowserHandleDialog:
         dialog.message = "Are you sure?"
         dialog.accept = AsyncMock()
         dialog.dismiss = AsyncMock()
-        mock_ctx_mgr.consume_modal_state = MagicMock(
-            return_value={"kind": "dialog", "object": dialog, "page": page}
-        )
+        mock_ctx_mgr.consume_modal_state = MagicMock(return_value={"kind": "dialog", "object": dialog, "page": page})
         result = await mcp_client.call_tool(
             "browser_handle_dialog",
             {"context": "admin", "accept": True},
@@ -469,9 +439,7 @@ class TestBrowserHandleDialog:
         dialog.message = "Hi"
         dialog.accept = AsyncMock()
         dialog.dismiss = AsyncMock()
-        mock_ctx_mgr.consume_modal_state = MagicMock(
-            return_value={"kind": "dialog", "object": dialog, "page": page}
-        )
+        mock_ctx_mgr.consume_modal_state = MagicMock(return_value={"kind": "dialog", "object": dialog, "page": page})
         result = await mcp_client.call_tool(
             "browser_handle_dialog",
             {"context": "admin", "accept": False},
@@ -486,9 +454,7 @@ class TestBrowserHandleDialog:
         dialog.type = "prompt"
         dialog.message = "Name?"
         dialog.accept = AsyncMock()
-        mock_ctx_mgr.consume_modal_state = MagicMock(
-            return_value={"kind": "dialog", "object": dialog, "page": page}
-        )
+        mock_ctx_mgr.consume_modal_state = MagicMock(return_value={"kind": "dialog", "object": dialog, "page": page})
         result = await mcp_client.call_tool(
             "browser_handle_dialog",
             {"context": "admin", "accept": True, "prompt_text": "Alice"},

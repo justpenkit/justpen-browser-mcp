@@ -1,9 +1,10 @@
 """Tests for tools/utility.py — 3 utility tools."""
 
-import re
+import asyncio
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from unittest.mock import AsyncMock, MagicMock
+from justpen_browser_mcp.errors import ContextNotFoundError, StaleRefError
 
 
 def make_page(mock_ctx_mgr):
@@ -54,16 +55,14 @@ class TestBrowserPdfSave:
         assert out.exists()
         assert out.read_bytes().startswith(b"%PDF")
 
-    async def test_pdf_save_default_filename(
-        self, mcp_client, mock_ctx_mgr, tmp_path, monkeypatch
-    ):
+    async def test_pdf_save_default_filename(self, mcp_client, mock_ctx_mgr, tmp_path, monkeypatch):
         make_page(mock_ctx_mgr)
         monkeypatch.setenv("JUSTPEN_WORKSPACE", str(tmp_path))
         result = await mcp_client.call_tool("browser_pdf_save", {"context": "admin"})
         assert result.data["status"] == "success"
         saved = result.data["data"]["saved_to"]
         assert "output/evidence/page-" in saved
-        assert Path(saved).exists()
+        assert await asyncio.to_thread(Path(saved).exists)
 
     async def test_pdf_save_landscape(self, mcp_client, mock_ctx_mgr, tmp_path):
         page = make_page(mock_ctx_mgr)
@@ -99,9 +98,7 @@ class TestBrowserResizeModalGuard:
         dialog = MagicMock()
         dialog.type = "alert"
         dialog.message = "hi"
-        mock_ctx_mgr.get_modal_states = MagicMock(
-            return_value=[{"kind": "dialog", "object": dialog, "page": page}]
-        )
+        mock_ctx_mgr.get_modal_states = MagicMock(return_value=[{"kind": "dialog", "object": dialog, "page": page}])
         result = await mcp_client.call_tool(
             "browser_resize",
             {"context": "admin", "width": 800, "height": 600},
@@ -112,9 +109,7 @@ class TestBrowserResizeModalGuard:
 class TestBrowserTabs:
     async def test_list_tabs(self, mcp_client, mock_ctx_mgr):
         make_page(mock_ctx_mgr)
-        result = await mcp_client.call_tool(
-            "browser_tabs", {"context": "admin", "action": "list"}
-        )
+        result = await mcp_client.call_tool("browser_tabs", {"context": "admin", "action": "list"})
         assert result.data["status"] == "success"
         assert "tabs" in result.data["data"]
 
@@ -132,7 +127,7 @@ class TestBrowserTabs:
         page1 = MagicMock(bring_to_front=AsyncMock(), url="https://b")
         ctx = MagicMock()
         ctx.pages = [page0, page1]
-        ctx._active_page_index = 0
+        mock_ctx_mgr.state.return_value.active_page_index = 0
         mock_ctx_mgr.get.return_value = ctx
         mock_ctx_mgr.set_active_page = MagicMock()
 
@@ -156,7 +151,7 @@ class TestBrowserTabs:
         page1.close.side_effect = close_page1
         ctx = MagicMock()
         ctx.pages = pages
-        ctx._active_page_index = 1
+        mock_ctx_mgr.state.return_value.active_page_index = 1
         mock_ctx_mgr.get.return_value = ctx
 
         result = await mcp_client.call_tool(
@@ -164,7 +159,7 @@ class TestBrowserTabs:
             {"context": "admin", "action": "close", "index": 1},
         )
         assert result.data["status"] == "success"
-        assert ctx._active_page_index == 0
+        assert mock_ctx_mgr.state.return_value.active_page_index == 0
 
     async def test_tabs_close_lower_decrements(self, mcp_client, mock_ctx_mgr):
         make_page(mock_ctx_mgr)
@@ -179,7 +174,7 @@ class TestBrowserTabs:
         page0.close.side_effect = close_page0
         ctx = MagicMock()
         ctx.pages = pages
-        ctx._active_page_index = 2
+        mock_ctx_mgr.state.return_value.active_page_index = 2
         mock_ctx_mgr.get.return_value = ctx
 
         result = await mcp_client.call_tool(
@@ -187,13 +182,13 @@ class TestBrowserTabs:
             {"context": "admin", "action": "close", "index": 0},
         )
         assert result.data["status"] == "success"
-        assert ctx._active_page_index == 1
+        assert mock_ctx_mgr.state.return_value.active_page_index == 1
 
     async def test_tabs_close_negative_index_invalid(self, mcp_client, mock_ctx_mgr):
         make_page(mock_ctx_mgr)
         ctx = MagicMock()
         ctx.pages = [MagicMock(close=AsyncMock())]
-        ctx._active_page_index = 0
+        mock_ctx_mgr.state.return_value.active_page_index = 0
         mock_ctx_mgr.get.return_value = ctx
         result = await mcp_client.call_tool(
             "browser_tabs",
@@ -205,7 +200,7 @@ class TestBrowserTabs:
         make_page(mock_ctx_mgr)
         ctx = MagicMock()
         ctx.pages = [MagicMock(bring_to_front=AsyncMock())]
-        ctx._active_page_index = 0
+        mock_ctx_mgr.state.return_value.active_page_index = 0
         mock_ctx_mgr.get.return_value = ctx
         result = await mcp_client.call_tool(
             "browser_tabs",
@@ -229,7 +224,7 @@ class TestBrowserTabs:
 
         ctx = MagicMock()
         ctx.pages = pages
-        ctx._active_page_index = 0
+        mock_ctx_mgr.state.return_value.active_page_index = 0
         ctx.new_page = AsyncMock(side_effect=add_page)
         mock_ctx_mgr.get.return_value = ctx
 
@@ -238,13 +233,11 @@ class TestBrowserTabs:
             {"context": "admin", "action": "new", "url": "https://new.example"},
         )
         assert result.data["status"] == "success"
-        assert ctx._active_page_index == 1
+        assert mock_ctx_mgr.state.return_value.active_page_index == 1
 
 
 class TestBrowserGenerateLocator:
     async def test_success_testid(self, mcp_client, mock_ctx_mgr):
-        from unittest.mock import AsyncMock, MagicMock, patch
-
         page = MagicMock()
         mock_ctx_mgr.active_page.return_value = page
         mock_ctx_mgr.get.return_value = MagicMock()
@@ -266,16 +259,10 @@ class TestBrowserGenerateLocator:
 
         assert result.data["status"] == "success"
         assert result.data["data"]["ref"] == "e5"
-        assert (
-            result.data["data"]["internal_selector"]
-            == 'internal:testid=[data-testid="login-btn"s]'
-        )
+        assert result.data["data"]["internal_selector"] == 'internal:testid=[data-testid="login-btn"s]'
         assert result.data["data"]["python_syntax"] == 'get_by_test_id("login-btn")'
 
     async def test_stale_ref(self, mcp_client, mock_ctx_mgr):
-        from unittest.mock import AsyncMock, MagicMock, patch
-        from justpen_browser_mcp.errors import StaleRefError
-
         mock_ctx_mgr.active_page.return_value = MagicMock()
         mock_ctx_mgr.get.return_value = MagicMock()
         mock_ctx_mgr.get_modal_states = MagicMock(return_value=[])
@@ -293,8 +280,6 @@ class TestBrowserGenerateLocator:
         assert result.data["error_type"] == "stale_ref"
 
     async def test_unknown_context(self, mcp_client, mock_ctx_mgr):
-        from justpen_browser_mcp.errors import ContextNotFoundError
-
         mock_ctx_mgr.get.side_effect = ContextNotFoundError("missing")
 
         result = await mcp_client.call_tool(

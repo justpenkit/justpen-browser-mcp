@@ -20,24 +20,49 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from playwright.async_api import BrowserContext, Page
+from playwright.async_api import Error as PlaywrightError
 
-from .camoufox import CamoufoxLauncher
 from .errors import (
-    ContextNotFoundError,
     ContextAlreadyExistsError,
+    ContextNotFoundError,
     InvalidParamsError,
     InvalidStateFileError,
     ModalStateBlockedError,
     StateFileNotFoundError,
 )
 
+if TYPE_CHECKING:
+    from playwright.async_api import (
+        BrowserContext,
+        Dialog,
+        FileChooser,
+        Page,
+        Request,
+        Response,
+    )
+
+    from .camoufox import CamoufoxLauncher
+
+
+@dataclass
+class ContextState:
+    """Per-context bookkeeping owned by ContextManager (not stashed on Playwright's BrowserContext)."""
+
+    console_messages: list[dict] = field(default_factory=list)
+    network_requests: list[dict] = field(default_factory=list)
+    network_request_index: dict[int, dict] = field(default_factory=dict)
+    active_page_index: int = 0
+    modal_states: list[dict] = field(default_factory=list)
+
+
 logger = logging.getLogger(__name__)
 
 
-def _format_console_location(loc) -> str | None:
+def _format_console_location(loc: object) -> str | None:
     """Format a Playwright console message location dict into 'url:line:col'.
 
     Playwright Python returns a dict like
@@ -62,17 +87,29 @@ class ContextManager:
     def __init__(self, launcher: CamoufoxLauncher) -> None:
         self._launcher = launcher
         self._contexts: dict[str, BrowserContext] = {}
+        self._state: dict[str, ContextState] = {}
         self._locks: dict[str, asyncio.Lock] = {}
         self._registry_lock = asyncio.Lock()
+
+    def state(self, name: str) -> ContextState:
+        """Return the ContextState for a named context.
+
+        Raises ContextNotFoundError if the context does not exist.
+        """
+        cs = self._state.get(name)
+        if cs is None:
+            raise ContextNotFoundError(f"Context '{name}' does not exist.")
+        return cs
+
+    def list_names(self) -> list[str]:
+        """Return the names of all active contexts."""
+        return list(self._contexts.keys())
 
     async def create(self, name: str, state_path: str | None = None) -> BrowserContext:
         """Create a new BrowserContext, optionally pre-loading storage_state."""
         async with self._registry_lock:
             if name in self._contexts:
-                raise ContextAlreadyExistsError(
-                    f"Context '{name}' already exists. "
-                    f"Call browser_destroy_context first."
-                )
+                raise ContextAlreadyExistsError(f"Context '{name}' already exists. Call browser_destroy_context first.")
 
             browser = await self._launcher.get_browser()
 
@@ -82,106 +119,100 @@ class ContextManager:
 
             ctx = await browser.new_context(**kwargs)
 
-            # Initialize event capture buffers for the inspection tools.
-            ctx._console_messages = []
-            ctx._network_requests = []
-            # O(1) lookup index: maps request object id → list entry
-            ctx._network_request_index = {}
-            # Track which tab (by index) is the logical "active" page for
-            # subsequent tool calls. Updated by browser_tabs(select/close/new).
-            ctx._active_page_index = 0
-
-            def _on_request(req):
-                entry = {
-                    "_id": id(req),
-                    "url": req.url,
-                    "method": req.method,
-                    "status": None,
-                    "resource_type": req.resource_type,
-                    "failure": None,
-                }
-                ctx._network_requests.append(entry)
-                ctx._network_request_index[id(req)] = entry
-
-            def _on_response(response):
-                entry = ctx._network_request_index.get(id(response.request))
-                if entry is not None:
-                    entry["status"] = response.status
-
-            def _on_requestfailed(request):
-                entry = ctx._network_request_index.get(id(request))
-                if entry is not None:
-                    entry["failure"] = request.failure or "unknown"
-
-            def _attach_page_listeners(page):
-                page.on(
-                    "console",
-                    lambda msg: ctx._console_messages.append(
-                        {
-                            "type": msg.type,
-                            "text": msg.text,
-                            "location": _format_console_location(msg.location),
-                        }
-                    ),
-                )
-                page.on(
-                    "pageerror",
-                    lambda exc: ctx._console_messages.append(
-                        {
-                            "type": "error",
-                            "text": str(exc),
-                            "location": None,
-                        }
-                    ),
-                )
-                page.on("request", _on_request)
-                page.on("response", _on_response)
-                page.on("requestfailed", _on_requestfailed)
-
-            ctx.on("page", _attach_page_listeners)
-            for existing_page in ctx.pages:
-                _attach_page_listeners(existing_page)
-
-            # Initialize modal state tracking (CC-1, CC-2, CC-3 from 2026-04-08 audit).
-            # When a dialog or file-chooser appears, store it on the context so
-            # tools can either consume it (browser_handle_dialog, browser_file_upload)
-            # or refuse to execute (assert_no_modal guard).
-            ctx._modal_states = []  # list of {"kind": str, "object": Dialog|FileChooser, "page": Page}
-
-            def _on_dialog(page, dialog):
-                ctx._modal_states.append(
-                    {"kind": "dialog", "object": dialog, "page": page}
-                )
-
-            def _on_filechooser(page, file_chooser):
-                ctx._modal_states.append(
-                    {"kind": "filechooser", "object": file_chooser, "page": page}
-                )
-
-            def _attach_modal_listeners(page):
-                page.on("dialog", lambda dialog: _on_dialog(page, dialog))
-                page.on("filechooser", lambda fc: _on_filechooser(page, fc))
-
-            # Wire to all current and future pages
-            ctx.on("page", _attach_modal_listeners)
-            for existing_page in ctx.pages:
-                _attach_modal_listeners(existing_page)
+            state = ContextState()
+            self._wire_event_listeners(ctx, state)
+            self._wire_modal_listeners(ctx, state)
 
             self._contexts[name] = ctx
+            self._state[name] = state
             self._locks[name] = asyncio.Lock()
-            logger.info(
-                f"Created context '{name}'"
-                + (f" with state from {state_path}" if state_path else "")
-            )
+            if state_path:
+                logger.info("Created context %r with state from %s", name, state_path)
+            else:
+                logger.info("Created context %r", name)
             return ctx
+
+    def _wire_event_listeners(self, ctx: BrowserContext, state: ContextState) -> None:
+        """Attach console, pageerror, and network listeners to all current and future pages."""
+
+        def _on_request(req: Request) -> None:
+            entry = {
+                "_id": id(req),
+                "url": req.url,
+                "method": req.method,
+                "status": None,
+                "resource_type": req.resource_type,
+                "failure": None,
+            }
+            state.network_requests.append(entry)
+            state.network_request_index[id(req)] = entry
+
+        def _on_response(response: Response) -> None:
+            entry = state.network_request_index.get(id(response.request))
+            if entry is not None:
+                entry["status"] = response.status
+
+        def _on_requestfailed(request: Request) -> None:
+            entry = state.network_request_index.get(id(request))
+            if entry is not None:
+                entry["failure"] = request.failure or "unknown"
+
+        def _attach(page: Page) -> None:
+            page.on(
+                "console",
+                lambda msg: state.console_messages.append(
+                    {
+                        "type": msg.type,
+                        "text": msg.text,
+                        "location": _format_console_location(msg.location),
+                    }
+                ),
+            )
+            page.on(
+                "pageerror",
+                lambda exc: state.console_messages.append(
+                    {
+                        "type": "error",
+                        "text": str(exc),
+                        "location": None,
+                    }
+                ),
+            )
+            page.on("request", _on_request)
+            page.on("response", _on_response)
+            page.on("requestfailed", _on_requestfailed)
+
+        ctx.on("page", _attach)
+        for existing_page in ctx.pages:
+            _attach(existing_page)
+
+    def _wire_modal_listeners(self, ctx: BrowserContext, state: ContextState) -> None:
+        """Attach dialog + file-chooser listeners so tools can handle or refuse modals.
+
+        Modal tracking (CC-1, CC-2, CC-3 from 2026-04-08 audit) routes each
+        dialog/filechooser into state.modal_states; assert_no_modal checks that
+        list, and browser_handle_dialog / browser_file_upload consume entries.
+        """
+
+        def _on_dialog(page: Page, dialog: Dialog) -> None:
+            state.modal_states.append({"kind": "dialog", "object": dialog, "page": page})
+
+        def _on_filechooser(page: Page, file_chooser: FileChooser) -> None:
+            state.modal_states.append({"kind": "filechooser", "object": file_chooser, "page": page})
+
+        def _attach(page: Page) -> None:
+            page.on("dialog", lambda dialog: _on_dialog(page, dialog))
+            page.on("filechooser", lambda fc: _on_filechooser(page, fc))
+
+        ctx.on("page", _attach)
+        for existing_page in ctx.pages:
+            _attach(existing_page)
 
     async def get(self, name: str) -> BrowserContext:
         """Look up a context by name. Raises ContextNotFoundError if missing."""
         ctx = self._contexts.get(name)
         if ctx is None:
-            raise ContextNotFoundError(
-                f"Context '{name}' does not exist. Call browser_create_context first."
-            )
+            raise ContextNotFoundError(f"Context '{name}' does not exist. Call browser_create_context first.")
         return ctx
 
     def lock_for(self, name: str) -> asyncio.Lock:
@@ -209,8 +240,9 @@ class ContextManager:
             async with per_context_lock:
                 await self._contexts[name].close()
                 del self._contexts[name]
+                del self._state[name]
                 del self._locks[name]
-            logger.info(f"Destroyed context '{name}'")
+            logger.info("Destroyed context %r", name)
 
             if not self._contexts:
                 logger.info("No contexts remaining, shutting down Camoufox browser")
@@ -230,12 +262,13 @@ class ContextManager:
         for name, ctx in snapshot:
             try:
                 cookies = await ctx.cookies()
-            except Exception:
+            except (PlaywrightError, RuntimeError):
                 # Context was destroyed concurrently; skip it.
                 continue
             pages = ctx.pages
-            if pages:
-                idx = getattr(ctx, "_active_page_index", 0)
+            cstate = self._state.get(name)
+            if pages and cstate is not None:
+                idx = cstate.active_page_index
                 if idx < 0 or idx >= len(pages):
                     idx = 0
                 active_url = pages[idx].url
@@ -254,19 +287,20 @@ class ContextManager:
     async def active_page(self, name: str) -> Page:
         """Return the active page for a context, creating one if none exist.
 
-        Honors the per-context ``_active_page_index`` set by browser_tabs
+        Honors the per-context ``active_page_index`` set by browser_tabs
         (select/new/close). If the stored index is out of range, it is
         clamped to 0 so subsequent calls remain consistent.
         """
         ctx = await self.get(name)
+        cstate = self.state(name)
         if not ctx.pages:
             page = await ctx.new_page()
-            ctx._active_page_index = 0
+            cstate.active_page_index = 0
             return page
-        idx = getattr(ctx, "_active_page_index", 0)
+        idx = cstate.active_page_index
         if idx < 0 or idx >= len(ctx.pages):
             idx = 0
-            ctx._active_page_index = 0
+            cstate.active_page_index = 0
         return ctx.pages[idx]
 
     def set_active_page(self, name: str, index: int) -> None:
@@ -280,10 +314,8 @@ class ContextManager:
         if ctx is None:
             raise ContextNotFoundError(f"Context '{name}' does not exist.")
         if index < 0 or index >= len(ctx.pages):
-            raise InvalidParamsError(
-                f"tab index {index} out of range (have {len(ctx.pages)} pages)"
-            )
-        ctx._active_page_index = index
+            raise InvalidParamsError(f"tab index {index} out of range (have {len(ctx.pages)} pages)")
+        self._state[name].active_page_index = index
 
     async def export_state(self, name: str, state_path: str) -> None:
         """Dump the context's current cookies + localStorage to a JSON file.
@@ -294,11 +326,11 @@ class ContextManager:
         ctx = await self.get(name)
         state = await ctx.storage_state()
         path = Path(state_path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(state, indent=2))
-        logger.info(f"Exported state for '{name}' to {state_path}")
+        await asyncio.to_thread(path.parent.mkdir, parents=True, exist_ok=True)
+        await asyncio.to_thread(path.write_text, json.dumps(state, indent=2))
+        logger.info("Exported state for %r to %s", name, state_path)
 
-    async def load_state(self, name: str, state_path: str) -> None:
+    async def load_state(self, name: str, state_path: str) -> list[str]:
         """Replace the context's cookies + localStorage with state from a file.
 
         Implementation detail: clears existing cookies, adds new cookies,
@@ -308,128 +340,131 @@ class ContextManager:
         constructing a fresh context with storage_state, but it preserves
         the BrowserContext object reference, enabling mid-session resets
         without invalidating refs/state held by callers.
+
+        Returns the list of origins whose localStorage could not be applied
+        (redirect or playwright failure); cookies/applied origins are still
+        in effect.
         """
         ctx = await self.get(name)
         state = self._load_state_file(state_path)
+        self._validate_state_structure(state)
 
         # Capture previous origins that have localStorage so we can clear any
         # that are omitted from (or empty in) the new state file. Without this
         # step, load_state silently preserves stale localStorage on origins
         # not mentioned by the new file — contradicting the "replace" contract.
         prev_state = await ctx.storage_state()
-        prev_origins = {
-            o["origin"] for o in prev_state.get("origins", []) if o.get("localStorage")
-        }
-
-        # Validate cookies and origins structure before mutating any state,
-        # so a malformed file cannot leave the context in a half-applied state.
-        for cookie in state.get("cookies", []):
-            if (
-                not isinstance(cookie, dict)
-                or "name" not in cookie
-                or "value" not in cookie
-            ):
-                raise InvalidStateFileError(
-                    "Each cookie must be a dict with at least 'name' and 'value' keys"
-                )
-            if "url" not in cookie and "domain" not in cookie:
-                raise InvalidStateFileError(
-                    f"Cookie {cookie.get('name')!r} needs 'url' or 'domain' "
-                    "for Playwright to accept it"
-                )
-
-        # Validate origins structure.
-        for origin_data in state.get("origins", []):
-            if not isinstance(origin_data, dict) or "origin" not in origin_data:
-                raise InvalidStateFileError(
-                    "Each entry in 'origins' must be a dict with an 'origin' key"
-                )
-            local_storage = origin_data.get("localStorage", [])
-            if not isinstance(local_storage, list):
-                raise InvalidStateFileError(
-                    f"'localStorage' for origin {origin_data['origin']!r} must be a list"
-                )
-            for item in local_storage:
-                if (
-                    not isinstance(item, dict)
-                    or "name" not in item
-                    or "value" not in item
-                ):
-                    raise InvalidStateFileError(
-                        "Each localStorage item must have 'name' and 'value' keys"
-                    )
+        prev_origins = {o["origin"] for o in prev_state.get("origins", []) if o.get("localStorage")}
 
         await ctx.clear_cookies()
         if state.get("cookies"):
             await ctx.add_cookies(state["cookies"])
 
-        new_origins_with_data: set[str] = set()
-        failed_origins: list[str] = []
-        for origin_data in state.get("origins", []):
-            origin = origin_data["origin"]
-            local_storage = origin_data.get("localStorage", [])
-            if not local_storage:
-                continue
-            page = await ctx.new_page()
-            try:
-                await page.goto(origin)
-                # Verify page didn't redirect to a different origin.
-                actual_parts = page.url.rstrip("/").split("/", 3)[:3]
-                expected_parts = origin.rstrip("/").split("/", 3)[:3]
-                if actual_parts != expected_parts:
-                    logger.warning(
-                        "load_state: origin %r redirected to %r, skipping localStorage",
-                        origin,
-                        page.url,
-                    )
-                    failed_origins.append(origin)
-                else:
-                    js_items = json.dumps(
-                        [
-                            {"name": item["name"], "value": item["value"]}
-                            for item in local_storage
-                        ]
-                    )
-                    await page.evaluate(
-                        f"localStorage.clear(); "
-                        f"const items = {js_items}; "
-                        f"items.forEach(i => localStorage.setItem(i.name, i.value));"
-                    )
-                    new_origins_with_data.add(origin)
-            except Exception as exc:
-                logger.warning(
-                    "load_state: failed to set localStorage for origin %r: %s",
-                    origin,
-                    exc,
-                )
-                # Preserve old localStorage: prevent stale-origin cleanup
-                # from clearing data that was working before this call.
-                new_origins_with_data.add(origin)
-                failed_origins.append(origin)
-            finally:
-                await page.close()
+        new_origins_with_data, failed_origins = await self._apply_origins_localstorage(ctx, state.get("origins", []))
 
         # Clear localStorage on any origin that had data before but is not in
         # the new state (or is present with an empty list).
         for stale_origin in prev_origins - new_origins_with_data:
-            page = await ctx.new_page()
-            try:
-                await page.goto(stale_origin)
-                actual_parts = page.url.rstrip("/").split("/", 3)[:3]
-                expected_parts = stale_origin.rstrip("/").split("/", 3)[:3]
-                if actual_parts != expected_parts:
-                    logger.warning(
-                        "load_state: stale origin %r redirected to %r, skipping clear",
-                        stale_origin,
-                        page.url,
-                    )
-                else:
-                    await page.evaluate("() => localStorage.clear()")
-            finally:
-                await page.close()
+            await self._clear_origin_localstorage(ctx, stale_origin)
 
-        logger.info(f"Loaded state for '{name}' from {state_path}")
+        logger.info("Loaded state for %r from %s", name, state_path)
         return failed_origins
+
+    @staticmethod
+    def _validate_state_structure(state: dict) -> None:
+        """Validate cookies + origins shape before mutating any browser state."""
+        for cookie in state.get("cookies", []):
+            if not isinstance(cookie, dict) or "name" not in cookie or "value" not in cookie:
+                raise InvalidStateFileError("Each cookie must be a dict with at least 'name' and 'value' keys")
+            if "url" not in cookie and "domain" not in cookie:
+                raise InvalidStateFileError(
+                    f"Cookie {cookie.get('name')!r} needs 'url' or 'domain' for Playwright to accept it"
+                )
+        for origin_data in state.get("origins", []):
+            if not isinstance(origin_data, dict) or "origin" not in origin_data:
+                raise InvalidStateFileError("Each entry in 'origins' must be a dict with an 'origin' key")
+            local_storage = origin_data.get("localStorage", [])
+            if not isinstance(local_storage, list):
+                raise InvalidStateFileError(f"'localStorage' for origin {origin_data['origin']!r} must be a list")
+            for item in local_storage:
+                if not isinstance(item, dict) or "name" not in item or "value" not in item:
+                    raise InvalidStateFileError("Each localStorage item must have 'name' and 'value' keys")
+
+    async def _apply_origins_localstorage(self, ctx: BrowserContext, origins: list[dict]) -> tuple[set[str], list[str]]:
+        """Apply localStorage for each origin in `origins`.
+
+        Returns (new_origins_with_data, failed_origins). An origin joins
+        new_origins_with_data when either apply succeeded *or* raised — the
+        latter preserves old data from stale-origin cleanup.
+        """
+        new_origins_with_data: set[str] = set()
+        failed_origins: list[str] = []
+        for origin_data in origins:
+            origin = origin_data["origin"]
+            local_storage = origin_data.get("localStorage", [])
+            if not local_storage:
+                continue
+            try:
+                applied = await self._set_origin_localstorage(ctx, origin, local_storage)
+            except (PlaywrightError, TypeError, ValueError) as exc:
+                logger.warning("load_state: failed to set localStorage for origin %r: %s", origin, exc)
+                new_origins_with_data.add(origin)
+                failed_origins.append(origin)
+                continue
+            if applied:
+                new_origins_with_data.add(origin)
+            else:
+                failed_origins.append(origin)
+        return new_origins_with_data, failed_origins
+
+    @staticmethod
+    async def _set_origin_localstorage(ctx: BrowserContext, origin: str, items: list[dict]) -> bool:
+        """Open a temp page on origin and install localStorage items.
+
+        Returns False if the page redirected away from the origin (caller
+        records it as failed but allows stale-cleanup later). Propagates
+        playwright errors to the caller.
+        """
+        page = await ctx.new_page()
+        try:
+            await page.goto(origin)
+            actual_parts = page.url.rstrip("/").split("/", 3)[:3]
+            expected_parts = origin.rstrip("/").split("/", 3)[:3]
+            if actual_parts != expected_parts:
+                logger.warning(
+                    "load_state: origin %r redirected to %r, skipping localStorage",
+                    origin,
+                    page.url,
+                )
+                return False
+            js_items = json.dumps([{"name": item["name"], "value": item["value"]} for item in items])
+            await page.evaluate(
+                f"localStorage.clear(); "
+                f"const items = {js_items}; "
+                f"items.forEach(i => localStorage.setItem(i.name, i.value));"
+            )
+            return True
+        finally:
+            await page.close()
+
+    @staticmethod
+    async def _clear_origin_localstorage(ctx: BrowserContext, origin: str) -> None:
+        """Open a temp page on origin and call localStorage.clear()."""
+        page = await ctx.new_page()
+        try:
+            await page.goto(origin)
+            actual_parts = page.url.rstrip("/").split("/", 3)[:3]
+            expected_parts = origin.rstrip("/").split("/", 3)[:3]
+            if actual_parts != expected_parts:
+                logger.warning(
+                    "load_state: stale origin %r redirected to %r, skipping clear",
+                    origin,
+                    page.url,
+                )
+                return
+            await page.evaluate("() => localStorage.clear()")
+        finally:
+            await page.close()
 
     def get_modal_states(self, name: str) -> list[dict]:
         """Return the list of pending modal states for a context.
@@ -438,10 +473,10 @@ class ContextManager:
         Empty list means no modals are pending. Entries whose page has
         closed are pruned automatically so they cannot block future tools.
         """
-        ctx = self._contexts.get(name)
-        if ctx is None:
+        cstate = self._state.get(name)
+        if cstate is None:
             raise ContextNotFoundError(f"Context '{name}' does not exist.")
-        states = getattr(ctx, "_modal_states", [])
+        states = cstate.modal_states
         # Prune entries from closed pages so stale modals don't block tools.
         states[:] = [s for s in states if not s["page"].is_closed()]
         return list(states)
@@ -453,10 +488,10 @@ class ContextManager:
         (kind='filechooser') to retrieve and acknowledge the pending modal.
         Returns None if no modal of that kind is pending.
         """
-        ctx = self._contexts.get(name)
-        if ctx is None:
+        cstate = self._state.get(name)
+        if cstate is None:
             raise ContextNotFoundError(f"Context '{name}' does not exist.")
-        states = getattr(ctx, "_modal_states", [])
+        states = cstate.modal_states
         for i, state in enumerate(states):
             if state["kind"] == kind:
                 return states.pop(i)
@@ -470,16 +505,15 @@ class ContextManager:
         try:
             data = json.loads(path.read_text())
         except json.JSONDecodeError as e:
-            raise InvalidStateFileError(f"Invalid JSON in state file: {e}")
+            raise InvalidStateFileError(f"Invalid JSON in state file: {e}") from e
         if not isinstance(data, dict) or "cookies" not in data:
             raise InvalidStateFileError(
-                "State file does not look like a Playwright storage_state JSON: "
-                "missing 'cookies' key"
+                "State file does not look like a Playwright storage_state JSON: missing 'cookies' key"
             )
         return data
 
 
-def assert_no_modal(ctx_mgr: "ContextManager", context: str) -> None:
+def assert_no_modal(ctx_mgr: ContextManager, context: str) -> None:
     """Raise ModalStateBlockedError if any dialog or file-chooser is pending.
 
     Tool dispatch handlers call this BEFORE executing any Playwright action

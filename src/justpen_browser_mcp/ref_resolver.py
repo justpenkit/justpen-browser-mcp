@@ -23,7 +23,7 @@ This module exists to:
 import logging
 import re
 
-from playwright.async_api import Page, Locator, Error as PlaywrightError
+from playwright.async_api import Error as PlaywrightError, Locator, Page
 
 from .errors import StaleRefError
 
@@ -40,7 +40,7 @@ async def capture_snapshot(page: Page) -> str:
     because the high-level Python API does not expose it.
     See https://github.com/microsoft/playwright-python/issues/2867
     """
-    return await page._impl_obj._channel.send(
+    return await page._impl_obj._channel.send(  # noqa: SLF001 — playwright has no public API for snapshotForAI; see github.com/microsoft/playwright-python/issues/2867
         "snapshotForAI",
         None,
         {"timeout": SNAPSHOT_TIMEOUT_MS},
@@ -57,20 +57,14 @@ async def resolve_ref(page: Page, ref: str, timeout_ms: int = 1000) -> Locator:
     locator = locator_for_ref(page, ref)
     try:
         await locator.wait_for(state="attached", timeout=timeout_ms)
-        return locator
     except PlaywrightError as e:
         msg = str(e).lower()
-        if (
-            "aria-ref" in msg
-            or "no element" in msg
-            or "not found" in msg
-            or "resolved to no element" in msg
-        ):
+        if "aria-ref" in msg or "no element" in msg or "not found" in msg or "resolved to no element" in msg:
             raise StaleRefError(
-                f"Ref '{ref}' not found in current page snapshot. "
-                f"Capture a new snapshot with browser_snapshot."
+                f"Ref '{ref}' not found in current page snapshot. Capture a new snapshot with browser_snapshot."
             ) from e
         raise
+    return locator
 
 
 # Playwright internal selector regex parsers, used by _internal_to_python.
@@ -172,22 +166,16 @@ async def resolve_selector_to_stable(page: Page, ref: str) -> dict:
     Raises StaleRefError if the ref is not found in the current page state.
     """
     try:
-        internal = await page._impl_obj.main_frame._channel.send(
+        internal = await page._impl_obj.main_frame._channel.send(  # noqa: SLF001 — playwright has no public API for resolveSelector; see github.com/microsoft/playwright-python/issues/2867
             "resolveSelector",
             None,
             {"selector": f"aria-ref={ref}"},
         )
     except PlaywrightError as e:
         msg = str(e).lower()
-        if (
-            "aria-ref" in msg
-            or "no element" in msg
-            or "not found" in msg
-            or "resolved to no element" in msg
-        ):
+        if "aria-ref" in msg or "no element" in msg or "not found" in msg or "resolved to no element" in msg:
             raise StaleRefError(
-                f"Ref '{ref}' not found in current page snapshot. "
-                f"Capture a new snapshot with browser_snapshot."
+                f"Ref '{ref}' not found in current page snapshot. Capture a new snapshot with browser_snapshot."
             ) from e
         raise
 

@@ -26,7 +26,5 @@ class TestBrowserServerConfig:
         assert cfg.log_level == "DEBUG"
 
     def test_unknown_env_vars_ignored(self):
-        cfg = BrowserServerConfig.from_env(
-            {"FOO": "bar", "BROWSER_MCP_HEADLESS": "true"}
-        )
+        cfg = BrowserServerConfig.from_env({"FOO": "bar", "BROWSER_MCP_HEADLESS": "true"})
         assert cfg.headless is True

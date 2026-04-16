@@ -10,7 +10,7 @@ from fastmcp import FastMCP
 
 from ..context_manager import ContextManager
 from ..errors import BrowserMcpError
-from ..responses import success_response, error_response
+from ..responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 
@@ -18,9 +18,7 @@ logger = logging.getLogger(__name__)
 def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_create_context(
-        context: str, state_path: str | None = None
-    ) -> dict:
+    async def browser_create_context(context: str, state_path: str | None = None) -> dict:
         """Create a new isolated browser context (like a fresh browser profile).
 
         state_path is optional. When supplied, the context is pre-loaded with
