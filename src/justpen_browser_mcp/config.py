@@ -1,8 +1,8 @@
 """Server configuration loaded from environment variables."""
 
 import logging
-from dataclasses import dataclass
 from collections.abc import Mapping
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
