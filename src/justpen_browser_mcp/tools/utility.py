@@ -228,7 +228,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                 if action == "list":
                     tabs = [{"index": i, "url": p.url} for i, p in enumerate(ctx.pages)]
                     return success_response(context, data={"tabs": tabs})
-                elif action == "new":
+                if action == "new":
                     page = await ctx.new_page()
                     if url:
                         await page.goto(_normalize_url(url))
@@ -237,7 +237,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     # target it.
                     ctx._active_page_index = len(ctx.pages) - 1
                     return success_response(context, data={"index": len(ctx.pages) - 1, "url": page.url})
-                elif action == "close":
+                if action == "close":
                     if index is None or index < 0 or index >= len(ctx.pages):
                         raise InvalidParamsError(f"invalid tab index: {index}")
                     await ctx.pages[index].close()
@@ -257,7 +257,7 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                         new_active = max(0, min(new_active, remaining - 1))
                     ctx._active_page_index = new_active
                     return success_response(context, data={"closed_index": index})
-                elif action == "select":
+                if action == "select":
                     if index is None or index < 0 or index >= len(ctx.pages):
                         raise InvalidParamsError(f"invalid tab index: {index}")
                     # Update the logical active tab first so subsequent tool
