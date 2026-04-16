@@ -5,7 +5,7 @@ ephemeral Docker test container via scripts/run-e2e-tests.sh.
 Use `pytest -m e2e` to opt in.
 """
 
-import asyncio  # noqa: F401  (used by lifecycle tests below)
+import asyncio
 import json
 import re
 from pathlib import Path
