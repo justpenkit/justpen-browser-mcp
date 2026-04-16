@@ -17,7 +17,7 @@ from ..responses import error_response, success_response
 logger = logging.getLogger(__name__)
 
 
-def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_evaluate(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
     async def browser_evaluate(
@@ -82,6 +82,9 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             logger.exception("browser_evaluate failed")
             return error_response(context, "internal_error", str(e))
 
+
+def _register_browser_run_code(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+
     @mcp.tool
     async def browser_run_code(context: str, code: str) -> dict:
         """Execute a Python async code snippet with full Playwright access.
@@ -128,3 +131,8 @@ def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         except Exception as e:
             logger.exception("browser_run_code failed")
             return error_response(context, "internal_error", str(e))
+
+
+def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+    _register_browser_evaluate(mcp, ctx_mgr)
+    _register_browser_run_code(mcp, ctx_mgr)
