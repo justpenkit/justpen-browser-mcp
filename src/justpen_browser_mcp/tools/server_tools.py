@@ -8,13 +8,14 @@ import logging
 
 from fastmcp import FastMCP
 
+from ..camoufox import CamoufoxLauncher
 from ..context_manager import ContextManager
 from ..responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 
 
-def register(mcp: FastMCP, ctx_mgr: ContextManager, launcher) -> None:
+def register(mcp: FastMCP, ctx_mgr: ContextManager, launcher: CamoufoxLauncher) -> None:
 
     @mcp.tool
     async def browser_status() -> dict:

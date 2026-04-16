@@ -24,7 +24,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from playwright.async_api import BrowserContext, Page
+    from playwright.async_api import (
+        BrowserContext,
+        Dialog,
+        FileChooser,
+        Page,
+        Request,
+        Response,
+    )
 
     from .camoufox import CamoufoxLauncher
 
@@ -40,7 +47,7 @@ from .errors import (
 logger = logging.getLogger(__name__)
 
 
-def _format_console_location(loc) -> str | None:
+def _format_console_location(loc: object) -> str | None:
     """Format a Playwright console message location dict into 'url:line:col'.
 
     Playwright Python returns a dict like
@@ -91,7 +98,7 @@ class ContextManager:
             # subsequent tool calls. Updated by browser_tabs(select/close/new).
             ctx._active_page_index = 0
 
-            def _on_request(req):
+            def _on_request(req: Request) -> None:
                 entry = {
                     "_id": id(req),
                     "url": req.url,
@@ -103,17 +110,17 @@ class ContextManager:
                 ctx._network_requests.append(entry)
                 ctx._network_request_index[id(req)] = entry
 
-            def _on_response(response):
+            def _on_response(response: Response) -> None:
                 entry = ctx._network_request_index.get(id(response.request))
                 if entry is not None:
                     entry["status"] = response.status
 
-            def _on_requestfailed(request):
+            def _on_requestfailed(request: Request) -> None:
                 entry = ctx._network_request_index.get(id(request))
                 if entry is not None:
                     entry["failure"] = request.failure or "unknown"
 
-            def _attach_page_listeners(page):
+            def _attach_page_listeners(page: Page) -> None:
                 page.on(
                     "console",
                     lambda msg: ctx._console_messages.append(
@@ -148,13 +155,13 @@ class ContextManager:
             # or refuse to execute (assert_no_modal guard).
             ctx._modal_states = []  # list of {"kind": str, "object": Dialog|FileChooser, "page": Page}
 
-            def _on_dialog(page, dialog):
+            def _on_dialog(page: Page, dialog: Dialog) -> None:
                 ctx._modal_states.append({"kind": "dialog", "object": dialog, "page": page})
 
-            def _on_filechooser(page, file_chooser):
+            def _on_filechooser(page: Page, file_chooser: FileChooser) -> None:
                 ctx._modal_states.append({"kind": "filechooser", "object": file_chooser, "page": page})
 
-            def _attach_modal_listeners(page):
+            def _attach_modal_listeners(page: Page) -> None:
                 page.on("dialog", lambda dialog: _on_dialog(page, dialog))
                 page.on("filechooser", lambda fc: _on_filechooser(page, fc))
 
