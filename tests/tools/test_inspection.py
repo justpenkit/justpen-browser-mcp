@@ -72,7 +72,7 @@ class TestBrowserScreenshot:
         assert result.data["status"] == "success"
         decoded = base64.b64decode(result.data["data"]["image_base64"])
         assert decoded.startswith(b"\x89PNG")
-        assert result.data["data"]["format"] == "png"
+        assert result.data["data"]["image_format"] == "png"
 
     async def test_jpeg_format(self, mcp_client, mock_ctx_mgr):
         page = make_page(mock_ctx_mgr)
@@ -80,9 +80,9 @@ class TestBrowserScreenshot:
         buf = BytesIO()
         img.save(buf, format="JPEG")
         page.screenshot = AsyncMock(return_value=buf.getvalue())
-        result = await mcp_client.call_tool("browser_screenshot", {"context": "admin", "format": "jpeg"})
+        result = await mcp_client.call_tool("browser_screenshot", {"context": "admin", "image_format": "jpeg"})
         page.screenshot.assert_awaited_once_with(type="jpeg", full_page=False)
-        assert result.data["data"]["format"] == "jpeg"
+        assert result.data["data"]["image_format"] == "jpeg"
 
     async def test_full_page_param_passed(self, mcp_client, mock_ctx_mgr):
         page = make_page(mock_ctx_mgr)
@@ -251,7 +251,7 @@ class TestBrowserNetworkRequests:
         mock_ctx_mgr.get.return_value = ctx
         result = await mcp_client.call_tool(
             "browser_network_requests",
-            {"context": "admin", "filter": "api/users"},
+            {"context": "admin", "url_filter": "api/users"},
         )
         reqs = result.data["data"]["requests"]
         assert len(reqs) == 1
@@ -261,7 +261,7 @@ class TestBrowserNetworkRequests:
         ctx = MagicMock()
         ctx._network_requests = []
         mock_ctx_mgr.get.return_value = ctx
-        result = await mcp_client.call_tool("browser_network_requests", {"context": "admin", "filter": "["})
+        result = await mcp_client.call_tool("browser_network_requests", {"context": "admin", "url_filter": "["})
         assert result.data["error_type"] == "invalid_params"
 
     async def test_network_requests_strips_internal_id(self, mcp_client, mock_ctx_mgr):
