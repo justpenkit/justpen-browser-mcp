@@ -17,6 +17,7 @@ runs `python -m camoufox fetch` as a subprocess before launching.
 import asyncio
 import logging
 import sys
+from typing import cast
 
 from camoufox.async_api import AsyncCamoufox
 from camoufox.pkgman import installed_verstr
@@ -51,7 +52,8 @@ class CamoufoxLauncher:
             if self._browser is not None and not self._browser.is_connected():
                 logger.warning("Camoufox browser disconnected, cleaning up...")
                 try:
-                    await self._cm.__aexit__(None, None, None)
+                    if self._cm is not None:
+                        await self._cm.__aexit__(None, None, None)
                 except (PlaywrightError, OSError, RuntimeError) as e:
                     logger.warning("Error cleaning up dead browser: %s", e)
                 self._cm = None
@@ -60,7 +62,9 @@ class CamoufoxLauncher:
                 await self._ensure_binary()
                 logger.info("Launching Camoufox browser...")
                 self._cm = AsyncCamoufox(headless=self._headless)
-                self._browser = await self._cm.__aenter__()
+                # AsyncCamoufox.__aenter__ is typed as returning Browser | BrowserContext
+                # but at runtime always returns a Browser (AsyncNewBrowser launch).
+                self._browser = cast("Browser", await self._cm.__aenter__())
                 logger.info("Camoufox launched successfully")
             return self._browser
 
