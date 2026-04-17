@@ -17,7 +17,6 @@ _VALID_BUTTONS: frozenset[str] = frozenset({"left", "middle", "right"})
 
 
 def _validated_button(button: str) -> Literal["left", "middle", "right"]:
-    """Validate and narrow the button string to the Playwright Literal type."""
     if button not in _VALID_BUTTONS:
         raise InvalidParamsError(f"button must be 'left', 'middle', or 'right'; got {button!r}")
     return cast("Literal['left', 'middle', 'right']", button)
