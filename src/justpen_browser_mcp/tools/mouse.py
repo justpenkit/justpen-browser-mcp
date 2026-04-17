@@ -2,15 +2,24 @@
 
 import contextlib
 import logging
+from typing import Literal, cast
 
 from fastmcp import FastMCP
 from playwright.async_api import TimeoutError as PWTimeout
 
 from ..context_manager import ContextManager, assert_no_modal
-from ..errors import BrowserMcpError
+from ..errors import BrowserMcpError, InvalidParamsError
 from ..responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
+
+_VALID_BUTTONS: frozenset[str] = frozenset({"left", "middle", "right"})
+
+
+def _validated_button(button: str) -> Literal["left", "middle", "right"]:
+    if button not in _VALID_BUTTONS:
+        raise InvalidParamsError(f"button must be 'left', 'middle', or 'right'; got {button!r}")
+    return cast("Literal['left', 'middle', 'right']", button)
 
 
 def _register_browser_mouse_click_xy(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
@@ -47,7 +56,7 @@ def _register_browser_mouse_click_xy(mcp: FastMCP, ctx_mgr: ContextManager) -> N
             assert_no_modal(ctx_mgr, context)
             async with ctx_mgr.lock_for(context):
                 page = await ctx_mgr.active_page(context)
-                await page.mouse.click(x, y, button=button, click_count=click_count, delay=delay_ms)
+                await page.mouse.click(x, y, button=_validated_button(button), click_count=click_count, delay=delay_ms)
                 with contextlib.suppress(PWTimeout):
                     await page.wait_for_load_state("domcontentloaded", timeout=2000)
             return success_response(context, data={"clicked_at": [x, y], "button": button})
@@ -113,7 +122,7 @@ def _register_browser_mouse_down(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             assert_no_modal(ctx_mgr, context)
             async with ctx_mgr.lock_for(context):
                 page = await ctx_mgr.active_page(context)
-                await page.mouse.down(button=button)
+                await page.mouse.down(button=_validated_button(button))
             return success_response(context, data={"button_down": button})
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))
@@ -144,7 +153,7 @@ def _register_browser_mouse_up(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             assert_no_modal(ctx_mgr, context)
             async with ctx_mgr.lock_for(context):
                 page = await ctx_mgr.active_page(context)
-                await page.mouse.up(button=button)
+                await page.mouse.up(button=_validated_button(button))
             return success_response(context, data={"button_up": button})
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))
