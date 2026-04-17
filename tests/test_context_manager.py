@@ -334,6 +334,7 @@ class TestContextManagerListenerBehavior:
         mgr = ContextManager(launcher)
         await mgr.create("admin")
         handler = _handler_for(page, "console")
+        assert handler is not None
         msg_none = MagicMock(type="log", text="a", location=None)
         handler(msg_none)
         assert mgr.state("admin").console_messages[-1]["location"] is None
@@ -383,6 +384,7 @@ class TestContextManagerListenerBehavior:
         mgr = ContextManager(launcher)
         await mgr.create("admin")
         req_handler = _handler_for(page, "request")
+        assert req_handler is not None
         resp_handler = _handler_for(page, "response")
         assert resp_handler is not None
         req = MagicMock(url="https://x/", method="GET", resource_type="document")
@@ -398,6 +400,7 @@ class TestContextManagerListenerBehavior:
         mgr = ContextManager(launcher)
         await mgr.create("admin")
         req_handler = _handler_for(page, "request")
+        assert req_handler is not None
         fail_handler = _handler_for(page, "requestfailed")
         assert fail_handler is not None
         req = MagicMock(
@@ -420,7 +423,9 @@ class TestContextManagerListenerBehavior:
         mgr = ContextManager(launcher)
         await mgr.create("admin")
         req_handler = _handler_for(page, "request")
+        assert req_handler is not None
         resp_handler = _handler_for(page, "response")
+        assert resp_handler is not None
 
         req_a = MagicMock(
             url="https://x.com/api",
@@ -457,7 +462,9 @@ class TestContextManagerListenerBehavior:
         mgr = ContextManager(launcher)
         await mgr.create("admin")
         req_handler = _handler_for(page, "request")
+        assert req_handler is not None
         fail_handler = _handler_for(page, "requestfailed")
+        assert fail_handler is not None
 
         req_a = MagicMock(
             url="https://x.com/api",

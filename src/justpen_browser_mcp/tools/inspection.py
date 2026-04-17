@@ -134,7 +134,7 @@ def _register_browser_screenshot(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                             max(1, int(img.width * scale)),
                             max(1, int(img.height * scale)),
                         )
-                        img = img.resize(new_size, _PILImage.LANCZOS)
+                        img = img.resize(new_size, _PILImage.Resampling.LANCZOS)
                         buf = BytesIO()
                         save_format = "PNG" if image_format == "png" else "JPEG"
                         if save_format == "JPEG" and img.mode != "RGB":

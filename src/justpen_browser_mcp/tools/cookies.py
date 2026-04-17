@@ -1,10 +1,16 @@
 """Cookie and localStorage tools — 6 tools."""
 
 import logging
+from typing import TYPE_CHECKING, cast
 from urllib.parse import urlparse
 
 from fastmcp import FastMCP
 from playwright.async_api import Error as PlaywrightError
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from playwright._impl._api_structures import SetCookieParam
 
 from ..context_manager import ContextManager
 from ..errors import BrowserMcpError, InvalidParamsError
@@ -122,7 +128,7 @@ def _register_browser_set_cookies(mcp: FastMCP, ctx_mgr: ContextManager) -> None
                     if "path" not in normalized and not normalized.get("url"):
                         normalized = {**normalized, "path": "/"}
                     processed.append(normalized)
-                await ctx.add_cookies(processed)
+                await ctx.add_cookies(cast("Sequence[SetCookieParam]", processed))
             return success_response(context, data={"set_count": len(processed)})
         except BrowserMcpError as e:
             return error_response(context, e.error_type, str(e))
