@@ -181,6 +181,10 @@ def _register_browser_verify_list_visible(mcp: FastMCP, ctx_mgr: ContextManager)
                         )
                     return success_response(context, data={"visible_refs": refs})
 
+                # _validate_list_visible_params guarantees container_ref and items are
+                # non-None when refs is None and validation passed.
+                if container_ref is None or items is None:
+                    return error_response(context, "invalid_params", "container_ref and items are required")
                 missing_items = await _verify_items_in_container(page, container_ref, items)
                 if missing_items:
                     return error_response(
