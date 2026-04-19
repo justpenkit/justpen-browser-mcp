@@ -83,10 +83,11 @@ class CamoufoxLauncher:
     async def _ensure_binary(self) -> None:
         """Verify the Camoufox binary is installed; auto-fetch if missing."""
         try:
-            if installed_verstr() is not None:
-                return
+            installed_verstr()
         except (OSError, RuntimeError, ValueError) as e:
             logger.debug("installed_verstr() raised: %s", e)
+        else:
+            return
 
         logger.warning("Camoufox binary not found, fetching (one-time download ~150MB)...")
         proc = await asyncio.create_subprocess_exec(

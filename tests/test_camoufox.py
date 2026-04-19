@@ -160,7 +160,7 @@ class TestCamoufoxLauncher:
             "justpen_browser_mcp.camoufox.installed_verstr",
             return_value="135.0",
         ):
-            await launcher._ensure_binary()
+            await launcher._ensure_binary()  # type: ignore[reportPrivateUsage]  # testing the private implementation directly
 
     async def test_ensure_binary_runs_fetch_when_missing(self):
         launcher = CamoufoxLauncher()
@@ -171,14 +171,15 @@ class TestCamoufoxLauncher:
         with (
             patch(
                 "justpen_browser_mcp.camoufox.installed_verstr",
-                return_value=None,
+                # Real installed_verstr raises FileNotFoundError (OSError) when binary is missing
+                side_effect=OSError("version.json not found"),
             ),
             patch(
                 "asyncio.create_subprocess_exec",
                 new=AsyncMock(return_value=fake_proc),
             ) as mock_exec,
         ):
-            await launcher._ensure_binary()
+            await launcher._ensure_binary()  # type: ignore[reportPrivateUsage]  # testing the private implementation directly
 
         mock_exec.assert_awaited_once()
         args = mock_exec.call_args[0]
@@ -195,7 +196,8 @@ class TestCamoufoxLauncher:
         with (
             patch(
                 "justpen_browser_mcp.camoufox.installed_verstr",
-                return_value=None,
+                # Real installed_verstr raises FileNotFoundError (OSError) when binary is missing
+                side_effect=OSError("version.json not found"),
             ),
             patch(
                 "asyncio.create_subprocess_exec",
@@ -203,4 +205,4 @@ class TestCamoufoxLauncher:
             ),
             pytest.raises(BinaryNotFoundError, match="network error"),
         ):
-            await launcher._ensure_binary()
+            await launcher._ensure_binary()  # type: ignore[reportPrivateUsage]  # testing the private implementation directly
