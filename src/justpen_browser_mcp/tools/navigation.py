@@ -5,6 +5,7 @@ browser_navigate, browser_navigate_back, browser_wait_for.
 
 import contextlib
 import logging
+from typing import Any
 
 from fastmcp import FastMCP
 from playwright.async_api import Error as PlaywrightError, TimeoutError as PWTimeout
@@ -31,7 +32,7 @@ def _looks_like_ip(host: str) -> bool:
     return all(p.isdigit() and 0 <= int(p) <= 255 for p in parts)
 
 
-def _normalize_url(url: str) -> str:
+def normalize_url(url: str) -> str:
     """Normalize a user-supplied URL.
 
     - Bare "localhost" / "localhost:PORT" → http://localhost[:PORT]
@@ -56,7 +57,7 @@ def _normalize_url(url: str) -> str:
 def _register_browser_navigate(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_navigate(context: str, url: str) -> dict:
+    async def browser_navigate(context: str, url: str) -> dict[str, Any]:
         """Navigate the active page in the given context to a URL.
 
         This navigates the CURRENT active page. Other tabs in the context
@@ -86,7 +87,7 @@ def _register_browser_navigate(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         try:
             await ctx_mgr.get(context)
             assert_no_modal(ctx_mgr, context)
-            normalized = _normalize_url(url)
+            normalized = normalize_url(url)
             async with ctx_mgr.lock_for(context):
                 page = await ctx_mgr.active_page(context)
                 try:
@@ -124,7 +125,7 @@ def _register_browser_navigate(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 def _register_browser_navigate_back(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_navigate_back(context: str) -> dict:
+    async def browser_navigate_back(context: str) -> dict[str, Any]:
         """Navigate back one step in the browser history for the active page.
 
         Equivalent to pressing the browser Back button. Has no effect if there
@@ -169,7 +170,7 @@ def _register_browser_wait_for(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         text: str | None = None,
         text_gone: str | None = None,
         time: float | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Wait for text to appear, text to disappear, or a fixed duration.
 
         At least one of text/text_gone/time must be provided. Combinations are
