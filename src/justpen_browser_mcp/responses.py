@@ -4,10 +4,12 @@ Every tool returns either a success or error envelope. The shape is fixed
 and validated at construction time so bugs surface early.
 """
 
+from typing import Any
+
 from .errors import VALID_ERROR_TYPES
 
 
-def success_response(context: str | None, data: dict | None = None) -> dict:
+def success_response(context: str | None, data: dict[str, Any] | None = None) -> dict[str, Any]:
     """Build a success envelope.
 
     Args:
@@ -26,7 +28,7 @@ def success_response(context: str | None, data: dict | None = None) -> dict:
     }
 
 
-def error_response(context: str | None, error_type: str, message: str) -> dict:
+def error_response(context: str | None, error_type: str, message: str) -> dict[str, Any]:
     """Build an error envelope.
 
     Args:

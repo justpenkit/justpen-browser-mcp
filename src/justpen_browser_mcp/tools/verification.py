@@ -1,6 +1,7 @@
 """Verification tools — 4 tools."""
 
 import logging
+from typing import Any
 
 from fastmcp import FastMCP
 from playwright.async_api import Error as PlaywrightError, Locator, Page
@@ -94,7 +95,7 @@ async def _verify_items_in_container(
 def _register_browser_verify_element_visible(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_verify_element_visible(context: str, ref: str) -> dict:
+    async def browser_verify_element_visible(context: str, ref: str) -> dict[str, Any]:
         """Verify that the element identified by ref is currently visible on the page.
 
         ref is a [ref=eN] value from browser_snapshot. The check is synchronous
@@ -137,7 +138,7 @@ def _register_browser_verify_list_visible(mcp: FastMCP, ctx_mgr: ContextManager)
         refs: list[str] | None = None,
         container_ref: str | None = None,
         items: list[str] | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Verify visibility of multiple elements in either refs or container mode.
 
         Two mutually exclusive modes:
@@ -207,7 +208,7 @@ def _register_browser_verify_list_visible(mcp: FastMCP, ctx_mgr: ContextManager)
 def _register_browser_verify_text_visible(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_verify_text_visible(context: str, text: str) -> dict:
+    async def browser_verify_text_visible(context: str, text: str) -> dict[str, Any]:
         """Verify that the given text is currently visible somewhere on the active page.
 
         The check is synchronous — the text must be visible at the moment of the call.
@@ -261,7 +262,7 @@ def _register_browser_verify_value(mcp: FastMCP, ctx_mgr: ContextManager) -> Non
         ref: str,
         expected_value: str,
         element_type: str = "text",
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Verify the value (or checked state) of an input element.
 
         element_type selects the comparison mode:
