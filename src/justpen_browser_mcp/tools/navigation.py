@@ -32,13 +32,17 @@ def _looks_like_ip(host: str) -> bool:
     return all(p.isdigit() and 0 <= int(p) <= 255 for p in parts)
 
 
-def normalize_url(url: str) -> str:
-    """Normalize a user-supplied URL.
+def canonicalize_browser_url(url: str) -> str:
+    """Normalise a user-supplied URL for browser navigation.
 
     - Bare "localhost" / "localhost:PORT" → http://localhost[:PORT]
     - Bare IPv4 address (e.g. "10.0.0.5:8080") → http://IP[:PORT]
     - Schemeless hostname containing "." → https://hostname
     - Otherwise unchanged.
+
+    Named `canonicalize_browser_url` (not `normalize_url`) to avoid collision
+    with `justpen_core.urls.normalize_url`, which performs HTTPS normalisation
+    rather than scheme inference.
     """
     if "://" in url:
         return url
@@ -87,7 +91,7 @@ def _register_browser_navigate(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         try:
             await ctx_mgr.get(context)
             assert_no_modal(ctx_mgr, context)
-            normalized = normalize_url(url)
+            normalized = canonicalize_browser_url(url)
             async with ctx_mgr.lock_for(context):
                 page = await ctx_mgr.active_page(context)
                 try:
