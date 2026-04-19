@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+*.egg
+dist/
+.venv/
+
+# Testing & Linting
+.pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Secrets
+.env

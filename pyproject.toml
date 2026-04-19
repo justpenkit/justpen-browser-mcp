@@ -1,0 +1,116 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "justpen-browser-mcp"
+version = "0.1.0"
+description = "Camoufox-based MCP browser automation server"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "camoufox>=0.4",
+    "fastmcp>=2.0",
+    "playwright>=1.49",
+    "tldextract>=5.3",
+]
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.408",
+    "pytest>=9.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=5.0",
+    "ruff>=0.15",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+asyncio_mode = "auto"
+addopts = "--strict-markers --strict-config"
+markers = [
+    "e2e: tests requiring a real Camoufox browser",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = [".venv", "dist", "build", "__pycache__"]
+
+[tool.ruff.lint]
+select = [
+    "F", "E", "W", "B", "BLE", "RET", "PLC", "PLE", "PLW",
+    "UP", "I", "SIM", "C4", "C90", "PTH", "RUF",
+    "S", "ASYNC",
+    "ARG", "DTZ", "T20", "LOG", "G", "PT", "TID", "TC", "PERF", "FBT", "N", "ANN",
+    "T10", "SLF", "TRY", "PIE", "ERA", "A", "PGH", "RSE", "FURB", "INP", "EXE",
+]
+ignore = [
+    "E501", "COM812", "ISC001",
+    "D",
+    "TRY003", "EM101", "EM102", "TID252",
+    "PLR2004", "PLR0911", "PLR0912", "PLR0913", "PLR0915",
+    "S603", "S607",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+    "S101", "SLF001", "ARG", "PLR", "T201", "PT011", "ANN", "INP001",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["justpen_browser_mcp"]
+combine-as-imports = true
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.pyright]
+pythonVersion = "3.11"
+include = ["src", "tests"]
+exclude = ["**/__pycache__"]
+typeCheckingMode = "strict"
+reportMissingTypeStubs = false
+reportMissingTypeArgument = "error"
+reportPrivateUsage = "error"
+reportUnnecessaryComparison = "error"
+reportUnnecessaryIsInstance = "error"
+reportImplicitOverride = "error"
+reportUnnecessaryTypeIgnoreComment = "error"
+reportUnusedFunction = false
+
+[[tool.pyright.executionEnvironments]]
+root = "tests"
+extraPaths = ["src"]
+reportMissingParameterType = "none"
+reportUnknownParameterType = "none"
+reportUnknownArgumentType = "none"
+reportUnknownMemberType = "none"
+reportUnknownVariableType = "none"
+reportUnknownLambdaType = "none"
+reportPrivateUsage = "none"
+
+[tool.coverage.run]
+source = ["src/justpen_browser_mcp"]
+branch = true
+omit = [
+    "*/__pycache__/*",
+    "*/tests/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]
