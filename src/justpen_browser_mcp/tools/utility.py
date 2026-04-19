@@ -17,7 +17,7 @@ from ..context_manager import ContextManager, ContextState, assert_no_modal
 from ..errors import BrowserMcpError
 from ..ref_resolver import resolve_selector_to_stable
 from ..responses import error_response, success_response
-from .navigation import normalize_url
+from .navigation import canonicalize_browser_url
 
 logger = logging.getLogger(__name__)
 
@@ -218,7 +218,7 @@ async def _tabs_new(
 ) -> dict[str, Any]:
     page = await ctx.new_page()
     if url:
-        await page.goto(normalize_url(url))
+        await page.goto(canonicalize_browser_url(url))
     cstate.active_page_index = len(ctx.pages) - 1
     return success_response(context, data={"index": len(ctx.pages) - 1, "url": page.url})
 

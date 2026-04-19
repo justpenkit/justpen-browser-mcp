@@ -86,7 +86,7 @@ def _unescape(text: str) -> str:
     return text.replace("\\\\", "\\").replace('\\"', '"')
 
 
-def internal_to_python(sel: str) -> str:
+def _internal_to_python(sel: str) -> str:
     """Convert a Playwright internal selector (from resolveSelector) to a
     Python API call string.
 
@@ -107,7 +107,7 @@ def internal_to_python(sel: str) -> str:
     # Frame chains (nested iframes)
     if " >> internal:control=enter-frame >> " in sel:
         parts = sel.split(" >> internal:control=enter-frame >> ")
-        return ".content_frame.".join(internal_to_python(p) for p in parts)
+        return ".content_frame.".join(_internal_to_python(p) for p in parts)
 
     # Test ID (highest priority)
     m = _TESTID_RE.match(sel)
@@ -174,5 +174,5 @@ async def resolve_selector_to_stable(page: Page, ref: str) -> dict[str, str]:
 
     return {
         "internal_selector": internal,
-        "python_syntax": internal_to_python(internal),
+        "python_syntax": _internal_to_python(internal),
     }
