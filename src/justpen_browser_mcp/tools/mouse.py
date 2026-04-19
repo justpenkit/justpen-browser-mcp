@@ -2,7 +2,7 @@
 
 import contextlib
 import logging
-from typing import Literal, cast
+from typing import Any, Literal, cast
 
 from fastmcp import FastMCP
 from playwright.async_api import TimeoutError as PWTimeout
@@ -32,7 +32,7 @@ def _register_browser_mouse_click_xy(mcp: FastMCP, ctx_mgr: ContextManager) -> N
         button: str = "left",
         click_count: int = 1,
         delay_ms: int = 0,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Click the mouse at an absolute pixel position on the active page.
 
         This is a low-level positional tool. Prefer browser_click(ref=...) when
@@ -70,7 +70,7 @@ def _register_browser_mouse_click_xy(mcp: FastMCP, ctx_mgr: ContextManager) -> N
 def _register_browser_mouse_move_xy(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_mouse_move_xy(context: str, x: int, y: int) -> dict:
+    async def browser_mouse_move_xy(context: str, x: int, y: int) -> dict[str, Any]:
         """Move the mouse cursor to an absolute pixel position without clicking.
 
         This is a low-level positional tool useful for triggering hover effects
@@ -103,7 +103,7 @@ def _register_browser_mouse_move_xy(mcp: FastMCP, ctx_mgr: ContextManager) -> No
 def _register_browser_mouse_down(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_mouse_down(context: str, button: str = "left") -> dict:
+    async def browser_mouse_down(context: str, button: str = "left") -> dict[str, Any]:
         """Press a mouse button down (without releasing it).
 
         Low-level tool for building custom gesture sequences. button is "left",
@@ -134,7 +134,7 @@ def _register_browser_mouse_down(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 def _register_browser_mouse_up(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_mouse_up(context: str, button: str = "left") -> dict:
+    async def browser_mouse_up(context: str, button: str = "left") -> dict[str, Any]:
         """Release a previously pressed mouse button.
 
         Low-level tool to be used after browser_mouse_down. button must match
@@ -165,7 +165,7 @@ def _register_browser_mouse_up(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 def _register_browser_mouse_drag_xy(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_mouse_drag_xy(context: str, from_x: int, from_y: int, to_x: int, to_y: int) -> dict:
+    async def browser_mouse_drag_xy(context: str, from_x: int, from_y: int, to_x: int, to_y: int) -> dict[str, Any]:
         """Drag the mouse from one absolute pixel position to another.
 
         Performs: move to (from_x, from_y), press left button, move to (to_x, to_y),
@@ -203,7 +203,7 @@ def _register_browser_mouse_drag_xy(mcp: FastMCP, ctx_mgr: ContextManager) -> No
 def _register_browser_mouse_wheel(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_mouse_wheel(context: str, delta_x: int = 0, delta_y: int = 0) -> dict:
+    async def browser_mouse_wheel(context: str, delta_x: int = 0, delta_y: int = 0) -> dict[str, Any]:
         """Scroll the mouse wheel by the given pixel deltas at the current cursor position.
 
         delta_x is horizontal scroll (positive = right), delta_y is vertical

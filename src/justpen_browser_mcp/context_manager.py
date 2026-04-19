@@ -22,7 +22,7 @@ import json
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from playwright.async_api import Error as PlaywrightError
 
@@ -52,11 +52,11 @@ if TYPE_CHECKING:
 class ContextState:
     """Per-context bookkeeping owned by ContextManager (not stashed on Playwright's BrowserContext)."""
 
-    console_messages: list[dict] = field(default_factory=list)
-    network_requests: list[dict] = field(default_factory=list)
-    network_request_index: dict[int, dict] = field(default_factory=dict)
+    console_messages: list[dict[str, Any]] = field(default_factory=list)
+    network_requests: list[dict[str, Any]] = field(default_factory=list)
+    network_request_index: dict[int, dict[str, Any]] = field(default_factory=dict)
     active_page_index: int = 0
-    modal_states: list[dict] = field(default_factory=list)
+    modal_states: list[dict[str, Any]] = field(default_factory=list)
 
 
 logger = logging.getLogger(__name__)
@@ -113,7 +113,7 @@ class ContextManager:
 
             browser = await self._launcher.get_browser()
 
-            kwargs: dict = {}
+            kwargs: dict[str, Any] = {}
             if state_path is not None:
                 kwargs["storage_state"] = self._load_state_file(state_path)
 
@@ -248,7 +248,7 @@ class ContextManager:
                 logger.info("No contexts remaining, shutting down Camoufox browser")
                 await self._launcher.shutdown()
 
-    async def list(self) -> list[dict]:
+    async def list(self) -> list[dict[str, Any]]:
         """Return summary info for all active contexts.
 
         The dict is snapshotted before iteration so that concurrent
@@ -371,7 +371,7 @@ class ContextManager:
         return failed_origins
 
     @staticmethod
-    def _validate_state_structure(state: dict) -> None:
+    def _validate_state_structure(state: dict[str, Any]) -> None:
         """Validate cookies + origins shape before mutating any browser state."""
         for cookie in state.get("cookies", []):
             if not isinstance(cookie, dict) or "name" not in cookie or "value" not in cookie:
@@ -390,7 +390,9 @@ class ContextManager:
                 if not isinstance(item, dict) or "name" not in item or "value" not in item:
                     raise InvalidStateFileError("Each localStorage item must have 'name' and 'value' keys")
 
-    async def _apply_origins_localstorage(self, ctx: BrowserContext, origins: list[dict]) -> tuple[set[str], list[str]]:
+    async def _apply_origins_localstorage(
+        self, ctx: BrowserContext, origins: list[dict[str, Any]]
+    ) -> tuple[set[str], list[str]]:
         """Apply localStorage for each origin in `origins`.
 
         Returns (new_origins_with_data, failed_origins). An origin joins
@@ -418,7 +420,7 @@ class ContextManager:
         return new_origins_with_data, failed_origins
 
     @staticmethod
-    async def _set_origin_localstorage(ctx: BrowserContext, origin: str, items: list[dict]) -> bool:
+    async def _set_origin_localstorage(ctx: BrowserContext, origin: str, items: list[dict[str, Any]]) -> bool:
         """Open a temp page on origin and install localStorage items.
 
         Returns False if the page redirected away from the origin (caller
@@ -466,7 +468,7 @@ class ContextManager:
         finally:
             await page.close()
 
-    def get_modal_states(self, name: str) -> list[dict]:
+    def get_modal_states(self, name: str) -> list[dict[str, Any]]:
         """Return the list of pending modal states for a context.
 
         Each entry is {"kind": "dialog"|"filechooser", "object": Dialog|FileChooser, "page": Page}.
@@ -481,7 +483,7 @@ class ContextManager:
         states[:] = [s for s in states if not s["page"].is_closed()]
         return list(states)
 
-    def consume_modal_state(self, name: str, kind: str) -> dict | None:
+    def consume_modal_state(self, name: str, kind: str) -> dict[str, Any] | None:
         """Pop and return the oldest pending modal of the given kind.
 
         Used by browser_handle_dialog (kind='dialog') and browser_file_upload
@@ -497,7 +499,7 @@ class ContextManager:
                 return states.pop(i)
         return None
 
-    def _load_state_file(self, state_path: str) -> dict:
+    def _load_state_file(self, state_path: str) -> dict[str, Any]:
         """Read and validate a Playwright storage_state JSON file."""
         path = Path(state_path)
         if not path.exists():

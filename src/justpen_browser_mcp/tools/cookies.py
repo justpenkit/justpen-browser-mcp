@@ -1,7 +1,7 @@
 """Cookie and localStorage tools — 6 tools."""
 
 import logging
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlparse
 
 from fastmcp import FastMCP
@@ -45,7 +45,7 @@ def _register_browser_get_cookies(mcp: FastMCP, ctx_mgr: ContextManager) -> None
         context: str,
         urls: list[str] | None = None,
         name: str | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Return cookies stored in the context, optionally filtered by URL and name.
 
         urls is a list of full URLs (e.g. ["https://example.com"]). When provided,
@@ -81,7 +81,7 @@ def _register_browser_get_cookies(mcp: FastMCP, ctx_mgr: ContextManager) -> None
 def _register_browser_set_cookies(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_set_cookies(context: str, cookies: list[dict]) -> dict:
+    async def browser_set_cookies(context: str, cookies: list[dict[str, Any]]) -> dict[str, Any]:
         """Add or update cookies on the context using Playwright cookie format.
 
         Each cookie dict must have at minimum: name, value. Playwright also
@@ -111,7 +111,7 @@ def _register_browser_set_cookies(mcp: FastMCP, ctx_mgr: ContextManager) -> None
                     active_page = await ctx_mgr.active_page(context)
                     parsed = urlparse(active_page.url)
                     default_domain = parsed.hostname
-                processed: list[dict] = []
+                processed: list[dict[str, Any]] = []
                 for cookie in cookies:
                     normalized = cookie
                     has_domain = bool(normalized.get("domain"))
@@ -139,7 +139,7 @@ def _register_browser_set_cookies(mcp: FastMCP, ctx_mgr: ContextManager) -> None
 def _register_browser_clear_cookies(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_clear_cookies(context: str) -> dict:
+    async def browser_clear_cookies(context: str) -> dict[str, Any]:
         """Remove all cookies from the context.
 
         All cookies across all domains are deleted. Pages currently loaded
@@ -170,7 +170,7 @@ def _register_browser_get_local_storage(mcp: FastMCP, ctx_mgr: ContextManager) -
         context: str,
         origin: str,
         key: str | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Read localStorage for the given origin.
 
         Opens a temporary page that navigates to origin, reads localStorage,
@@ -221,7 +221,7 @@ def _register_browser_get_local_storage(mcp: FastMCP, ctx_mgr: ContextManager) -
 def _register_browser_set_local_storage(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_set_local_storage(context: str, origin: str, items: dict[str, str]) -> dict:
+    async def browser_set_local_storage(context: str, origin: str, items: dict[str, str]) -> dict[str, Any]:
         """Set localStorage key-value pairs for the given origin.
 
         Opens a temporary page that navigates to origin, sets each item via
@@ -265,7 +265,7 @@ def _register_browser_clear_local_storage(mcp: FastMCP, ctx_mgr: ContextManager)
     async def browser_clear_local_storage(
         context: str,
         origin: str | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Clear localStorage entries.
 
         When ``origin`` is provided, opens a temporary page that navigates

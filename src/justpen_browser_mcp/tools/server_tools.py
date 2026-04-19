@@ -5,6 +5,7 @@ This is the only tool that may be called when the browser is down.
 """
 
 import logging
+from typing import Any
 
 from fastmcp import FastMCP
 
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 def register(mcp: FastMCP, ctx_mgr: ContextManager, launcher: CamoufoxLauncher) -> None:
 
     @mcp.tool
-    async def browser_status() -> dict:
+    async def browser_status() -> dict[str, Any]:
         """Report server health without triggering a browser launch.
 
         Checks whether Camoufox is currently running and how many contexts are
