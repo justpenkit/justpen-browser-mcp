@@ -160,7 +160,7 @@ class TestCamoufoxLauncher:
             "justpen_browser_mcp.camoufox.installed_verstr",
             return_value="135.0",
         ):
-            await launcher._ensure_binary()  # type: ignore[reportPrivateUsage]  # testing the private implementation directly
+            await launcher._ensure_binary()
 
     async def test_ensure_binary_runs_fetch_when_missing(self):
         launcher = CamoufoxLauncher()
@@ -179,7 +179,7 @@ class TestCamoufoxLauncher:
                 new=AsyncMock(return_value=fake_proc),
             ) as mock_exec,
         ):
-            await launcher._ensure_binary()  # type: ignore[reportPrivateUsage]  # testing the private implementation directly
+            await launcher._ensure_binary()
 
         mock_exec.assert_awaited_once()
         args = mock_exec.call_args[0]
@@ -205,4 +205,4 @@ class TestCamoufoxLauncher:
             ),
             pytest.raises(BinaryNotFoundError, match="network error"),
         ):
-            await launcher._ensure_binary()  # type: ignore[reportPrivateUsage]  # testing the private implementation directly
+            await launcher._ensure_binary()
