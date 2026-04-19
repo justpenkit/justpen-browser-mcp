@@ -193,8 +193,8 @@ class TestContextManagerList:
         broken_ctx.pages = [MagicMock(url="https://broken.example/")]
         broken_ctx.cookies = AsyncMock(side_effect=RuntimeError("context was closed"))
 
-        mgr._contexts["good"] = good_ctx  # type: ignore[reportPrivateUsage]  # seeding internal state to simulate concurrent-destroy race
-        mgr._contexts["broken"] = broken_ctx  # type: ignore[reportPrivateUsage]  # seeding internal state to simulate concurrent-destroy race
+        mgr._contexts["good"] = good_ctx
+        mgr._contexts["broken"] = broken_ctx
 
         result = await mgr.list()
         assert len(result) == 1
