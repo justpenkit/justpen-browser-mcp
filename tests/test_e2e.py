@@ -15,6 +15,7 @@ from camoufox.async_api import AsyncCamoufox
 from fastmcp import FastMCP
 from fastmcp.client import Client
 
+from justpen_browser_mcp._playwright_internal import snapshot_for_ai
 from justpen_browser_mcp.camoufox import CamoufoxLauncher
 from justpen_browser_mcp.context_manager import ContextManager
 from justpen_browser_mcp.tools import register_all
@@ -32,7 +33,7 @@ async def test_snapshot_for_ai_returns_refs_poc():
     async with AsyncCamoufox(headless=True) as browser:
         page = await browser.new_page()
         await page.set_content("<button>Click me</button><a href='/x'>Link</a><input type='text' placeholder='email'>")
-        snapshot = await page._impl_obj._channel.send("snapshotForAI", None, {"timeout": 5000})  # type: ignore[reportPrivateUsage]  # Playwright has no public API for snapshotForAI; see github.com/microsoft/playwright-python/issues/2867
+        snapshot = await snapshot_for_ai(page, 5000)
 
     assert isinstance(snapshot, str), f"snapshot is not a string: {type(snapshot)}"
     assert "Click me" in snapshot, f"button text missing from snapshot:\n{snapshot}"
@@ -48,7 +49,7 @@ async def test_aria_ref_locator_resolves():
     async with AsyncCamoufox(headless=True) as browser:
         page = await browser.new_page()
         await page.set_content("<button id='btn'>Hello</button>")
-        snapshot = await page._impl_obj._channel.send("snapshotForAI", None, {"timeout": 5000})  # type: ignore[reportPrivateUsage]  # Playwright has no public API for snapshotForAI; see github.com/microsoft/playwright-python/issues/2867
+        snapshot = await snapshot_for_ai(page, 5000)
         match = re.search(r"button[^[]*\[ref=([^\]]+)\]", snapshot)
         assert match, f"Could not find button ref in snapshot:\n{snapshot}"
         ref = match.group(1)
