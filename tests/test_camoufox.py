@@ -171,7 +171,8 @@ class TestCamoufoxLauncher:
         with (
             patch(
                 "justpen_browser_mcp.camoufox.installed_verstr",
-                return_value=None,
+                # Real installed_verstr raises FileNotFoundError (OSError) when binary is missing
+                side_effect=OSError("version.json not found"),
             ),
             patch(
                 "asyncio.create_subprocess_exec",
@@ -195,7 +196,8 @@ class TestCamoufoxLauncher:
         with (
             patch(
                 "justpen_browser_mcp.camoufox.installed_verstr",
-                return_value=None,
+                # Real installed_verstr raises FileNotFoundError (OSError) when binary is missing
+                side_effect=OSError("version.json not found"),
             ),
             patch(
                 "asyncio.create_subprocess_exec",

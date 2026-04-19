@@ -8,6 +8,7 @@ import logging
 import os
 import time
 from pathlib import Path
+from typing import Any
 
 from fastmcp import FastMCP
 from playwright.async_api import BrowserContext
@@ -16,7 +17,7 @@ from ..context_manager import ContextManager, ContextState, assert_no_modal
 from ..errors import BrowserMcpError
 from ..ref_resolver import resolve_selector_to_stable
 from ..responses import error_response, success_response
-from .navigation import _normalize_url
+from .navigation import canonicalize_browser_url
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ logger = logging.getLogger(__name__)
 def _register_browser_resize(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_resize(context: str, width: int, height: int) -> dict:
+    async def browser_resize(context: str, width: int, height: int) -> dict[str, Any]:
         """Resize the viewport of the active page to the given pixel dimensions.
 
         Affects only the active page; other tabs in the context are unchanged.
@@ -61,7 +62,7 @@ def _register_browser_pdf_save(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         *,
         landscape: bool = False,
         print_background: bool = False,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Render the active page as a PDF and save it to the given file path.
 
         file_path is optional — when omitted, a file named ``page-{timestamp}.pdf``
@@ -113,7 +114,7 @@ def _register_browser_generate_locator(mcp: FastMCP, ctx_mgr: ContextManager) ->
         ref: str | None = None,
         selector: str | None = None,
         element: str | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Generate a stable, durable Playwright locator for an element.
 
         The element can be identified in one of two ways (exactly one of
@@ -204,7 +205,7 @@ def _register_browser_generate_locator(mcp: FastMCP, ctx_mgr: ContextManager) ->
             return error_response(context, "internal_error", str(e))
 
 
-async def _tabs_list(ctx: BrowserContext, context: str) -> dict:
+async def _tabs_list(ctx: BrowserContext, context: str) -> dict[str, Any]:
     tabs = [{"index": i, "url": p.url} for i, p in enumerate(ctx.pages)]
     return success_response(context, data={"tabs": tabs})
 
@@ -214,10 +215,10 @@ async def _tabs_new(
     context: str,
     cstate: ContextState,
     url: str | None,
-) -> dict:
+) -> dict[str, Any]:
     page = await ctx.new_page()
     if url:
-        await page.goto(_normalize_url(url))
+        await page.goto(canonicalize_browser_url(url))
     cstate.active_page_index = len(ctx.pages) - 1
     return success_response(context, data={"index": len(ctx.pages) - 1, "url": page.url})
 
@@ -227,7 +228,7 @@ async def _tabs_close(
     context: str,
     cstate: ContextState,
     index: int | None,
-) -> dict:
+) -> dict[str, Any]:
     if index is None or index < 0 or index >= len(ctx.pages):
         return error_response(context, "invalid_params", f"invalid tab index: {index}")
     await ctx.pages[index].close()
@@ -244,7 +245,7 @@ async def _tabs_select(
     context: str,
     ctx_mgr: ContextManager,
     index: int | None,
-) -> dict:
+) -> dict[str, Any]:
     if index is None or index < 0 or index >= len(ctx.pages):
         return error_response(context, "invalid_params", f"invalid tab index: {index}")
     ctx_mgr.set_active_page(context, index)
@@ -261,7 +262,7 @@ def _register_browser_tabs(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         action: str,
         index: int | None = None,
         url: str | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Manage tabs (pages) within a browser context.
 
         action must be one of:

@@ -7,6 +7,7 @@ browser_handle_dialog.
 
 import contextlib
 import logging
+from typing import Any
 
 from fastmcp import FastMCP
 from playwright.async_api import Page, TimeoutError as PWTimeout
@@ -33,7 +34,7 @@ def _register_browser_click(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         double_click: bool = False,
         button: str = "left",
         modifiers: list[str] | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Click an element by its accessibility ref from browser_snapshot.
 
         ref is the [ref=eN] value annotated in the browser_snapshot output,
@@ -67,7 +68,7 @@ def _register_browser_click(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             async with ctx_mgr.lock_for(context):
                 page = await ctx_mgr.active_page(context)
                 locator = await resolve_ref(page, ref)
-                options: dict = {"button": button}
+                options: dict[str, Any] = {"button": button}
                 if modifiers:
                     options["modifiers"] = modifiers
                 if double_click:
@@ -92,7 +93,7 @@ def _register_browser_type(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         *,
         clear_first: bool = True,
         submit: bool = False,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Type text into an editable element identified by its accessibility ref.
 
         ref is the [ref=eN] value from browser_snapshot.
@@ -134,10 +135,8 @@ def _register_browser_type(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             return error_response(context, "internal_error", str(e))
 
 
-async def _fill_form_field(page: Page, field: dict) -> str | None:
+async def _fill_form_field(page: Page, field: dict[str, Any]) -> str | None:
     """Fill one form field; return None on success or an error message on validation failure."""
-    if not isinstance(field, dict):
-        return f"field must be a dict, got {type(field).__name__}"
     if "ref" not in field:
         return "field is missing required 'ref' key"
     if "value" not in field:
@@ -159,7 +158,7 @@ async def _fill_form_field(page: Page, field: dict) -> str | None:
 def _register_browser_fill_form(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_fill_form(context: str, fields: list[dict]) -> dict:
+    async def browser_fill_form(context: str, fields: list[dict[str, Any]]) -> dict[str, Any]:
         """Fill multiple form fields in one call, in the order provided.
 
         fields is a list of {"ref": str, "value": any, "type": str?} dicts.
@@ -210,7 +209,7 @@ def _register_browser_fill_form(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 def _register_browser_select_option(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_select_option(context: str, ref: str, value: str | list[str]) -> dict:
+    async def browser_select_option(context: str, ref: str, value: str | list[str]) -> dict[str, Any]:
         """Select an option in a <select> dropdown by its value attribute.
 
         ref is the [ref=eN] of the <select> element from browser_snapshot.
@@ -247,7 +246,7 @@ def _register_browser_select_option(mcp: FastMCP, ctx_mgr: ContextManager) -> No
 def _register_browser_hover(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_hover(context: str, ref: str) -> dict:
+    async def browser_hover(context: str, ref: str) -> dict[str, Any]:
         """Hover the mouse over an element identified by its accessibility ref.
 
         ref is the [ref=eN] value from browser_snapshot. The element is scrolled
@@ -280,7 +279,7 @@ def _register_browser_hover(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 def _register_browser_drag(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_drag(context: str, source_ref: str, target_ref: str) -> dict:
+    async def browser_drag(context: str, source_ref: str, target_ref: str) -> dict[str, Any]:
         """Drag an element to a target element using accessibility refs.
 
         Both source_ref and target_ref are [ref=eN] values from browser_snapshot.
@@ -315,7 +314,7 @@ def _register_browser_drag(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 def _register_browser_press_key(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_press_key(context: str, key: str) -> dict:
+    async def browser_press_key(context: str, key: str) -> dict[str, Any]:
         """Press a keyboard key on the active page (sent to whatever has focus).
 
         key follows Playwright key naming: simple keys like "Enter", "Tab",
@@ -350,7 +349,7 @@ def _register_browser_press_key(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 def _register_browser_file_upload(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_file_upload(context: str, paths: list[str] | None = None) -> dict:
+    async def browser_file_upload(context: str, paths: list[str] | None = None) -> dict[str, Any]:
         """Resolve a pending native file-chooser dialog.
 
         Consumes a pending file-chooser captured by the modal-state listener
@@ -403,7 +402,7 @@ def _register_browser_file_upload(mcp: FastMCP, ctx_mgr: ContextManager) -> None
 def _register_browser_handle_dialog(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_handle_dialog(context: str, *, accept: bool, prompt_text: str | None = None) -> dict:
+    async def browser_handle_dialog(context: str, *, accept: bool, prompt_text: str | None = None) -> dict[str, Any]:
         """Resolve a pending JavaScript dialog (alert/confirm/prompt).
 
         Consumes a pending dialog captured by the modal-state listener. The
