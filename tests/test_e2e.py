@@ -32,7 +32,7 @@ async def test_snapshot_for_ai_returns_refs_poc():
     async with AsyncCamoufox(headless=True) as browser:
         page = await browser.new_page()
         await page.set_content("<button>Click me</button><a href='/x'>Link</a><input type='text' placeholder='email'>")
-        snapshot = await page._impl_obj._channel.send("snapshotForAI", None, {"timeout": 5000})
+        snapshot = await page._impl_obj._channel.send("snapshotForAI", None, {"timeout": 5000})  # type: ignore[reportPrivateUsage]  # Playwright has no public API for snapshotForAI; see github.com/microsoft/playwright-python/issues/2867
 
     assert isinstance(snapshot, str), f"snapshot is not a string: {type(snapshot)}"
     assert "Click me" in snapshot, f"button text missing from snapshot:\n{snapshot}"
@@ -48,7 +48,7 @@ async def test_aria_ref_locator_resolves():
     async with AsyncCamoufox(headless=True) as browser:
         page = await browser.new_page()
         await page.set_content("<button id='btn'>Hello</button>")
-        snapshot = await page._impl_obj._channel.send("snapshotForAI", None, {"timeout": 5000})
+        snapshot = await page._impl_obj._channel.send("snapshotForAI", None, {"timeout": 5000})  # type: ignore[reportPrivateUsage]  # Playwright has no public API for snapshotForAI; see github.com/microsoft/playwright-python/issues/2867
         match = re.search(r"button[^[]*\[ref=([^\]]+)\]", snapshot)
         assert match, f"Could not find button ref in snapshot:\n{snapshot}"
         ref = match.group(1)
