@@ -24,6 +24,8 @@ from . import (
     verification,
 )
 
+__all__ = ["register_all"]
+
 
 def register_all(mcp: FastMCP, ctx_mgr: ContextManager, launcher: CamoufoxLauncher) -> None:
     """Register every tool category on the FastMCP instance.
