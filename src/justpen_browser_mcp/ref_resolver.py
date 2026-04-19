@@ -25,6 +25,7 @@ import re
 
 from playwright.async_api import Error as PlaywrightError, Locator, Page
 
+from ._playwright_internal import resolve_selector, snapshot_for_ai
 from .errors import StaleRefError
 
 logger = logging.getLogger(__name__)
@@ -40,11 +41,7 @@ async def capture_snapshot(page: Page) -> str:
     because the high-level Python API does not expose it.
     See https://github.com/microsoft/playwright-python/issues/2867
     """
-    return await page._impl_obj._channel.send(  # noqa: SLF001 — playwright has no public API for snapshotForAI; see github.com/microsoft/playwright-python/issues/2867
-        "snapshotForAI",
-        None,
-        {"timeout": SNAPSHOT_TIMEOUT_MS},
-    )
+    return await snapshot_for_ai(page, SNAPSHOT_TIMEOUT_MS)
 
 
 def locator_for_ref(page: Page, ref: str) -> Locator:
@@ -67,7 +64,7 @@ async def resolve_ref(page: Page, ref: str, timeout_ms: int = 1000) -> Locator:
     return locator
 
 
-# Playwright internal selector regex parsers, used by _internal_to_python.
+# Playwright internal selector regex parsers, used by internal_to_python.
 # The internal selectors come from the server's generateSelectorSimple(),
 # documented in the research notes for browser_generate_locator.
 #
@@ -153,7 +150,7 @@ def _internal_to_python(sel: str) -> str:
     return f"locator({sel!r})"
 
 
-async def resolve_selector_to_stable(page: Page, ref: str) -> dict:
+async def resolve_selector_to_stable(page: Page, ref: str) -> dict[str, str]:
     """Given an aria-ref from a snapshotForAI snapshot, return both the
     stable internal Playwright selector and its Python-syntax equivalent.
 
@@ -166,11 +163,7 @@ async def resolve_selector_to_stable(page: Page, ref: str) -> dict:
     Raises StaleRefError if the ref is not found in the current page state.
     """
     try:
-        internal = await page._impl_obj.main_frame._channel.send(  # noqa: SLF001 — playwright has no public API for resolveSelector; see github.com/microsoft/playwright-python/issues/2867
-            "resolveSelector",
-            None,
-            {"selector": f"aria-ref={ref}"},
-        )
+        internal = await resolve_selector(page, ref)
     except PlaywrightError as e:
         msg = str(e).lower()
         if "aria-ref" in msg or "no element" in msg or "not found" in msg or "resolved to no element" in msg:

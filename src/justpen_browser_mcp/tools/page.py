@@ -5,6 +5,7 @@ is not destroyed; use browser_destroy_context to drop the whole context.
 """
 
 import logging
+from typing import Any
 
 from fastmcp import FastMCP
 
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_close(context: str) -> dict:
+    async def browser_close(context: str) -> dict[str, Any]:
         """Close the active page (tab) in the context, keeping the context alive.
 
         Only the currently active page is closed. If the context has other tabs,

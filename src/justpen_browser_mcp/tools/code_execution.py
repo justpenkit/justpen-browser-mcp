@@ -6,6 +6,7 @@ browser_run_code: execute a Python snippet against the page object.
 
 import logging
 import traceback
+from typing import Any
 
 from fastmcp import FastMCP
 
@@ -25,7 +26,7 @@ def _register_browser_evaluate(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         expression: str,
         ref: str | None = None,
         selector: str | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Evaluate a JavaScript expression on the active page and return its result.
 
         expression should be a JS expression (not a statement) that can be awaited,
@@ -86,7 +87,7 @@ def _register_browser_evaluate(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 def _register_browser_run_code(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_run_code(context: str, code: str) -> dict:
+    async def browser_run_code(context: str, code: str) -> dict[str, Any]:
         """Execute a Python async code snippet with full Playwright access.
 
         The snippet runs as the body of an async function. These locals are
@@ -119,7 +120,7 @@ def _register_browser_run_code(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     "    " + line for line in code.split("\n")
                 )
                 try:
-                    namespace: dict = {}
+                    namespace: dict[str, Any] = {}
                     exec(wrapper, namespace)  # noqa: S102 — tool purpose: run agent-supplied Python against the browser
                     result = await namespace["_user_code"](page, ctx, ctx_mgr)
                 except Exception as e:

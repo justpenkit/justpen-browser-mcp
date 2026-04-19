@@ -5,6 +5,7 @@ browser_destroy_context, browser_list_contexts.
 """
 
 import logging
+from typing import Any
 
 from fastmcp import FastMCP
 
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 def _register_browser_create_context(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_create_context(context: str, state_path: str | None = None) -> dict:
+    async def browser_create_context(context: str, state_path: str | None = None) -> dict[str, Any]:
         """Create a new isolated browser context (like a fresh browser profile).
 
         state_path is optional. When supplied, the context is pre-loaded with
@@ -53,7 +54,7 @@ def _register_browser_create_context(mcp: FastMCP, ctx_mgr: ContextManager) -> N
 def _register_browser_load_context_state(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_load_context_state(context: str, state_path: str) -> dict:
+    async def browser_load_context_state(context: str, state_path: str) -> dict[str, Any]:
         """Replace the context's cookies and localStorage in-place from a saved state file.
 
         Unlike browser_create_context(state_path=...), this does NOT recreate the context —
@@ -71,7 +72,7 @@ def _register_browser_load_context_state(mcp: FastMCP, ctx_mgr: ContextManager) 
         try:
             async with ctx_mgr.lock_for(context):
                 failed_origins = await ctx_mgr.load_state(context, state_path)
-            data: dict = {"loaded_from": state_path}
+            data: dict[str, Any] = {"loaded_from": state_path}
             if failed_origins:
                 data["failed_origins"] = failed_origins
             return success_response(context=context, data=data)
@@ -85,7 +86,7 @@ def _register_browser_load_context_state(mcp: FastMCP, ctx_mgr: ContextManager) 
 def _register_browser_export_context_state(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_export_context_state(context: str, state_path: str) -> dict:
+    async def browser_export_context_state(context: str, state_path: str) -> dict[str, Any]:
         """Write the context's current cookies and localStorage to a JSON file.
 
         Produces a Playwright storage_state JSON file. Parent directories are
@@ -115,7 +116,7 @@ def _register_browser_export_context_state(mcp: FastMCP, ctx_mgr: ContextManager
 def _register_browser_destroy_context(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_destroy_context(context: str) -> dict:
+    async def browser_destroy_context(context: str) -> dict[str, Any]:
         """Close the context and remove it from the server's registry.
 
         All pages in the context are closed. If this was the last active context,
@@ -144,7 +145,7 @@ def _register_browser_destroy_context(mcp: FastMCP, ctx_mgr: ContextManager) -> 
 def _register_browser_list_contexts(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_list_contexts() -> dict:
+    async def browser_list_contexts() -> dict[str, Any]:
         """List all active browser contexts with summary information.
 
         Returns on success:

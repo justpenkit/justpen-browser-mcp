@@ -12,6 +12,7 @@ import base64
 import logging
 import re
 from io import BytesIO
+from typing import Any
 
 from fastmcp import FastMCP
 
@@ -25,7 +26,7 @@ logger = logging.getLogger(__name__)
 try:
     from PIL import Image as _PILImage
 except ImportError:  # pragma: no cover - PIL is in deps but guarded anyway
-    _PILImage = None  # type: ignore[assignment]
+    _PILImage = None
 
 
 _VALID_CONSOLE_LEVELS = {"log", "info", "warning", "error", "debug"}
@@ -36,7 +37,7 @@ _CLAUDE_VISION_MAX_DIM = 1568
 def _register_browser_snapshot(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_snapshot(context: str, selector: str | None = None) -> dict:
+    async def browser_snapshot(context: str, selector: str | None = None) -> dict[str, Any]:
         """Capture an accessibility snapshot of the active page in LLM-friendly YAML.
 
         Default (selector=None): a full-page snapshot is captured via the internal
@@ -83,7 +84,7 @@ def _register_browser_snapshot(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 def _register_browser_screenshot(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_screenshot(context: str, image_format: str = "png", *, full_page: bool = False) -> dict:
+    async def browser_screenshot(context: str, image_format: str = "png", *, full_page: bool = False) -> dict[str, Any]:
         """Take a visual screenshot of the active page and return it as base64.
 
         image_format must be "png" (default, lossless) or "jpeg" (lossy, smaller).
@@ -166,7 +167,7 @@ def _register_browser_screenshot(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 def _register_browser_console_messages(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_console_messages(context: str, level: str | None = None) -> dict:
+    async def browser_console_messages(context: str, level: str | None = None) -> dict[str, Any]:
         """Return all console messages collected since the context was created.
 
         Messages are captured by an event listener attached at context creation.
@@ -212,7 +213,9 @@ def _register_browser_console_messages(mcp: FastMCP, ctx_mgr: ContextManager) ->
 def _register_browser_network_requests(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
     @mcp.tool
-    async def browser_network_requests(context: str, url_filter: str | None = None, *, static: bool = False) -> dict:
+    async def browser_network_requests(
+        context: str, url_filter: str | None = None, *, static: bool = False
+    ) -> dict[str, Any]:
         """Return all network requests collected since the context was created.
 
         Requests are captured by an event listener attached at context creation.
