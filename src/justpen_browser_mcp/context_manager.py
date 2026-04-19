@@ -22,7 +22,7 @@ import json
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from playwright.async_api import Error as PlaywrightError
 
@@ -43,6 +43,7 @@ if TYPE_CHECKING:
         Page,
         Request,
         Response,
+        SourceLocation,
     )
 
     from .camoufox import CamoufoxLauncher
@@ -52,26 +53,25 @@ if TYPE_CHECKING:
 class ContextState:
     """Per-context bookkeeping owned by ContextManager (not stashed on Playwright's BrowserContext)."""
 
-    console_messages: list[dict[str, Any]] = field(default_factory=list)
-    network_requests: list[dict[str, Any]] = field(default_factory=list)
-    network_request_index: dict[int, dict[str, Any]] = field(default_factory=dict)
+    # default_factory=list[...] gives pyright the concrete element type; bare `list` returns list[Unknown] under strict.
+    console_messages: list[dict[str, Any]] = field(default_factory=list[dict[str, Any]])
+    network_requests: list[dict[str, Any]] = field(default_factory=list[dict[str, Any]])
+    network_request_index: dict[int, dict[str, Any]] = field(default_factory=dict[int, dict[str, Any]])
     active_page_index: int = 0
-    modal_states: list[dict[str, Any]] = field(default_factory=list)
+    modal_states: list[dict[str, Any]] = field(default_factory=list[dict[str, Any]])
 
 
 logger = logging.getLogger(__name__)
 
 
-def _format_console_location(loc: object) -> str | None:
+def _format_console_location(loc: SourceLocation | None) -> str | None:
     """Format a Playwright console message location dict into 'url:line:col'.
 
-    Playwright Python returns a dict like
+    Playwright Python returns a SourceLocation TypedDict with
     ``{"url": str, "lineNumber": int, "columnNumber": int}``. Returns None when
     the location is missing, empty, or has no URL.
     """
     if not loc:
-        return None
-    if not isinstance(loc, dict):
         return None
     url = loc.get("url") or ""
     if not url:
@@ -258,7 +258,7 @@ class ContextManager:
         they were destroyed mid-iteration) are skipped silently.
         """
         snapshot = list(self._contexts.items())
-        result = []
+        result: list[dict[str, Any]] = []
         for name, ctx in snapshot:
             try:
                 cookies = await ctx.cookies()
@@ -373,20 +373,26 @@ class ContextManager:
     @staticmethod
     def _validate_state_structure(state: dict[str, Any]) -> None:
         """Validate cookies + origins shape before mutating any browser state."""
-        for cookie in state.get("cookies", []):
-            if not isinstance(cookie, dict) or "name" not in cookie or "value" not in cookie:
+        for cookie_any in state.get("cookies", []):
+            if not isinstance(cookie_any, dict) or "name" not in cookie_any or "value" not in cookie_any:
                 raise InvalidStateFileError("Each cookie must be a dict with at least 'name' and 'value' keys")
+            # isinstance narrows to dict[Unknown, Unknown]; JSON object keys are strings by spec.
+            cookie = cast("dict[str, Any]", cookie_any)
             if "url" not in cookie and "domain" not in cookie:
                 raise InvalidStateFileError(
                     f"Cookie {cookie.get('name')!r} needs 'url' or 'domain' for Playwright to accept it"
                 )
-        for origin_data in state.get("origins", []):
-            if not isinstance(origin_data, dict) or "origin" not in origin_data:
+        for origin_any in state.get("origins", []):
+            if not isinstance(origin_any, dict) or "origin" not in origin_any:
                 raise InvalidStateFileError("Each entry in 'origins' must be a dict with an 'origin' key")
+            # isinstance narrows to dict[Unknown, Unknown]; JSON object keys are strings by spec.
+            origin_data = cast("dict[str, Any]", origin_any)
             local_storage = origin_data.get("localStorage", [])
             if not isinstance(local_storage, list):
                 raise InvalidStateFileError(f"'localStorage' for origin {origin_data['origin']!r} must be a list")
-            for item in local_storage:
+            # isinstance narrows to list[Unknown]; items are JSON objects per the Playwright storage_state schema.
+            local_storage_list = cast("list[Any]", local_storage)
+            for item in local_storage_list:
                 if not isinstance(item, dict) or "name" not in item or "value" not in item:
                     raise InvalidStateFileError("Each localStorage item must have 'name' and 'value' keys")
 
@@ -512,7 +518,8 @@ class ContextManager:
             raise InvalidStateFileError(
                 "State file does not look like a Playwright storage_state JSON: missing 'cookies' key"
             )
-        return data
+        # isinstance narrows to dict[Unknown, Unknown]; JSON object keys are strings by spec.
+        return cast("dict[str, Any]", data)
 
 
 def assert_no_modal(ctx_mgr: ContextManager, context: str) -> None:
