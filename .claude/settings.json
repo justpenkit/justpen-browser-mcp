@@ -4,6 +4,19 @@
     "ENABLE_LSP_TOOL": "1"
   },
   "effortLevel": "high",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/guard-pyproject.py"
+          }
+        ]
+      }
+    ]
+  },
   "enabledPlugins": {
     "superpowers@superpowers-marketplace": true,
     "pyright-lsp@claude-plugins-official": true,
