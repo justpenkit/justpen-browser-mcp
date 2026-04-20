@@ -44,6 +44,9 @@ Repository = "https://github.com/justpenkit/justpen-browser-mcp"
 Issues = "https://github.com/justpenkit/justpen-browser-mcp/issues"
 Changelog = "https://github.com/justpenkit/justpen-browser-mcp/releases"
 
+[project.scripts]
+justpen-browser-mcp = "justpen_browser_mcp.__main__:cli"
+
 [dependency-groups]
 dev = [
     "pyright>=1.1.408",

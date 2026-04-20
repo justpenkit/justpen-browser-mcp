@@ -48,5 +48,10 @@ async def main() -> None:
         await launcher.shutdown()
 
 
-if __name__ == "__main__":
+def cli() -> None:
+    """Sync entrypoint for the `justpen-browser-mcp` console script."""
     asyncio.run(main())
+
+
+if __name__ == "__main__":
+    cli()
