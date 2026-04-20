@@ -68,8 +68,8 @@ markers = [
 
 [tool.ruff]
 line-length = 120
-target-version = "py313"
-extend-exclude = [".venv", "dist", "build", "__pycache__"]
+src = ["src"]
+extend-exclude = [".superpowers"]
 
 [tool.ruff.lint]
 select = [
