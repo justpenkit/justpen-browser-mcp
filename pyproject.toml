@@ -157,7 +157,6 @@ reportUnusedFunction = false
 
 [[tool.pyright.executionEnvironments]]
 root = "tests"
-extraPaths = ["src"]
 reportMissingParameterType = "none"
 reportUnknownParameterType = "none"
 reportUnknownArgumentType = "none"
