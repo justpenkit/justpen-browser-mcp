@@ -23,6 +23,7 @@ BASH_ALLOWLIST = re.compile(
 
 
 def ask(reason: str) -> None:
+    """Emit a PreToolUse hook response asking the user to approve the action."""
     json.dump(
         {
             "hookSpecificOutput": {
@@ -37,6 +38,7 @@ def ask(reason: str) -> None:
 
 
 def main() -> None:
+    """Read a PreToolUse payload from stdin and gate guarded pyproject/uv.lock edits."""
     payload = cast("dict[str, Any]", json.load(sys.stdin))
     tool = str(payload.get("tool_name", ""))
     tool_input = cast("dict[str, Any]", payload.get("tool_input") or {})
