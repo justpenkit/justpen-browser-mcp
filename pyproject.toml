@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "justpen-browser-mcp"
 version = "0.1.0"
 description = "Camoufox-based MCP browser automation server"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 license = { text = "MIT" }
 dependencies = [
     "camoufox>=0.4",
@@ -39,23 +39,69 @@ markers = [
 
 [tool.ruff]
 line-length = 120
-target-version = "py311"
+target-version = "py313"
 extend-exclude = [".venv", "dist", "build", "__pycache__"]
 
 [tool.ruff.lint]
 select = [
-    "F", "E", "W", "B", "BLE", "RET", "PLC", "PLE", "PLW",
-    "UP", "I", "SIM", "C4", "C90", "PTH", "RUF",
-    "S", "ASYNC",
-    "ARG", "DTZ", "T20", "LOG", "G", "PT", "TID", "TC", "PERF", "FBT", "N", "ANN",
-    "T10", "SLF", "TRY", "PIE", "ERA", "A", "PGH", "RSE", "FURB", "INP", "EXE",
+    "F",      # Pyflakes: undefined names, unused imports/variables
+    "E",      # pycodestyle errors: PEP 8 style violations
+    "W",      # pycodestyle warnings: whitespace, deprecated syntax
+    "B",      # flake8-bugbear: likely bugs and design problems
+    "BLE",    # flake8-blind-except: bare except / except Exception
+    "RET",    # flake8-return: return statement anti-patterns
+    "PLC",    # Pylint Convention: style/convention issues
+    "PLE",    # Pylint Error: likely runtime errors
+    "PLW",    # Pylint Warning: suspicious patterns
+    "UP",     # pyupgrade: modernize syntax for target Python version
+    "I",      # isort: import ordering and grouping
+    "SIM",    # flake8-simplify: code that can be simplified
+    "C4",     # flake8-comprehensions: better list/dict/set comprehensions
+    "C90",    # mccabe: cyclomatic complexity threshold
+    "PTH",    # flake8-use-pathlib: prefer pathlib over os.path
+    "RUF",    # Ruff-specific rules (e.g. unused noqa, ambiguous unicode)
+    "S",      # flake8-bandit: security issues (eval, hardcoded passwords, etc.)
+    "ASYNC",  # flake8-async: async/await misuse, blocking calls in coroutines
+    "ARG",    # flake8-unused-arguments: unused function/method arguments
+    "DTZ",    # flake8-datetimez: timezone-naive datetime usage
+    "T20",    # flake8-print: catches stray print() calls
+    "LOG",    # flake8-logging: logging best practices
+    "G",      # flake8-logging-format: logging format string issues
+    "PT",     # flake8-pytest-style: pytest idioms (fixtures, parametrize)
+    "TID",    # flake8-tidy-imports: banned / relative import rules
+    "TC",     # flake8-type-checking: move type-only imports under TYPE_CHECKING
+    "PERF",   # Perflint: performance anti-patterns (e.g. try/except in loops)
+    "FBT",    # flake8-boolean-trap: boolean positional arguments
+    "N",      # pep8-naming: naming conventions for classes/functions/variables
+    "ANN",    # flake8-annotations: missing type annotations
+    "T10",    # flake8-debugger: pdb/breakpoint() leftovers
+    "SLF",    # flake8-self: private member access from outside class
+    "TRY",    # tryceratops: try/except anti-patterns
+    "PIE",    # flake8-pie: misc lints (unnecessary pass, duplicate keys, etc.)
+    "ERA",    # eradicate: commented-out code
+    "A",      # flake8-builtins: shadowing Python builtins
+    "PGH",    # pygrep-hooks: generic checks (blanket noqa, eval usage)
+    "RSE",    # flake8-raise: raise statement issues (unnecessary parentheses)
+    "FURB",   # refurb: modernize older Python patterns
+    "INP",    # flake8-no-pep420: require __init__.py (no implicit namespace pkg)
+    "EXE",    # flake8-executable: shebang / file-mode mismatches
 ]
 ignore = [
-    "E501", "COM812", "ISC001",
-    "D",
-    "TRY003", "EM101", "EM102", "TID252",
-    "PLR2004", "PLR0911", "PLR0912", "PLR0913", "PLR0915",
-    "S603", "S607",
+    "E501",    # line too long — formatter handles line length
+    "COM812",  # missing trailing comma — conflicts with ruff formatter
+    "ISC001",  # implicit string concatenation — conflicts with ruff formatter
+    "D",       # pydocstyle: all docstring rules disabled (no docstring policy)
+    "TRY003",  # long exception messages outside exception class — too strict
+    "EM101",   # raw string in exception — stylistic noise
+    "EM102",   # f-string in exception — stylistic noise
+    "TID252",  # relative imports from parent modules — we allow them
+    "PLR2004", # magic value comparison — too many false positives
+    "PLR0911", # too many return statements — handled by code review
+    "PLR0912", # too many branches — handled by code review
+    "PLR0913", # too many arguments — handled by code review
+    "PLR0915", # too many statements — handled by code review
+    "S603",    # subprocess without shell=True — false positives on trusted input
+    "S607",    # subprocess partial executable path — false positives for standard tools
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -74,7 +120,7 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 
 [tool.pyright]
-pythonVersion = "3.11"
+pythonVersion = "3.13"
 include = ["src", "tests"]
 exclude = ["**/__pycache__"]
 typeCheckingMode = "strict"
