@@ -1,13 +1,35 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "justpen-browser-mcp"
 version = "0.1.0"
-description = "Camoufox-based MCP browser automation server"
+description = "Camoufox-based MCP server with multi-context browser session isolation"
+readme = "README.md"
 requires-python = ">=3.13"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "justmumu" }]
+keywords = [
+    "mcp",
+    "browser",
+    "automation",
+    "camoufox",
+    "firefox",
+    "playwright",
+    "stealth",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet :: WWW/HTTP :: Browsers",
+    "Topic :: Software Development :: Libraries",
+    "Typing :: Typed",
+]
 dependencies = [
     "camoufox>=0.4",
     "fastmcp>=2.0",
@@ -15,6 +37,12 @@ dependencies = [
     "playwright>=1.49",
     "tldextract>=5.3",
 ]
+
+[project.urls]
+Homepage = "https://github.com/justpenkit/justpen-browser-mcp"
+Repository = "https://github.com/justpenkit/justpen-browser-mcp"
+Issues = "https://github.com/justpenkit/justpen-browser-mcp/issues"
+Changelog = "https://github.com/justpenkit/justpen-browser-mcp/releases"
 
 [dependency-groups]
 dev = [
@@ -33,6 +61,7 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 asyncio_mode = "auto"
 addopts = "--strict-markers --strict-config"
+filterwarnings = ["error"]
 markers = [
     "e2e: tests requiring a real Camoufox browser",
 ]
@@ -155,6 +184,7 @@ omit = [
 [tool.coverage.report]
 show_missing = true
 skip_covered = false
+fail_under = 80
 exclude_lines = [
     "pragma: no cover",
     "raise NotImplementedError",
