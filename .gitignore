@@ -19,3 +19,6 @@ htmlcov/
 
 # Secrets
 .env
+
+# Claude Code local overrides (personal, non-shared)
+.claude/settings.local.json
