@@ -37,9 +37,9 @@ def ask(reason: str) -> None:
 
 
 def main() -> None:
-    payload = cast(dict[str, Any], json.load(sys.stdin))
+    payload = cast("dict[str, Any]", json.load(sys.stdin))
     tool = str(payload.get("tool_name", ""))
-    tool_input = cast(dict[str, Any], payload.get("tool_input") or {})
+    tool_input = cast("dict[str, Any]", payload.get("tool_input") or {})
 
     if tool == "Bash":
         cmd = str(tool_input.get("command", ""))
