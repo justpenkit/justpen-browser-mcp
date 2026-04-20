@@ -130,7 +130,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = [
-    "S101", "SLF001", "ARG", "PLR", "T201", "PT011", "ANN", "INP001",
+    "S101", "SLF001", "ARG", "T201", "PT011", "ANN", "INP001",
     "D",  # tests don't need docstrings
 ]
 
