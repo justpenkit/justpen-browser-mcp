@@ -149,13 +149,8 @@ line-ending = "auto"
 [tool.pyright]
 pythonVersion = "3.13"
 include = ["src", "tests"]
-exclude = ["**/__pycache__"]
 typeCheckingMode = "strict"
 reportMissingTypeStubs = false
-reportMissingTypeArgument = "error"
-reportPrivateUsage = "error"
-reportUnnecessaryComparison = "error"
-reportUnnecessaryIsInstance = "error"
 reportImplicitOverride = "error"
 reportUnnecessaryTypeIgnoreComment = "error"
 reportUnusedFunction = false
