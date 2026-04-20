@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+    """Register page (tab) management tools on the MCP server."""
 
     @mcp.tool
     async def browser_close(context: str) -> dict[str, Any]:

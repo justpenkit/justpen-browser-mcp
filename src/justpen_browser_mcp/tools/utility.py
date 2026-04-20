@@ -305,6 +305,7 @@ def _register_browser_tabs(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
 
 def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+    """Register miscellaneous utility tools on the MCP server."""
     _register_browser_resize(mcp, ctx_mgr)
     _register_browser_pdf_save(mcp, ctx_mgr)
     _register_browser_generate_locator(mcp, ctx_mgr)

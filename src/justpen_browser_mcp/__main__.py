@@ -29,6 +29,7 @@ def _setup_logging(level: str) -> None:
 
 
 async def main() -> None:
+    """Launch the browser MCP server and keep it running on stdio."""
     config = BrowserServerConfig.from_env(os.environ)
     _setup_logging(config.log_level)
 
