@@ -78,23 +78,22 @@ _ROLE_NAME_RE = re.compile(rf'\[name="({_QUOTED})"(s|i)\]')
 
 
 def _unescape(text: str) -> str:
-    """Unescape a Playwright internal-selector quoted string.
+    r"""Unescape a Playwright internal-selector quoted string.
 
     Playwright escapes backslashes and double quotes inside these strings
-    (``\\\\`` and ``\\"``); everything else is literal.
+    (``\\`` and ``\"``); everything else is literal.
     """
     return text.replace("\\\\", "\\").replace('\\"', '"')
 
 
 def _internal_to_python(sel: str) -> str:
-    """Convert a Playwright internal selector (from resolveSelector) to a
-    Python API call string.
+    r"""Convert a Playwright internal selector to a Python API call string.
 
     Example inputs → outputs:
         internal:testid=[data-testid="submit-btn"s]
             → "get_by_test_id('submit-btn')"
         internal:role=button[name="Cancel"i]
-            → 'get_by_role("button", name=\\'Cancel\\')'
+            → 'get_by_role("button", name=\'Cancel\')'
         internal:label="Password"s
             → "get_by_label('Password', exact=True)"
 
@@ -151,8 +150,7 @@ def _internal_to_python(sel: str) -> str:
 
 
 async def resolve_selector_to_stable(page: Page, ref: str) -> dict[str, str]:
-    """Given an aria-ref from a snapshotForAI snapshot, return both the
-    stable internal Playwright selector and its Python-syntax equivalent.
+    """Resolve an aria-ref to a stable Playwright selector and Python equivalent.
 
     The internal selector is usable directly: page.locator(internal_selector)
     is a durable, navigation-safe locator that survives snapshot churn.

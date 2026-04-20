@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 def register(mcp: FastMCP, ctx_mgr: ContextManager, launcher: CamoufoxLauncher) -> None:
+    """Register server-level introspection tools on the MCP server."""
 
     @mcp.tool
     async def browser_status() -> dict[str, Any]:

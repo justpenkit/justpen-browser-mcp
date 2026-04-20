@@ -231,6 +231,7 @@ def _register_browser_wait_for(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
 
 def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+    """Register navigation tools on the MCP server."""
     _register_browser_navigate(mcp, ctx_mgr)
     _register_browser_navigate_back(mcp, ctx_mgr)
     _register_browser_wait_for(mcp, ctx_mgr)

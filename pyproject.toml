@@ -114,21 +114,16 @@ select = [
     "FURB",   # refurb: modernize older Python patterns
     "INP",    # flake8-no-pep420: require __init__.py (no implicit namespace pkg)
     "EXE",    # flake8-executable: shebang / file-mode mismatches
+    "D",      # pydocstyle: docstring presence and style (Google convention)
 ]
 ignore = [
     "E501",    # line too long — formatter handles line length
     "COM812",  # missing trailing comma — conflicts with ruff formatter
     "ISC001",  # implicit string concatenation — conflicts with ruff formatter
-    "D",       # pydocstyle: all docstring rules disabled (no docstring policy)
     "TRY003",  # long exception messages outside exception class — too strict
     "EM101",   # raw string in exception — stylistic noise
     "EM102",   # f-string in exception — stylistic noise
     "TID252",  # relative imports from parent modules — we allow them
-    "PLR2004", # magic value comparison — too many false positives
-    "PLR0911", # too many return statements — handled by code review
-    "PLR0912", # too many branches — handled by code review
-    "PLR0913", # too many arguments — handled by code review
-    "PLR0915", # too many statements — handled by code review
     "S603",    # subprocess without shell=True — false positives on trusted input
     "S607",    # subprocess partial executable path — false positives for standard tools
 ]
@@ -136,11 +131,15 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = [
     "S101", "SLF001", "ARG", "PLR", "T201", "PT011", "ANN", "INP001",
+    "D",  # tests don't need docstrings
 ]
 
 [tool.ruff.lint.isort]
 known-first-party = ["justpen_browser_mcp"]
 combine-as-imports = true
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.ruff.format]
 quote-style = "double"

@@ -459,6 +459,7 @@ def _register_browser_handle_dialog(mcp: FastMCP, ctx_mgr: ContextManager) -> No
 
 
 def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+    """Register element interaction tools on the MCP server."""
     _register_browser_click(mcp, ctx_mgr)
     _register_browser_type(mcp, ctx_mgr)
     _register_browser_fill_form(mcp, ctx_mgr)

@@ -307,6 +307,7 @@ def _register_browser_clear_local_storage(mcp: FastMCP, ctx_mgr: ContextManager)
 
 
 def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+    """Register cookie and web storage tools on the MCP server."""
     _register_browser_get_cookies(mcp, ctx_mgr)
     _register_browser_set_cookies(mcp, ctx_mgr)
     _register_browser_clear_cookies(mcp, ctx_mgr)

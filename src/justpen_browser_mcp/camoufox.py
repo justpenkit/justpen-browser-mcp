@@ -32,6 +32,7 @@ class CamoufoxLauncher:
     """Lazy, idempotent launcher for the single Camoufox browser instance."""
 
     def __init__(self, *, headless: bool = True) -> None:
+        """Initialize the launcher without touching the browser yet."""
         self._headless = headless
         self._browser: Browser | None = None
         self._cm: AsyncCamoufox | None = None
@@ -98,7 +99,7 @@ class CamoufoxLauncher:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        _stdout, stderr = await proc.communicate()
+        _, stderr = await proc.communicate()
         if proc.returncode != 0:
             raise BinaryNotFoundError(f"Failed to fetch Camoufox binary: {stderr.decode().strip()}")
         logger.info("Camoufox binary fetched successfully")

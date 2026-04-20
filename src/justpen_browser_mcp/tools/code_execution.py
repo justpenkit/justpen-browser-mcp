@@ -135,5 +135,6 @@ def _register_browser_run_code(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
 
 
 def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+    """Register in-page code execution tools on the MCP server."""
     _register_browser_evaluate(mcp, ctx_mgr)
     _register_browser_run_code(mcp, ctx_mgr)

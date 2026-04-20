@@ -326,6 +326,7 @@ def _register_browser_verify_value(mcp: FastMCP, ctx_mgr: ContextManager) -> Non
 
 
 def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+    """Register DOM verification tools on the MCP server."""
     _register_browser_verify_element_visible(mcp, ctx_mgr)
     _register_browser_verify_list_visible(mcp, ctx_mgr)
     _register_browser_verify_text_visible(mcp, ctx_mgr)
