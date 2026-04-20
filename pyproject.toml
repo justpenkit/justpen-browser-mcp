@@ -168,14 +168,9 @@ reportPrivateUsage = "none"
 [tool.coverage.run]
 source = ["src/justpen_browser_mcp"]
 branch = true
-omit = [
-    "*/__pycache__/*",
-    "*/tests/*",
-]
 
 [tool.coverage.report]
 show_missing = true
-skip_covered = false
 fail_under = 80
 exclude_lines = [
     "pragma: no cover",
