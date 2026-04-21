@@ -1,0 +1,47 @@
+site_name: justpen-browser-mcp
+site_description: Camoufox-based MCP server with multi-context browser session isolation
+site_url: https://justpenkit.github.io/justpen-browser-mcp/
+repo_url: https://github.com/justpenkit/justpen-browser-mcp
+repo_name: justpenkit/justpen-browser-mcp
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - content.code.copy
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep orange
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep orange
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Contributing:
+      - PR checklist: contributing/pr-checklist.md
+      - Release process: contributing/release-process.md
+      - Lint & typing: contributing/lint-typing.md
+      - Code intelligence: contributing/code-intelligence.md
+
+strict: true
