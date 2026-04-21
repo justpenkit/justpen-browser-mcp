@@ -18,7 +18,8 @@ uv run python -m camoufox fetch   # one-time ~150MB Camoufox binary download
 ```
 
 Contributors working from a clone can run `make setup` instead, which
-`uv sync`s the dev group and fetches the Camoufox binary in one step.
+`uv sync`s the dev and docs groups, fetches the Camoufox binary, and
+installs the project's git hooks (pre-commit / pre-push / commit-msg).
 
 ## Usage
 

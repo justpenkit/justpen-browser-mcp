@@ -5,10 +5,13 @@ review cycle short: an hour spent on the checklist saves a day of back-and-forth
 
 ## 1. Branch and commits
 
-- [ ] Branch name follows `type/short-description`. Types: `feat`, `fix`,
-      `docs`, `chore`, `refactor`, `test`, `ci`, `build`.
+- [ ] Branch name follows `type/short-description`. The `type` uses the same
+      set as commit types below.
 - [ ] Each commit subject uses [Conventional Commits](https://www.conventionalcommits.org/):
       `type(scope): subject`. Scope is optional when the change is cross-cutting.
+      Allowed types (enforced by `scripts/hooks/check_conventional_commit.py`):
+      `feat`, `fix`, `docs`, `chore`, `ci`, `refactor`, `test`, `style`,
+      `build`, `perf`, `revert`. Subject ≤72 characters, no trailing period.
 - [ ] History is already the shape you want merged. We merge with real merge
       commits (never squash), so the SHAs on the feature branch are what lands
       on `main`. Rebase or `git commit --amend` locally before opening the PR if
