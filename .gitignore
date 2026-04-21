@@ -17,6 +17,9 @@ dist/
 coverage.xml
 htmlcov/
 
+# MkDocs build output
+site/
+
 # Secrets
 .env
 
