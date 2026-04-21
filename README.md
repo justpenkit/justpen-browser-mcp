@@ -1,42 +1,59 @@
 # justpen-browser-mcp
 
-Camoufox-based MCP browser automation server — stealth-focused Firefox control for the justpen toolkit.
+Camoufox-based MCP server with multi-context browser session isolation.
+
+Exposes a stealth-patched Firefox (via [Camoufox](https://github.com/daijro/camoufox))
+to MCP-aware clients as a set of browser automation tools. Each named context
+is a fully isolated `BrowserContext` — cookies, storage, and cache do not leak
+between contexts — so a single server process can drive parallel logged-in
+flows for different users or tenants.
 
 ## Installation
 
+Until the package is on PyPI, install straight from git:
+
 ```bash
 uv add "justpen-browser-mcp @ git+https://github.com/justpenkit/justpen-browser-mcp@v0.1.0"
-uv run python -m camoufox fetch   # one-time ~150MB download
+uv run python -m camoufox fetch   # one-time ~150MB Camoufox binary download
 ```
+
+Contributors working from a clone can run `make setup` instead, which
+`uv sync`s the dev group and fetches the Camoufox binary in one step.
 
 ## Usage
 
-Run the MCP server directly:
+The install exposes two equivalent invocations — the `justpen-browser-mcp`
+console script (added by `[project.scripts]` in `pyproject.toml`) and the
+`python -m justpen_browser_mcp` module entry point:
 
 ```bash
+justpen-browser-mcp
+# or
 python -m justpen_browser_mcp
 ```
 
-Register in an MCP-aware client (e.g., Claude Code):
+Register with an MCP-aware client (e.g. Claude Code):
 
 ```json
 {
   "mcpServers": {
     "justpen-browser": {
-      "command": "python",
-      "args": ["-m", "justpen_browser_mcp"]
+      "command": "justpen-browser-mcp"
     }
   }
 }
 ```
+
+If the client runs outside the virtualenv where the package is installed,
+use the `python -m justpen_browser_mcp` form with an explicit interpreter
+path instead.
 
 ## Server identity
 
 | Property | Value |
 |---|---|
 | FastMCP name | `camoufox-mcp` |
-| MCP server key (`settings.json`) | `camoufox` |
-| Entry point | `python -m justpen_browser_mcp` |
+| Entry points | `justpen-browser-mcp` (console script) / `python -m justpen_browser_mcp` (module) |
 
 **Environment variables:**
 
@@ -1373,10 +1390,19 @@ browser_status() -> dict
 ## Development
 
 ```bash
-make setup    # install deps + fetch Camoufox binary
-make check    # format + lint + typecheck + test (non-e2e)
-make test-e2e # e2e tests (requires Camoufox installed)
+make setup       # install deps + fetch Camoufox binary
+make check       # format + lint + typecheck + test (non-e2e)
+make test-e2e    # e2e tests (requires Camoufox installed)
+make docs-build  # build the MkDocs site (strict)
+make docs-serve  # serve docs locally with live reload
+make bump-patch  # bump patch version, commit, and tag locally
 ```
+
+Walk `docs/contributing/pr-checklist.md` before opening a pull request, and
+see `docs/contributing/release-process.md` for the full tag-and-merge flow
+used by the `bump-*` targets. Lint, type-check, and LSP conventions are
+documented under `docs/contributing/lint-typing.md` and
+`docs/contributing/code-intelligence.md`.
 
 ## License
 
