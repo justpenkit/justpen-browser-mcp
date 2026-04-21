@@ -45,3 +45,13 @@ Raise the concern with the user first and only edit after explicit approval. Do 
 ## Verification gate after every edit
 
 Before moving on to the next edit or claiming a task complete, run `ruff check` and `pyright` (or `make check`) against the changed files. Do not batch this to the end of the session — a broken baseline compounds quickly. Any `<new-diagnostics>` reminder that arrives after a write is a blocker, not a note.
+
+## Git hooks
+
+`make setup` installs three `pre-commit` git hook stages:
+
+- `pre-commit` — `make lint-fix`, `make format`, `make lock-check` (latter only when `pyproject.toml` or `uv.lock` changes).
+- `pre-push` — `make check` (format-check + lint + typecheck + test — mirrors CI).
+- `commit-msg` — Conventional Commits format (enforces the `type(scope): subject` rule from `CLAUDE.md`), implemented locally in `scripts/hooks/check_conventional_commit.py`.
+
+Hooks are ergonomic, not authoritative: CI still runs `make check` as the source of truth. If a hook is failing locally but CI is green, refresh the hook env: `uv run pre-commit clean && uv run pre-commit install --install-hooks`. Never bypass a failing hook with `--no-verify` — fix the root cause.

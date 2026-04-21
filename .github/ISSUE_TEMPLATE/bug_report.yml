@@ -14,7 +14,7 @@ body:
     attributes:
       label: What happened?
       description: A clear description of what you observed.
-      placeholder: Calling browser_navigate returned `error_type: navigation_failed` with ...
+      placeholder: "Calling browser_navigate returned `error_type: navigation_failed` with ..."
     validations:
       required: true
 

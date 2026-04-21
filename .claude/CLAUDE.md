@@ -16,6 +16,8 @@ Ruff + pyright strict. **Fix the root cause, do not silence warnings.** Try `ruf
 
 Suppressions (`# noqa`, `# type: ignore`, `# pyright: ignore[...]`, `# pragma: no cover`) require a strong, documented reason. Never modify `pyproject.toml` lint/type config unilaterally.
 
+`make setup` installs pre-commit hooks: ruff + lock-check on pre-commit, `make check` on pre-push (full gate), Conventional Commits on commit-msg. Never bypass with `--no-verify` — fix the cause.
+
 Full rules — banned forms, acceptable reasons, suppression format, escalation protocol, verification gate: [`docs/contributing/lint-typing.md`](../docs/contributing/lint-typing.md).
 
 ---
