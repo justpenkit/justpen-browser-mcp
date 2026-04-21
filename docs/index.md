@@ -2,32 +2,42 @@
 
 Camoufox-based MCP server with multi-context browser session isolation.
 
-`justpen-browser-mcp` is an MCP (Model Context Protocol) server that exposes a
-Camoufox-driven Firefox to LLM clients as a set of tools. Every named context
-is a fully isolated browser session — cookies, storage, and cache live inside
-the context and do not leak between them — which makes it safe to run parallel
-logged-in flows for different users or test tenants from a single server
-process.
+`justpen-browser-mcp` exposes a stealth-patched Firefox (via
+[Camoufox](https://github.com/daijro/camoufox)) to MCP-aware clients as a set
+of browser automation tools. Every named context is a fully isolated
+`BrowserContext` — cookies, storage, and cache do not leak between contexts —
+so a single server process can drive parallel logged-in flows for different
+users or tenants.
 
-## What you get
+## 60-second quickstart
 
-- **Multi-context isolation** — spin up any number of `BrowserContext` objects
-  by name; each one behaves like a fresh profile.
-- **Stealth-first browser** — Camoufox ships pre-patched Firefox fingerprint
-  flags, so the browser looks like a human session out of the box.
-- **LLM-native tool surface** — tools return structured JSON, include aria-ref
-  snapshots for reliable element targeting, and surface errors with typed
-  `error_type` codes.
-- **Single stdio transport** — works with any MCP-compatible client
-  (Claude Code, Copilot CLI, Gemini CLI, custom stdio bridges).
+Install (requires [uv](https://docs.astral.sh/uv/)):
+
+```bash
+uv add "justpen-browser-mcp @ git+https://github.com/justpenkit/justpen-browser-mcp@v0.1.0"
+uv run python -m camoufox fetch
+```
+
+Run the server (stdio transport):
+
+```bash
+justpen-browser-mcp
+```
+
+Register with an MCP client (generic form):
+
+```json
+{
+  "mcpServers": {
+    "justpen-browser": { "command": "justpen-browser-mcp" }
+  }
+}
+```
 
 ## Where to go next
 
-- **Running the server** — see the repo README.
-- **Contributing** — start with the
-  [PR checklist](contributing/pr-checklist.md). If you're cutting a release,
-  follow the [release process](contributing/release-process.md). Internal
-  tooling rules for linters, type checkers, and LSP use live under
-  [lint & typing](contributing/lint-typing.md) and
-  [code intelligence](contributing/code-intelligence.md).
-- **Source** — [github.com/justpenkit/justpen-browser-mcp](https://github.com/justpenkit/justpen-browser-mcp).
+- **Install the server** — [Getting started → Install](getting-started/install.md)
+- **Wire up a client** — [Client setup](client-setup/claude-code.md) (Claude Code, Copilot CLI, Gemini CLI)
+- **Browse the tools** — [Tools reference](tools-reference/lifecycle.md)
+- **Understand the model** — [Concepts → Contexts & isolation](concepts/contexts-isolation.md)
+- **Contribute** — [Contributing → PR checklist](contributing/pr-checklist.md)
