@@ -17,5 +17,11 @@ dist/
 coverage.xml
 htmlcov/
 
+# MkDocs build output
+site/
+
 # Secrets
 .env
+
+# Claude Code local overrides (personal, non-shared)
+.claude/settings.local.json

@@ -279,6 +279,7 @@ def _register_browser_network_requests(mcp: FastMCP, ctx_mgr: ContextManager) ->
 
 
 def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+    """Register page inspection tools on the MCP server."""
     _register_browser_snapshot(mcp, ctx_mgr)
     _register_browser_screenshot(mcp, ctx_mgr)
     _register_browser_console_messages(mcp, ctx_mgr)

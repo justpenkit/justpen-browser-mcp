@@ -167,6 +167,7 @@ def _register_browser_list_contexts(mcp: FastMCP, ctx_mgr: ContextManager) -> No
 
 
 def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+    """Register context lifecycle tools on the MCP server."""
     _register_browser_create_context(mcp, ctx_mgr)
     _register_browser_load_context_state(mcp, ctx_mgr)
     _register_browser_export_context_state(mcp, ctx_mgr)

@@ -29,6 +29,7 @@ def _setup_logging(level: str) -> None:
 
 
 async def main() -> None:
+    """Launch the browser MCP server and keep it running on stdio."""
     config = BrowserServerConfig.from_env(os.environ)
     _setup_logging(config.log_level)
 
@@ -48,5 +49,10 @@ async def main() -> None:
         await launcher.shutdown()
 
 
-if __name__ == "__main__":
+def cli() -> None:
+    """Sync entrypoint for the `justpen-browser-mcp` console script."""
     asyncio.run(main())
+
+
+if __name__ == "__main__":
+    cli()

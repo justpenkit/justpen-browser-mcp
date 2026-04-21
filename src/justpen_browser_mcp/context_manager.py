@@ -85,6 +85,7 @@ class ContextManager:
     """Named registry of BrowserContexts within a single Camoufox browser."""
 
     def __init__(self, launcher: CamoufoxLauncher) -> None:
+        """Initialize an empty registry bound to the given browser launcher."""
         self._launcher = launcher
         self._contexts: dict[str, BrowserContext] = {}
         self._state: dict[str, ContextState] = {}

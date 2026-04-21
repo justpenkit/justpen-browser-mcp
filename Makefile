@@ -1,4 +1,5 @@
-.PHONY: help version setup clean test test-e2e lint format format-check typecheck audit check
+.PHONY: help version setup clean test test-e2e lint format format-check typecheck audit check \
+        docs-build docs-serve bump-patch bump-minor bump-major
 
 VERSION := $(shell grep '^version' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
 VENV := .venv
@@ -15,6 +16,11 @@ help:
 	@echo "  typecheck       Run pyright over src/ and tests/"
 	@echo "  audit           Run pip-audit vulnerability scan"
 	@echo "  check           format-check + lint + typecheck + test"
+	@echo "  docs-build      Build the MkDocs site (strict mode)"
+	@echo "  docs-serve      Serve the MkDocs site locally with live reload"
+	@echo "  bump-patch      Bump patch version, commit, tag locally"
+	@echo "  bump-minor      Bump minor version, commit, tag locally"
+	@echo "  bump-major      Bump major version, commit, tag locally"
 	@echo "  version         Print current version"
 
 version:
@@ -53,3 +59,22 @@ audit:
 	uv tool run pip-audit --strict .
 
 check: format-check lint typecheck test
+
+docs-build:
+	uv run --group docs mkdocs build --strict
+
+docs-serve:
+	uv run --group docs mkdocs serve
+
+bump-patch bump-minor bump-major:
+	@segment=$$(echo $@ | sed 's/^bump-//'); \
+	uv version --bump $$segment; \
+	new=$$(uv version --short); \
+	git add pyproject.toml uv.lock; \
+	git commit -m "chore: bump version to v$$new"; \
+	git tag "v$$new"; \
+	branch=$$(git rev-parse --abbrev-ref HEAD); \
+	printf "\nLocal tag v%s created. Next steps:\n" "$$new"; \
+	printf "  git push -u origin %s\n" "$$branch"; \
+	printf "  # open PR, merge with a regular merge commit, then:\n"; \
+	printf "  git switch main && git pull && git push origin v%s\n" "$$new"
