@@ -1,0 +1,30 @@
+<!--
+Thanks for opening a PR! Walk through the contributor checklist before
+requesting review: docs/contributing/pr-checklist.md
+-->
+
+## Summary
+
+<!-- What changes and why. One or two sentences is plenty. -->
+
+## Testing
+
+<!--
+How did you verify this works? E.g.:
+- `make check` passes locally
+- New/updated unit tests cover the change
+- Ran `make test-e2e` against a real Camoufox
+-->
+
+## Checklist
+
+- [ ] Branch follows `type/short-description` (feat/fix/docs/chore/refactor/test/ci/build).
+- [ ] Commits use Conventional Commits (`type(scope): subject`).
+- [ ] `make check` is green locally.
+- [ ] `make docs-build` is green if anything under `docs/` changed.
+- [ ] Relevant docs updated (`docs/`, `README.md`, or `CLAUDE.md` as appropriate).
+- [ ] PR will be merged with a regular merge commit (not squash).
+
+## Notes for the reviewer
+
+<!-- Anything non-obvious: architectural tradeoffs, deliberately deferred work, follow-up issues. -->
