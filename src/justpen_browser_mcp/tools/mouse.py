@@ -241,6 +241,7 @@ def _register_browser_mouse_wheel(mcp: FastMCP, ctx_mgr: ContextManager) -> None
 
 
 def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+    """Register low-level mouse tools on the MCP server."""
     _register_browser_mouse_click_xy(mcp, ctx_mgr)
     _register_browser_mouse_move_xy(mcp, ctx_mgr)
     _register_browser_mouse_down(mcp, ctx_mgr)

@@ -1,13 +1,35 @@
 [build-system]
-requires = ["setuptools>=68"]
-build-backend = "setuptools.build_meta"
+requires = ["uv_build>=0.11,<0.12"]
+build-backend = "uv_build"
 
 [project]
 name = "justpen-browser-mcp"
 version = "0.1.0"
-description = "Camoufox-based MCP browser automation server"
-requires-python = ">=3.11"
-license = { text = "MIT" }
+description = "Camoufox-based MCP server with multi-context browser session isolation"
+readme = "README.md"
+requires-python = ">=3.13"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "justmumu" }]
+keywords = [
+    "mcp",
+    "browser",
+    "automation",
+    "camoufox",
+    "firefox",
+    "playwright",
+    "stealth",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet :: WWW/HTTP :: Browsers",
+    "Topic :: Software Development :: Libraries",
+    "Typing :: Typed",
+]
 dependencies = [
     "camoufox>=0.4",
     "fastmcp>=2.0",
@@ -15,6 +37,15 @@ dependencies = [
     "playwright>=1.49",
     "tldextract>=5.3",
 ]
+
+[project.urls]
+Homepage = "https://github.com/justpenkit/justpen-browser-mcp"
+Repository = "https://github.com/justpenkit/justpen-browser-mcp"
+Issues = "https://github.com/justpenkit/justpen-browser-mcp/issues"
+Changelog = "https://github.com/justpenkit/justpen-browser-mcp/releases"
+
+[project.scripts]
+justpen-browser-mcp = "justpen_browser_mcp.__main__:cli"
 
 [dependency-groups]
 dev = [
@@ -24,48 +55,94 @@ dev = [
     "pytest-cov>=5.0",
     "ruff>=0.15",
 ]
-
-[tool.setuptools.packages.find]
-where = ["src"]
+docs = [
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.7.6",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
 asyncio_mode = "auto"
 addopts = "--strict-markers --strict-config"
+filterwarnings = ["error"]
 markers = [
     "e2e: tests requiring a real Camoufox browser",
 ]
 
 [tool.ruff]
 line-length = 120
-target-version = "py311"
-extend-exclude = [".venv", "dist", "build", "__pycache__"]
+src = ["src"]
+extend-exclude = [".superpowers"]
 
 [tool.ruff.lint]
 select = [
-    "F", "E", "W", "B", "BLE", "RET", "PLC", "PLE", "PLW",
-    "UP", "I", "SIM", "C4", "C90", "PTH", "RUF",
-    "S", "ASYNC",
-    "ARG", "DTZ", "T20", "LOG", "G", "PT", "TID", "TC", "PERF", "FBT", "N", "ANN",
-    "T10", "SLF", "TRY", "PIE", "ERA", "A", "PGH", "RSE", "FURB", "INP", "EXE",
+    "F",      # Pyflakes: undefined names, unused imports/variables
+    "E",      # pycodestyle errors: PEP 8 style violations
+    "W",      # pycodestyle warnings: whitespace, deprecated syntax
+    "B",      # flake8-bugbear: likely bugs and design problems
+    "BLE",    # flake8-blind-except: bare except / except Exception
+    "RET",    # flake8-return: return statement anti-patterns
+    "PLC",    # Pylint Convention: style/convention issues
+    "PLE",    # Pylint Error: likely runtime errors
+    "PLW",    # Pylint Warning: suspicious patterns
+    "UP",     # pyupgrade: modernize syntax for target Python version
+    "I",      # isort: import ordering and grouping
+    "SIM",    # flake8-simplify: code that can be simplified
+    "C4",     # flake8-comprehensions: better list/dict/set comprehensions
+    "C90",    # mccabe: cyclomatic complexity threshold
+    "PTH",    # flake8-use-pathlib: prefer pathlib over os.path
+    "RUF",    # Ruff-specific rules (e.g. unused noqa, ambiguous unicode)
+    "S",      # flake8-bandit: security issues (eval, hardcoded passwords, etc.)
+    "ASYNC",  # flake8-async: async/await misuse, blocking calls in coroutines
+    "ARG",    # flake8-unused-arguments: unused function/method arguments
+    "DTZ",    # flake8-datetimez: timezone-naive datetime usage
+    "T20",    # flake8-print: catches stray print() calls
+    "LOG",    # flake8-logging: logging best practices
+    "G",      # flake8-logging-format: logging format string issues
+    "PT",     # flake8-pytest-style: pytest idioms (fixtures, parametrize)
+    "TID",    # flake8-tidy-imports: banned / relative import rules
+    "TC",     # flake8-type-checking: move type-only imports under TYPE_CHECKING
+    "PERF",   # Perflint: performance anti-patterns (e.g. try/except in loops)
+    "FBT",    # flake8-boolean-trap: boolean positional arguments
+    "N",      # pep8-naming: naming conventions for classes/functions/variables
+    "ANN",    # flake8-annotations: missing type annotations
+    "T10",    # flake8-debugger: pdb/breakpoint() leftovers
+    "SLF",    # flake8-self: private member access from outside class
+    "TRY",    # tryceratops: try/except anti-patterns
+    "PIE",    # flake8-pie: misc lints (unnecessary pass, duplicate keys, etc.)
+    "ERA",    # eradicate: commented-out code
+    "A",      # flake8-builtins: shadowing Python builtins
+    "PGH",    # pygrep-hooks: generic checks (blanket noqa, eval usage)
+    "RSE",    # flake8-raise: raise statement issues (unnecessary parentheses)
+    "FURB",   # refurb: modernize older Python patterns
+    "INP",    # flake8-no-pep420: require __init__.py (no implicit namespace pkg)
+    "EXE",    # flake8-executable: shebang / file-mode mismatches
+    "D",      # pydocstyle: docstring presence and style (Google convention)
 ]
 ignore = [
-    "E501", "COM812", "ISC001",
-    "D",
-    "TRY003", "EM101", "EM102", "TID252",
-    "PLR2004", "PLR0911", "PLR0912", "PLR0913", "PLR0915",
-    "S603", "S607",
+    "E501",    # line too long — formatter handles line length
+    "COM812",  # missing trailing comma — conflicts with ruff formatter
+    "ISC001",  # implicit string concatenation — conflicts with ruff formatter
+    "TRY003",  # long exception messages outside exception class — too strict
+    "EM101",   # raw string in exception — stylistic noise
+    "EM102",   # f-string in exception — stylistic noise
+    "TID252",  # relative imports from parent modules — we allow them
+    "S603",    # subprocess without shell=True — false positives on trusted input
+    "S607",    # subprocess partial executable path — false positives for standard tools
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = [
-    "S101", "SLF001", "ARG", "PLR", "T201", "PT011", "ANN", "INP001",
+    "S101", "SLF001", "ARG", "T201", "PT011", "ANN", "INP001",
+    "D",  # tests don't need docstrings
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["justpen_browser_mcp"]
 combine-as-imports = true
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.ruff.format]
 quote-style = "double"
@@ -74,22 +151,16 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 
 [tool.pyright]
-pythonVersion = "3.11"
+pythonVersion = "3.13"
 include = ["src", "tests"]
-exclude = ["**/__pycache__"]
 typeCheckingMode = "strict"
 reportMissingTypeStubs = false
-reportMissingTypeArgument = "error"
-reportPrivateUsage = "error"
-reportUnnecessaryComparison = "error"
-reportUnnecessaryIsInstance = "error"
 reportImplicitOverride = "error"
 reportUnnecessaryTypeIgnoreComment = "error"
 reportUnusedFunction = false
 
 [[tool.pyright.executionEnvironments]]
 root = "tests"
-extraPaths = ["src"]
 reportMissingParameterType = "none"
 reportUnknownParameterType = "none"
 reportUnknownArgumentType = "none"
@@ -101,14 +172,10 @@ reportPrivateUsage = "none"
 [tool.coverage.run]
 source = ["src/justpen_browser_mcp"]
 branch = true
-omit = [
-    "*/__pycache__/*",
-    "*/tests/*",
-]
 
 [tool.coverage.report]
 show_missing = true
-skip_covered = false
+fail_under = 80
 exclude_lines = [
     "pragma: no cover",
     "raise NotImplementedError",
