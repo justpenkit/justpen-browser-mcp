@@ -38,6 +38,31 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - Getting started:
+      - Install: getting-started/install.md
+      - Run the server: getting-started/run-server.md
+      - Configuration: getting-started/configuration.md
+  - Concepts:
+      - Response envelope: concepts/response-envelope.md
+      - Contexts & isolation: concepts/contexts-isolation.md
+      - Refs & snapshots: concepts/refs-snapshots.md
+      - Modal state: concepts/modal-state.md
+  - Client setup:
+      - Claude Code: client-setup/claude-code.md
+      - Copilot CLI: client-setup/copilot-cli.md
+      - Gemini CLI: client-setup/gemini-cli.md
+  - Tools reference:
+      - Lifecycle: tools-reference/lifecycle.md
+      - Navigation: tools-reference/navigation.md
+      - Interaction: tools-reference/interaction.md
+      - Mouse: tools-reference/mouse.md
+      - Inspection: tools-reference/inspection.md
+      - Verification: tools-reference/verification.md
+      - Code execution: tools-reference/code-execution.md
+      - Cookies & storage: tools-reference/cookies.md
+      - Utility: tools-reference/utility.md
+      - Page: tools-reference/page.md
+      - Server: tools-reference/server-tools.md
   - Contributing:
       - PR checklist: contributing/pr-checklist.md
       - Release process: contributing/release-process.md
