@@ -6,6 +6,7 @@ tool module can be tested without a live browser.
 """
 
 import importlib
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -16,20 +17,20 @@ from fastmcp.client import Client
 class _AsyncLockContext:
     """Minimal async context manager that acts like asyncio.Lock in a ``with`` block."""
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "_AsyncLockContext":
         return self
 
-    async def __aexit__(self, *args):
+    async def __aexit__(self, *args: object) -> None:
         pass
 
 
 class _ConnectedClient:
     """Thin wrapper that keeps the Client connected for the lifetime of the fixture."""
 
-    def __init__(self, client: Client) -> None:
+    def __init__(self, client: Client[Any]) -> None:
         self._client = client
 
-    async def call_tool(self, name: str, args: dict | None = None):
+    async def call_tool(self, name: str, args: dict[str, Any] | None = None) -> Any:
         async with self._client:
             return await self._client.call_tool(name, args or {})
 
