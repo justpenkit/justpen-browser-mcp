@@ -39,7 +39,7 @@ class TestBrowserSnapshot:
             "justpen_browser_mcp.tools.inspection.capture_snapshot",
             return_value="- button [ref=e1]: Submit",
         ):
-            result = await mcp_client.call_tool("browser_snapshot", {"context": "admin"})
+            result = await mcp_client.call_tool("browser_snapshot", {"instance": "admin"})
         assert result.data["status"] == "success"
         assert "[ref=e1]" in result.data["data"]["snapshot"]
         assert result.data["data"]["url"] == "https://example.com"
@@ -47,7 +47,7 @@ class TestBrowserSnapshot:
     async def test_with_selector_calls_locator_aria_snapshot(self, mcp_client, mock_ctx_mgr):
         page = make_page(mock_ctx_mgr)
         with patch("justpen_browser_mcp.tools.inspection.capture_snapshot") as cap:
-            result = await mcp_client.call_tool("browser_snapshot", {"context": "admin", "selector": "#main"})
+            result = await mcp_client.call_tool("browser_snapshot", {"instance": "admin", "selector": "#main"})
         page.locator.assert_called_once_with("#main")
         page.locator.return_value.aria_snapshot.assert_awaited_once_with(timeout=5000)
         cap.assert_not_called()
@@ -60,7 +60,7 @@ class TestBrowserSnapshot:
         dialog.type = "confirm"
         dialog.message = "Sure?"
         mock_ctx_mgr.get_modal_states = MagicMock(return_value=[{"kind": "dialog", "object": dialog, "page": page}])
-        result = await mcp_client.call_tool("browser_snapshot", {"context": "admin"})
+        result = await mcp_client.call_tool("browser_snapshot", {"instance": "admin"})
         assert result.data["error_type"] == "modal_state_blocked"
 
 
@@ -68,7 +68,7 @@ class TestBrowserScreenshot:
     async def test_returns_base64_png(self, mcp_client, mock_ctx_mgr):
         page = make_page(mock_ctx_mgr)
         page.screenshot = AsyncMock(return_value=_pil_png_bytes(100, 50))
-        result = await mcp_client.call_tool("browser_screenshot", {"context": "admin"})
+        result = await mcp_client.call_tool("browser_screenshot", {"instance": "admin"})
         assert result.data["status"] == "success"
         decoded = base64.b64decode(result.data["data"]["image_base64"])
         assert decoded.startswith(b"\x89PNG")
@@ -80,27 +80,27 @@ class TestBrowserScreenshot:
         buf = BytesIO()
         img.save(buf, format="JPEG")
         page.screenshot = AsyncMock(return_value=buf.getvalue())
-        result = await mcp_client.call_tool("browser_screenshot", {"context": "admin", "image_format": "jpeg"})
+        result = await mcp_client.call_tool("browser_screenshot", {"instance": "admin", "image_format": "jpeg"})
         page.screenshot.assert_awaited_once_with(type="jpeg", full_page=False)
         assert result.data["data"]["image_format"] == "jpeg"
 
     async def test_full_page_param_passed(self, mcp_client, mock_ctx_mgr):
         page = make_page(mock_ctx_mgr)
         page.screenshot = AsyncMock(return_value=_pil_png_bytes(100, 50))
-        await mcp_client.call_tool("browser_screenshot", {"context": "admin", "full_page": True})
+        await mcp_client.call_tool("browser_screenshot", {"instance": "admin", "full_page": True})
         page.screenshot.assert_awaited_once_with(type="png", full_page=True)
 
     async def test_response_includes_dimensions(self, mcp_client, mock_ctx_mgr):
         page = make_page(mock_ctx_mgr)
         page.screenshot = AsyncMock(return_value=_pil_png_bytes(100, 50))
-        result = await mcp_client.call_tool("browser_screenshot", {"context": "admin"})
+        result = await mcp_client.call_tool("browser_screenshot", {"instance": "admin"})
         assert result.data["data"]["width"] == 100
         assert result.data["data"]["height"] == 50
 
     async def test_downscaling_when_oversized(self, mcp_client, mock_ctx_mgr):
         page = make_page(mock_ctx_mgr)
         page.screenshot = AsyncMock(return_value=_pil_png_bytes(2000, 1000))
-        result = await mcp_client.call_tool("browser_screenshot", {"context": "admin"})
+        result = await mcp_client.call_tool("browser_screenshot", {"instance": "admin"})
         w = result.data["data"]["width"]
         h = result.data["data"]["height"]
         assert w <= 1568
@@ -118,7 +118,7 @@ class TestBrowserScreenshot:
         dialog.type = "alert"
         dialog.message = "!"
         mock_ctx_mgr.get_modal_states = MagicMock(return_value=[{"kind": "dialog", "object": dialog, "page": page}])
-        result = await mcp_client.call_tool("browser_screenshot", {"context": "admin"})
+        result = await mcp_client.call_tool("browser_screenshot", {"instance": "admin"})
         assert result.data["error_type"] == "modal_state_blocked"
 
 
@@ -129,7 +129,7 @@ class TestBrowserConsoleMessages:
             {"type": "error", "text": "boom", "location": "app.js:1:2"},
         ]
         mock_ctx_mgr.get.return_value = MagicMock()
-        result = await mcp_client.call_tool("browser_console_messages", {"context": "admin"})
+        result = await mcp_client.call_tool("browser_console_messages", {"instance": "admin"})
         assert result.data["status"] == "success"
         assert len(result.data["data"]["messages"]) == 2
 
@@ -140,7 +140,7 @@ class TestBrowserConsoleMessages:
             {"type": "warning", "text": "c", "location": None},
         ]
         mock_ctx_mgr.get.return_value = MagicMock()
-        result = await mcp_client.call_tool("browser_console_messages", {"context": "admin", "level": "error"})
+        result = await mcp_client.call_tool("browser_console_messages", {"instance": "admin", "level": "error"})
         assert result.data["status"] == "success"
         messages = result.data["data"]["messages"]
         assert len(messages) == 1
@@ -149,7 +149,7 @@ class TestBrowserConsoleMessages:
     async def test_invalid_level(self, mcp_client, mock_ctx_mgr):
         mock_ctx_mgr.state.return_value.console_messages = []
         mock_ctx_mgr.get.return_value = MagicMock()
-        result = await mcp_client.call_tool("browser_console_messages", {"context": "admin", "level": "bogus"})
+        result = await mcp_client.call_tool("browser_console_messages", {"instance": "admin", "level": "bogus"})
         assert result.data["error_type"] == "invalid_params"
 
     async def test_no_filter_returns_all(self, mcp_client, mock_ctx_mgr):
@@ -158,7 +158,7 @@ class TestBrowserConsoleMessages:
             {"type": "error", "text": "b", "location": None},
         ]
         mock_ctx_mgr.get.return_value = MagicMock()
-        result = await mcp_client.call_tool("browser_console_messages", {"context": "admin"})
+        result = await mcp_client.call_tool("browser_console_messages", {"instance": "admin"})
         assert len(result.data["data"]["messages"]) == 2
 
 
@@ -174,7 +174,7 @@ class TestBrowserNetworkRequests:
             },
         ]
         mock_ctx_mgr.get.return_value = MagicMock()
-        result = await mcp_client.call_tool("browser_network_requests", {"context": "admin"})
+        result = await mcp_client.call_tool("browser_network_requests", {"instance": "admin"})
         assert result.data["status"] == "success"
         assert len(result.data["data"]["requests"]) == 1
 
@@ -196,7 +196,7 @@ class TestBrowserNetworkRequests:
             },
         ]
         mock_ctx_mgr.get.return_value = MagicMock()
-        result = await mcp_client.call_tool("browser_network_requests", {"context": "admin"})
+        result = await mcp_client.call_tool("browser_network_requests", {"instance": "admin"})
         reqs = result.data["data"]["requests"]
         assert len(reqs) == 1
         assert reqs[0]["resource_type"] == "fetch"
@@ -219,7 +219,7 @@ class TestBrowserNetworkRequests:
             },
         ]
         mock_ctx_mgr.get.return_value = MagicMock()
-        result = await mcp_client.call_tool("browser_network_requests", {"context": "admin", "static": True})
+        result = await mcp_client.call_tool("browser_network_requests", {"instance": "admin", "static": True})
         reqs = result.data["data"]["requests"]
         assert len(reqs) == 2
 
@@ -243,7 +243,7 @@ class TestBrowserNetworkRequests:
         mock_ctx_mgr.get.return_value = MagicMock()
         result = await mcp_client.call_tool(
             "browser_network_requests",
-            {"context": "admin", "url_filter": "api/users"},
+            {"instance": "admin", "url_filter": "api/users"},
         )
         reqs = result.data["data"]["requests"]
         assert len(reqs) == 1
@@ -252,7 +252,7 @@ class TestBrowserNetworkRequests:
     async def test_invalid_regex(self, mcp_client, mock_ctx_mgr):
         mock_ctx_mgr.state.return_value.network_requests = []
         mock_ctx_mgr.get.return_value = MagicMock()
-        result = await mcp_client.call_tool("browser_network_requests", {"context": "admin", "url_filter": "["})
+        result = await mcp_client.call_tool("browser_network_requests", {"instance": "admin", "url_filter": "["})
         assert result.data["error_type"] == "invalid_params"
 
     async def test_network_requests_strips_internal_id(self, mcp_client, mock_ctx_mgr):
@@ -267,7 +267,7 @@ class TestBrowserNetworkRequests:
             }
         ]
         mock_ctx_mgr.get.return_value = MagicMock()
-        result = await mcp_client.call_tool("browser_network_requests", {"context": "admin"})
+        result = await mcp_client.call_tool("browser_network_requests", {"instance": "admin"})
         reqs = result.data["data"]["requests"]
         assert len(reqs) == 1
         assert "_id" not in reqs[0]

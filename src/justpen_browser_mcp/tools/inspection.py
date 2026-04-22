@@ -3,9 +3,8 @@
 browser_snapshot, browser_screenshot, browser_console_messages, browser_network_requests.
 
 Console messages and network requests are collected by event listeners
-attached at context creation time. The buffers live as private attributes
-on the BrowserContext (set by ContextManager) so tools can read them
-without their own state.
+attached at instance creation time. The buffers live on the InstanceState
+so tools can read them without their own state.
 """
 
 import base64
@@ -16,8 +15,8 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from ..context_manager import ContextManager, assert_no_modal
 from ..errors import BrowserMcpError
+from ..instance_manager import InstanceManager, assert_no_modal
 from ..ref_resolver import capture_snapshot
 from ..responses import error_response, success_response
 
@@ -34,10 +33,10 @@ _STATIC_RESOURCE_TYPES = {"image", "font", "stylesheet", "media", "manifest"}
 _CLAUDE_VISION_MAX_DIM = 1568
 
 
-def _register_browser_snapshot(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_snapshot(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_snapshot(context: str, selector: str | None = None) -> dict[str, Any]:
+    async def browser_snapshot(instance: str, selector: str | None = None) -> dict[str, Any]:
         """Capture an accessibility snapshot of the active page in LLM-friendly YAML.
 
         Default (selector=None): a full-page snapshot is captured via the internal
@@ -59,32 +58,34 @@ def _register_browser_snapshot(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             — snapshot is a YAML string, url is the current page URL
 
         Errors:
-            context_not_found    — context does not exist
+            instance_not_found   — instance does not exist
             modal_state_blocked  — a dialog or file-chooser is pending
             internal_error       — snapshot call failed
         """
         try:
-            await ctx_mgr.get(context)
-            assert_no_modal(ctx_mgr, context)
-            async with ctx_mgr.lock_for(context):
-                page = await ctx_mgr.active_page(context)
+            await mgr.get(instance)
+            assert_no_modal(mgr, instance)
+            async with mgr.lock_for(instance):
+                page = await mgr.active_page(instance)
                 if selector is None:
                     snapshot = await capture_snapshot(page)
                 else:
                     locator = page.locator(selector)
                     snapshot = await locator.aria_snapshot(timeout=5000)
-            return success_response(context, data={"snapshot": snapshot, "url": page.url})
+            return success_response(instance, data={"snapshot": snapshot, "url": page.url})
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_snapshot failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def _register_browser_screenshot(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_screenshot(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_screenshot(context: str, image_format: str = "png", *, full_page: bool = False) -> dict[str, Any]:
+    async def browser_screenshot(
+        instance: str, image_format: str = "png", *, full_page: bool = False
+    ) -> dict[str, Any]:
         """Take a visual screenshot of the active page and return it as base64.
 
         image_format must be "png" (default, lossless) or "jpeg" (lossy, smaller).
@@ -102,7 +103,7 @@ def _register_browser_screenshot(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             — width/height are None only when PIL is unavailable.
 
         Errors:
-            context_not_found    — context does not exist
+            instance_not_found   — instance does not exist
             invalid_params       — image_format is not "png" or "jpeg"
             modal_state_blocked  — a dialog or file-chooser is pending
 
@@ -111,15 +112,15 @@ def _register_browser_screenshot(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         """
         if image_format not in ("png", "jpeg"):
             return error_response(
-                context,
+                instance,
                 "invalid_params",
                 f"image_format must be 'png' or 'jpeg', got {image_format!r}",
             )
         try:
-            await ctx_mgr.get(context)
-            assert_no_modal(ctx_mgr, context)
-            async with ctx_mgr.lock_for(context):
-                page = await ctx_mgr.active_page(context)
+            await mgr.get(instance)
+            assert_no_modal(mgr, instance)
+            async with mgr.lock_for(instance):
+                page = await mgr.active_page(instance)
                 image_bytes = await page.screenshot(type=image_format, full_page=full_page)
 
             width: int | None = None
@@ -149,7 +150,7 @@ def _register_browser_screenshot(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     height = None
 
             return success_response(
-                context,
+                instance,
                 data={
                     "image_base64": base64.b64encode(image_bytes).decode("ascii"),
                     "image_format": image_format,
@@ -158,21 +159,21 @@ def _register_browser_screenshot(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                 },
             )
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_screenshot failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def _register_browser_console_messages(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_console_messages(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_console_messages(context: str, level: str | None = None) -> dict[str, Any]:
-        """Return all console messages collected since the context was created.
+    async def browser_console_messages(instance: str, level: str | None = None) -> dict[str, Any]:
+        """Return all console messages collected since the instance was created.
 
-        Messages are captured by an event listener attached at context creation.
+        Messages are captured by an event listener attached at instance creation.
         The buffer is cumulative — it includes ALL messages across ALL pages and
-        ALL navigations in this context (not just since the last navigation).
+        ALL navigations in this instance (not just since the last navigation).
 
         Each entry has {type, text, location} where location is "url:line:col"
         or None when unavailable. Uncaught page errors are also captured as
@@ -186,41 +187,41 @@ def _register_browser_console_messages(mcp: FastMCP, ctx_mgr: ContextManager) ->
                                   "location": str | None}, ...]}
 
         Errors:
-            context_not_found — context does not exist
+            instance_not_found — instance does not exist
             invalid_params    — level is not a recognised value
 
         Useful for debugging JavaScript errors or confirming page-side logging.
         """
         if level is not None and level not in _VALID_CONSOLE_LEVELS:
             return error_response(
-                context,
+                instance,
                 "invalid_params",
                 f"level must be one of {sorted(_VALID_CONSOLE_LEVELS)}, got {level!r}",
             )
         try:
-            await ctx_mgr.get(context)
-            messages = list(ctx_mgr.state(context).console_messages)
+            await mgr.get(instance)
+            messages = list(mgr.state(instance).console_messages)
             if level is not None:
                 messages = [m for m in messages if m.get("type") == level]
-            return success_response(context, data={"messages": messages})
+            return success_response(instance, data={"messages": messages})
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_console_messages failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def _register_browser_network_requests(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_network_requests(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
     async def browser_network_requests(
-        context: str, url_filter: str | None = None, *, static: bool = False
+        instance: str, url_filter: str | None = None, *, static: bool = False
     ) -> dict[str, Any]:
-        """Return all network requests collected since the context was created.
+        """Return all network requests collected since the instance was created.
 
-        Requests are captured by an event listener attached at context creation.
+        Requests are captured by an event listener attached at instance creation.
         The buffer is cumulative — it includes ALL requests across ALL pages and
-        ALL navigations in this context (not just since the last navigation).
+        ALL navigations in this instance (not just since the last navigation).
 
         Each entry has {url, method, status, resource_type, failure}:
         - status is None until the response arrives (or if it never does).
@@ -243,7 +244,7 @@ def _register_browser_network_requests(mcp: FastMCP, ctx_mgr: ContextManager) ->
                                   "failure": str | None}, ...]}
 
         Errors:
-            context_not_found — context does not exist
+            instance_not_found — instance does not exist
             invalid_params    — url_filter is not a valid regular expression
 
         Useful for verifying API calls were made, checking redirect chains,
@@ -255,13 +256,13 @@ def _register_browser_network_requests(mcp: FastMCP, ctx_mgr: ContextManager) ->
                 compiled = re.compile(url_filter)
             except re.error as e:
                 return error_response(
-                    context,
+                    instance,
                     "invalid_params",
                     f"url_filter is not a valid regular expression: {e}",
                 )
         try:
-            await ctx_mgr.get(context)
-            requests = list(ctx_mgr.state(context).network_requests)
+            await mgr.get(instance)
+            requests = list(mgr.state(instance).network_requests)
             if not static:
                 requests = [r for r in requests if r.get("resource_type") not in _STATIC_RESOURCE_TYPES]
             if compiled is not None:
@@ -270,17 +271,17 @@ def _register_browser_network_requests(mcp: FastMCP, ctx_mgr: ContextManager) ->
             # response listener to match by request identity) before
             # returning to the caller.
             requests = [{k: v for k, v in r.items() if not k.startswith("_")} for r in requests]
-            return success_response(context, data={"requests": requests})
+            return success_response(instance, data={"requests": requests})
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_network_requests failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def register(mcp: FastMCP, mgr: InstanceManager) -> None:
     """Register page inspection tools on the MCP server."""
-    _register_browser_snapshot(mcp, ctx_mgr)
-    _register_browser_screenshot(mcp, ctx_mgr)
-    _register_browser_console_messages(mcp, ctx_mgr)
-    _register_browser_network_requests(mcp, ctx_mgr)
+    _register_browser_snapshot(mcp, mgr)
+    _register_browser_screenshot(mcp, mgr)
+    _register_browser_console_messages(mcp, mgr)
+    _register_browser_network_requests(mcp, mgr)
