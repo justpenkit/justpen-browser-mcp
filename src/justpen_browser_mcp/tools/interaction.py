@@ -13,8 +13,8 @@ from fastmcp import FastMCP
 from playwright.async_api import Page, TimeoutError as PWTimeout
 
 from ..coercion import coerce_bool
-from ..context_manager import ContextManager, assert_no_modal
 from ..errors import BrowserMcpError
+from ..instance_manager import InstanceManager, assert_no_modal
 from ..ref_resolver import resolve_ref
 from ..responses import error_response, success_response
 
@@ -24,11 +24,11 @@ _VALID_BUTTONS = {"left", "right", "middle"}
 _VALID_MODIFIERS = {"Alt", "Control", "ControlOrMeta", "Meta", "Shift"}
 
 
-def _register_browser_click(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_click(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
     async def browser_click(
-        context: str,
+        instance: str,
         ref: str,
         *,
         double_click: bool = False,
@@ -49,7 +49,7 @@ def _register_browser_click(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             data: {"clicked": str}  — the ref that was clicked
 
         Errors:
-            context_not_found    — context does not exist
+            instance_not_found   — instance does not exist
             stale_ref            — ref is no longer in the page's accessibility tree;
                                    take a fresh snapshot and locate the element again
             invalid_params       — unknown button or modifier value
@@ -58,15 +58,15 @@ def _register_browser_click(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         """
         try:
             if button not in _VALID_BUTTONS:
-                return error_response(context, "invalid_params", f"unknown button: {button!r}")
+                return error_response(instance, "invalid_params", f"unknown button: {button!r}")
             if modifiers:
                 bad = [m for m in modifiers if m not in _VALID_MODIFIERS]
                 if bad:
-                    return error_response(context, "invalid_params", f"unknown modifiers: {bad!r}")
-            await ctx_mgr.get(context)
-            assert_no_modal(ctx_mgr, context)
-            async with ctx_mgr.lock_for(context):
-                page = await ctx_mgr.active_page(context)
+                    return error_response(instance, "invalid_params", f"unknown modifiers: {bad!r}")
+            await mgr.get(instance)
+            assert_no_modal(mgr, instance)
+            async with mgr.lock_for(instance):
+                page = await mgr.active_page(instance)
                 locator = await resolve_ref(page, ref)
                 options: dict[str, Any] = {"button": button}
                 if modifiers:
@@ -75,19 +75,19 @@ def _register_browser_click(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     await locator.dblclick(**options)
                 else:
                     await locator.click(**options)
-            return success_response(context, data={"clicked": ref})
+            return success_response(instance, data={"clicked": ref})
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_click failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def _register_browser_type(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_type(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
     async def browser_type(
-        context: str,
+        instance: str,
         ref: str,
         text: str,
         *,
@@ -108,16 +108,16 @@ def _register_browser_type(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             data: {"typed_into": str}  — the ref that received the text
 
         Errors:
-            context_not_found    — context does not exist
+            instance_not_found   — instance does not exist
             stale_ref            — ref is no longer valid; take a fresh snapshot
             modal_state_blocked  — a dialog or file-chooser is pending; resolve it first
             internal_error       — element is not editable or is disabled
         """
         try:
-            await ctx_mgr.get(context)
-            assert_no_modal(ctx_mgr, context)
-            async with ctx_mgr.lock_for(context):
-                page = await ctx_mgr.active_page(context)
+            await mgr.get(instance)
+            assert_no_modal(mgr, instance)
+            async with mgr.lock_for(instance):
+                page = await mgr.active_page(instance)
                 locator = await resolve_ref(page, ref)
                 if clear_first:
                     await locator.fill(text)
@@ -127,12 +127,12 @@ def _register_browser_type(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     await locator.press("Enter")
                     with contextlib.suppress(PWTimeout):
                         await page.wait_for_load_state("domcontentloaded", timeout=2000)
-            return success_response(context, data={"typed_into": ref})
+            return success_response(instance, data={"typed_into": ref})
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_type failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
 async def _fill_form_field(page: Page, field: dict[str, Any]) -> str | None:
@@ -155,10 +155,10 @@ async def _fill_form_field(page: Page, field: dict[str, Any]) -> str | None:
     return None
 
 
-def _register_browser_fill_form(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_fill_form(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_fill_form(context: str, fields: list[dict[str, Any]]) -> dict[str, Any]:
+    async def browser_fill_form(instance: str, fields: list[dict[str, Any]]) -> dict[str, Any]:
         """Fill multiple form fields in one call, in the order provided.
 
         fields is a list of {"ref": str, "value": any, "type": str?} dicts.
@@ -180,7 +180,7 @@ def _register_browser_fill_form(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             data: {"filled_count": int}  — number of fields filled
 
         Errors:
-            context_not_found    — context does not exist
+            instance_not_found   — instance does not exist
             stale_ref            — one of the refs is no longer valid
             invalid_params       — unknown field "type"
             modal_state_blocked  — a dialog or file-chooser is pending; resolve it first
@@ -190,26 +190,26 @@ def _register_browser_fill_form(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         retain their new values. Take a fresh snapshot to verify the form state.
         """
         try:
-            await ctx_mgr.get(context)
-            assert_no_modal(ctx_mgr, context)
-            async with ctx_mgr.lock_for(context):
-                page = await ctx_mgr.active_page(context)
+            await mgr.get(instance)
+            assert_no_modal(mgr, instance)
+            async with mgr.lock_for(instance):
+                page = await mgr.active_page(instance)
                 for field in fields:
                     error = await _fill_form_field(page, field)
                     if error is not None:
-                        return error_response(context, "invalid_params", error)
-            return success_response(context, data={"filled_count": len(fields)})
+                        return error_response(instance, "invalid_params", error)
+            return success_response(instance, data={"filled_count": len(fields)})
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_fill_form failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def _register_browser_select_option(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_select_option(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_select_option(context: str, ref: str, value: str | list[str]) -> dict[str, Any]:
+    async def browser_select_option(instance: str, ref: str, value: str | list[str]) -> dict[str, Any]:
         """Select an option in a <select> dropdown by its value attribute.
 
         ref is the [ref=eN] of the <select> element from browser_snapshot.
@@ -223,30 +223,30 @@ def _register_browser_select_option(mcp: FastMCP, ctx_mgr: ContextManager) -> No
             data: {"selected": str | list[str]}  — the value(s) that were selected
 
         Errors:
-            context_not_found    — context does not exist
+            instance_not_found   — instance does not exist
             stale_ref            — ref is no longer valid; take a fresh snapshot
             modal_state_blocked  — a dialog or file-chooser is pending; resolve it first
             internal_error       — value not found in options, or element not a select
         """
         try:
-            await ctx_mgr.get(context)
-            assert_no_modal(ctx_mgr, context)
-            async with ctx_mgr.lock_for(context):
-                page = await ctx_mgr.active_page(context)
+            await mgr.get(instance)
+            assert_no_modal(mgr, instance)
+            async with mgr.lock_for(instance):
+                page = await mgr.active_page(instance)
                 locator = await resolve_ref(page, ref)
                 await locator.select_option(value)
-            return success_response(context, data={"selected": value})
+            return success_response(instance, data={"selected": value})
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_select_option failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def _register_browser_hover(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_hover(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_hover(context: str, ref: str) -> dict[str, Any]:
+    async def browser_hover(instance: str, ref: str) -> dict[str, Any]:
         """Hover the mouse over an element identified by its accessibility ref.
 
         ref is the [ref=eN] value from browser_snapshot. The element is scrolled
@@ -257,29 +257,29 @@ def _register_browser_hover(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             data: {"hovered": str}  — the ref that was hovered
 
         Errors:
-            context_not_found    — context does not exist
+            instance_not_found   — instance does not exist
             stale_ref            — ref is no longer valid; take a fresh snapshot
             modal_state_blocked  — a dialog or file-chooser is pending; resolve it first
         """
         try:
-            await ctx_mgr.get(context)
-            assert_no_modal(ctx_mgr, context)
-            async with ctx_mgr.lock_for(context):
-                page = await ctx_mgr.active_page(context)
+            await mgr.get(instance)
+            assert_no_modal(mgr, instance)
+            async with mgr.lock_for(instance):
+                page = await mgr.active_page(instance)
                 locator = await resolve_ref(page, ref)
                 await locator.hover()
-            return success_response(context, data={"hovered": ref})
+            return success_response(instance, data={"hovered": ref})
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_hover failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def _register_browser_drag(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_drag(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_drag(context: str, source_ref: str, target_ref: str) -> dict[str, Any]:
+    async def browser_drag(instance: str, source_ref: str, target_ref: str) -> dict[str, Any]:
         """Drag an element to a target element using accessibility refs.
 
         Both source_ref and target_ref are [ref=eN] values from browser_snapshot.
@@ -290,31 +290,31 @@ def _register_browser_drag(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             data: {"dragged": str, "to": str}  — source and target refs
 
         Errors:
-            context_not_found    — context does not exist
+            instance_not_found   — instance does not exist
             stale_ref            — either ref is no longer valid; take a fresh snapshot
             modal_state_blocked  — a dialog or file-chooser is pending; resolve it first
             internal_error       — drag not supported by the element or framework
         """
         try:
-            await ctx_mgr.get(context)
-            assert_no_modal(ctx_mgr, context)
-            async with ctx_mgr.lock_for(context):
-                page = await ctx_mgr.active_page(context)
+            await mgr.get(instance)
+            assert_no_modal(mgr, instance)
+            async with mgr.lock_for(instance):
+                page = await mgr.active_page(instance)
                 source = await resolve_ref(page, source_ref)
                 target = await resolve_ref(page, target_ref)
                 await source.drag_to(target)
-            return success_response(context, data={"dragged": source_ref, "to": target_ref})
+            return success_response(instance, data={"dragged": source_ref, "to": target_ref})
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_drag failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def _register_browser_press_key(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_press_key(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_press_key(context: str, key: str) -> dict[str, Any]:
+    async def browser_press_key(instance: str, key: str) -> dict[str, Any]:
         """Press a keyboard key on the active page (sent to whatever has focus).
 
         key follows Playwright key naming: simple keys like "Enter", "Tab",
@@ -325,31 +325,31 @@ def _register_browser_press_key(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             data: {"pressed": str}  — the key string that was sent
 
         Errors:
-            context_not_found    — context does not exist
+            instance_not_found   — instance does not exist
             modal_state_blocked  — a dialog or file-chooser is pending; resolve it first
             internal_error       — key name not recognized by Playwright
         """
         try:
-            await ctx_mgr.get(context)
-            assert_no_modal(ctx_mgr, context)
-            async with ctx_mgr.lock_for(context):
-                page = await ctx_mgr.active_page(context)
+            await mgr.get(instance)
+            assert_no_modal(mgr, instance)
+            async with mgr.lock_for(instance):
+                page = await mgr.active_page(instance)
                 await page.keyboard.press(key)
                 if key.lower() == "enter":
                     with contextlib.suppress(PWTimeout):
                         await page.wait_for_load_state("domcontentloaded", timeout=2000)
-            return success_response(context, data={"pressed": key})
+            return success_response(instance, data={"pressed": key})
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_press_key failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def _register_browser_file_upload(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_file_upload(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_file_upload(context: str, paths: list[str] | None = None) -> dict[str, Any]:
+    async def browser_file_upload(instance: str, paths: list[str] | None = None) -> dict[str, Any]:
         """Resolve a pending native file-chooser dialog.
 
         Consumes a pending file-chooser captured by the modal-state listener
@@ -362,17 +362,17 @@ def _register_browser_file_upload(mcp: FastMCP, ctx_mgr: ContextManager) -> None
             data: {"cancelled": True}      — when called without paths
 
         Errors:
-            context_not_found    — context does not exist
+            instance_not_found   — instance does not exist
             modal_state_blocked  — no file chooser is currently pending
             internal_error       — set_files failed (path not found, etc.)
         """
         try:
-            await ctx_mgr.get(context)
-            async with ctx_mgr.lock_for(context):
-                state = ctx_mgr.consume_modal_state(context, "filechooser")
+            await mgr.get(instance)
+            async with mgr.lock_for(instance):
+                state = mgr.consume_modal_state(instance, "filechooser")
                 if state is None:
                     return error_response(
-                        context,
+                        instance,
                         "modal_state_blocked",
                         "no file chooser is currently pending",
                     )
@@ -380,29 +380,29 @@ def _register_browser_file_upload(mcp: FastMCP, ctx_mgr: ContextManager) -> None
                 if not paths:
                     # Cancel: don't call set_files. The FileChooser object
                     # will be GC'd; the dialog resolves on next interaction.
-                    return success_response(context, data={"cancelled": True})
+                    return success_response(instance, data={"cancelled": True})
                 try:
                     await file_chooser.set_files(paths)
                 except Exception:
                     # Re-insert modal state only if the page is still alive,
                     # otherwise the file chooser is dead and re-queuing it
-                    # would wedge the context behind modal_state_blocked.
+                    # would wedge the instance behind modal_state_blocked.
                     page = state.get("page")
                     if page is not None and not page.is_closed():
-                        ctx_mgr.state(context).modal_states.insert(0, state)
+                        mgr.state(instance).modal_states.insert(0, state)
                     raise
-            return success_response(context, data={"uploaded_count": len(paths)})
+            return success_response(instance, data={"uploaded_count": len(paths)})
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_file_upload failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def _register_browser_handle_dialog(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_handle_dialog(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_handle_dialog(context: str, *, accept: bool, prompt_text: str | None = None) -> dict[str, Any]:
+    async def browser_handle_dialog(instance: str, *, accept: bool, prompt_text: str | None = None) -> dict[str, Any]:
         """Resolve a pending JavaScript dialog (alert/confirm/prompt).
 
         Consumes a pending dialog captured by the modal-state listener. The
@@ -421,16 +421,16 @@ def _register_browser_handle_dialog(mcp: FastMCP, ctx_mgr: ContextManager) -> No
             }
 
         Errors:
-            context_not_found    — context does not exist
+            instance_not_found   — instance does not exist
             modal_state_blocked  — no dialog is currently pending
         """
         try:
-            await ctx_mgr.get(context)
-            async with ctx_mgr.lock_for(context):
-                state = ctx_mgr.consume_modal_state(context, "dialog")
+            await mgr.get(instance)
+            async with mgr.lock_for(instance):
+                state = mgr.consume_modal_state(instance, "dialog")
                 if state is None:
                     return error_response(
-                        context,
+                        instance,
                         "modal_state_blocked",
                         "no dialog is currently pending",
                     )
@@ -444,7 +444,7 @@ def _register_browser_handle_dialog(mcp: FastMCP, ctx_mgr: ContextManager) -> No
                 with contextlib.suppress(Exception):
                     await page.wait_for_load_state("domcontentloaded", timeout=1000)
             return success_response(
-                context,
+                instance,
                 data={
                     "action": "accepted" if accept else "dismissed",
                     "dialog_type": dialog.type,
@@ -452,20 +452,20 @@ def _register_browser_handle_dialog(mcp: FastMCP, ctx_mgr: ContextManager) -> No
                 },
             )
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_handle_dialog failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def register(mcp: FastMCP, mgr: InstanceManager) -> None:
     """Register element interaction tools on the MCP server."""
-    _register_browser_click(mcp, ctx_mgr)
-    _register_browser_type(mcp, ctx_mgr)
-    _register_browser_fill_form(mcp, ctx_mgr)
-    _register_browser_select_option(mcp, ctx_mgr)
-    _register_browser_hover(mcp, ctx_mgr)
-    _register_browser_drag(mcp, ctx_mgr)
-    _register_browser_press_key(mcp, ctx_mgr)
-    _register_browser_file_upload(mcp, ctx_mgr)
-    _register_browser_handle_dialog(mcp, ctx_mgr)
+    _register_browser_click(mcp, mgr)
+    _register_browser_type(mcp, mgr)
+    _register_browser_fill_form(mcp, mgr)
+    _register_browser_select_option(mcp, mgr)
+    _register_browser_hover(mcp, mgr)
+    _register_browser_drag(mcp, mgr)
+    _register_browser_press_key(mcp, mgr)
+    _register_browser_file_upload(mcp, mgr)
+    _register_browser_handle_dialog(mcp, mgr)
