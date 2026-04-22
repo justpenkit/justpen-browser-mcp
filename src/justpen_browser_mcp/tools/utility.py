@@ -13,8 +13,8 @@ from typing import Any
 from fastmcp import FastMCP
 from playwright.async_api import BrowserContext
 
-from ..context_manager import ContextManager, ContextState, assert_no_modal
 from ..errors import BrowserMcpError
+from ..instance_manager import InstanceManager, InstanceState, assert_no_modal
 from ..ref_resolver import resolve_selector_to_stable
 from ..responses import error_response, success_response
 from .navigation import canonicalize_browser_url
@@ -22,13 +22,13 @@ from .navigation import canonicalize_browser_url
 logger = logging.getLogger(__name__)
 
 
-def _register_browser_resize(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_resize(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_resize(context: str, width: int, height: int) -> dict[str, Any]:
+    async def browser_resize(instance: str, width: int, height: int) -> dict[str, Any]:
         """Resize the viewport of the active page to the given pixel dimensions.
 
-        Affects only the active page; other tabs in the context are unchanged.
+        Affects only the active page; other tabs in the instance are unchanged.
         Changes take effect immediately. Use this to test responsive layouts or
         to ensure a particular viewport before taking a screenshot.
 
@@ -36,27 +36,27 @@ def _register_browser_resize(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             data: {"width": int, "height": int}  — the dimensions that were applied
 
         Errors:
-            context_not_found — context does not exist
+            instance_not_found — instance does not exist
         """
         try:
-            await ctx_mgr.get(context)
-            assert_no_modal(ctx_mgr, context)
-            async with ctx_mgr.lock_for(context):
-                page = await ctx_mgr.active_page(context)
+            await mgr.get(instance)
+            assert_no_modal(mgr, instance)
+            async with mgr.lock_for(instance):
+                page = await mgr.active_page(instance)
                 await page.set_viewport_size({"width": width, "height": height})
-            return success_response(context, data={"width": width, "height": height})
+            return success_response(instance, data={"width": width, "height": height})
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_resize failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def _register_browser_pdf_save(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_pdf_save(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
     async def browser_pdf_save(
-        context: str,
+        instance: str,
         file_path: str | None = None,
         paper_format: str = "A4",
         *,
@@ -78,15 +78,15 @@ def _register_browser_pdf_save(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             data: {"saved_to": str, "size_bytes": int}
 
         Errors:
-            context_not_found   — context does not exist
+            instance_not_found  — instance does not exist
             modal_state_blocked — a dialog is pending and must be handled first
             internal_error      — PDF generation failed (e.g. not in headless mode)
         """
         try:
-            await ctx_mgr.get(context)
-            assert_no_modal(ctx_mgr, context)
-            async with ctx_mgr.lock_for(context):
-                page = await ctx_mgr.active_page(context)
+            await mgr.get(instance)
+            assert_no_modal(mgr, instance)
+            async with mgr.lock_for(instance):
+                page = await mgr.active_page(instance)
                 pdf_bytes = await page.pdf(
                     format=paper_format,
                     landscape=landscape,
@@ -98,19 +98,19 @@ def _register_browser_pdf_save(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             pdf_path = Path(file_path)
             await asyncio.to_thread(pdf_path.parent.mkdir, parents=True, exist_ok=True)
             await asyncio.to_thread(pdf_path.write_bytes, pdf_bytes)
-            return success_response(context, data={"saved_to": file_path, "size_bytes": len(pdf_bytes)})
+            return success_response(instance, data={"saved_to": file_path, "size_bytes": len(pdf_bytes)})
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_pdf_save failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def _register_browser_generate_locator(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_generate_locator(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
     async def browser_generate_locator(
-        context: str,
+        instance: str,
         ref: str | None = None,
         selector: str | None = None,
         element: str | None = None,
@@ -153,7 +153,7 @@ def _register_browser_generate_locator(mcp: FastMCP, ctx_mgr: ContextManager) ->
             }
 
         Errors:
-            context_not_found   — call browser_create_context first
+            instance_not_found  — call browser_create_instance first
             invalid_params      — neither or both of ref/selector supplied
             modal_state_blocked — a dialog is pending and must be handled first
             stale_ref           — ref is from an older snapshot; capture a new snapshot
@@ -171,17 +171,17 @@ def _register_browser_generate_locator(mcp: FastMCP, ctx_mgr: ContextManager) ->
         """
         if (ref is None) == (selector is None):
             return error_response(
-                context,
+                instance,
                 "invalid_params",
                 "exactly one of 'ref' or 'selector' must be provided",
             )
         if element:
             logger.debug("browser_generate_locator: %s", element)
         try:
-            await ctx_mgr.get(context)
-            assert_no_modal(ctx_mgr, context)
-            async with ctx_mgr.lock_for(context):
-                page = await ctx_mgr.active_page(context)
+            await mgr.get(instance)
+            assert_no_modal(mgr, instance)
+            async with mgr.lock_for(instance):
+                page = await mgr.active_page(instance)
                 if ref is not None:
                     result = await resolve_selector_to_stable(page, ref)
                 else:
@@ -190,7 +190,7 @@ def _register_browser_generate_locator(mcp: FastMCP, ctx_mgr: ContextManager) ->
                         "python_syntax": f"locator({selector!r})",
                     }
             return success_response(
-                context,
+                instance,
                 data={
                     "ref": ref,
                     "selector": selector,
@@ -199,71 +199,71 @@ def _register_browser_generate_locator(mcp: FastMCP, ctx_mgr: ContextManager) ->
                 },
             )
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_generate_locator failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-async def _tabs_list(ctx: BrowserContext, context: str) -> dict[str, Any]:
+async def _tabs_list(ctx: BrowserContext, instance: str) -> dict[str, Any]:
     tabs = [{"index": i, "url": p.url} for i, p in enumerate(ctx.pages)]
-    return success_response(context, data={"tabs": tabs})
+    return success_response(instance, data={"tabs": tabs})
 
 
 async def _tabs_new(
     ctx: BrowserContext,
-    context: str,
-    cstate: ContextState,
+    instance: str,
+    istate: InstanceState,
     url: str | None,
 ) -> dict[str, Any]:
     page = await ctx.new_page()
     if url:
         await page.goto(canonicalize_browser_url(url))
-    cstate.active_page_index = len(ctx.pages) - 1
-    return success_response(context, data={"index": len(ctx.pages) - 1, "url": page.url})
+    istate.active_page_index = len(ctx.pages) - 1
+    return success_response(instance, data={"index": len(ctx.pages) - 1, "url": page.url})
 
 
 async def _tabs_close(
     ctx: BrowserContext,
-    context: str,
-    cstate: ContextState,
+    instance: str,
+    istate: InstanceState,
     index: int | None,
 ) -> dict[str, Any]:
     if index is None or index < 0 or index >= len(ctx.pages):
-        return error_response(context, "invalid_params", f"invalid tab index: {index}")
+        return error_response(instance, "invalid_params", f"invalid tab index: {index}")
     await ctx.pages[index].close()
-    current_active = cstate.active_page_index
+    current_active = istate.active_page_index
     new_active = current_active - 1 if index < current_active else current_active
     remaining = len(ctx.pages)
     new_active = 0 if remaining == 0 else max(0, min(new_active, remaining - 1))
-    cstate.active_page_index = new_active
-    return success_response(context, data={"closed_index": index})
+    istate.active_page_index = new_active
+    return success_response(instance, data={"closed_index": index})
 
 
 async def _tabs_select(
     ctx: BrowserContext,
-    context: str,
-    ctx_mgr: ContextManager,
+    instance: str,
+    mgr: InstanceManager,
     index: int | None,
 ) -> dict[str, Any]:
     if index is None or index < 0 or index >= len(ctx.pages):
-        return error_response(context, "invalid_params", f"invalid tab index: {index}")
-    ctx_mgr.set_active_page(context, index)
+        return error_response(instance, "invalid_params", f"invalid tab index: {index}")
+    mgr.set_active_page(instance, index)
     selected = ctx.pages[index]
     await selected.bring_to_front()
-    return success_response(context, data={"selected_index": index})
+    return success_response(instance, data={"selected_index": index})
 
 
-def _register_browser_tabs(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_tabs(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
     async def browser_tabs(
-        context: str,
+        instance: str,
         action: str,
         index: int | None = None,
         url: str | None = None,
     ) -> dict[str, Any]:
-        """Manage tabs (pages) within a browser context.
+        """Manage tabs (pages) within a browser instance.
 
         action must be one of:
           "list"   — list all open tabs with their index and URL.
@@ -277,36 +277,37 @@ def _register_browser_tabs(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                      Returns: data: {"selected_index": int}
 
         Errors:
-            context_not_found — context does not exist
-            invalid_params    — unrecognized action, or index missing/out of range
+            instance_not_found — instance does not exist
+            invalid_params     — unrecognized action, or index missing/out of range
         """
         if action not in ("list", "new", "close", "select"):
             return error_response(
-                context,
+                instance,
                 "invalid_params",
                 f"action must be 'list'|'new'|'close'|'select', got {action!r}",
             )
         try:
-            ctx = await ctx_mgr.get(context)
-            async with ctx_mgr.lock_for(context):
-                cstate = ctx_mgr.state(context)
+            rec = await mgr.get(instance)
+            async with mgr.lock_for(instance):
+                ctx = rec.context
+                istate = mgr.state(instance)
                 if action == "list":
-                    return await _tabs_list(ctx, context)
+                    return await _tabs_list(ctx, instance)
                 if action == "new":
-                    return await _tabs_new(ctx, context, cstate, url)
+                    return await _tabs_new(ctx, instance, istate, url)
                 if action == "close":
-                    return await _tabs_close(ctx, context, cstate, index)
-                return await _tabs_select(ctx, context, ctx_mgr, index)
+                    return await _tabs_close(ctx, instance, istate, index)
+                return await _tabs_select(ctx, instance, mgr, index)
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_tabs failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def register(mcp: FastMCP, mgr: InstanceManager) -> None:
     """Register miscellaneous utility tools on the MCP server."""
-    _register_browser_resize(mcp, ctx_mgr)
-    _register_browser_pdf_save(mcp, ctx_mgr)
-    _register_browser_generate_locator(mcp, ctx_mgr)
-    _register_browser_tabs(mcp, ctx_mgr)
+    _register_browser_resize(mcp, mgr)
+    _register_browser_pdf_save(mcp, mgr)
+    _register_browser_generate_locator(mcp, mgr)
+    _register_browser_tabs(mcp, mgr)

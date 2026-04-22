@@ -4,7 +4,7 @@ import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from justpen_browser_mcp.errors import ContextNotFoundError, StaleRefError
+from justpen_browser_mcp.errors import InstanceNotFoundError, StaleRefError
 
 
 def make_page(mock_ctx_mgr):
@@ -25,7 +25,9 @@ def make_page(mock_ctx_mgr):
     ctx = MagicMock()
     ctx.pages = [page]
     ctx.new_page = AsyncMock(return_value=new_page_mock)
-    mock_ctx_mgr.get.return_value = ctx
+    rec = MagicMock()
+    rec.context = ctx
+    mock_ctx_mgr.get.return_value = rec
     # Default: no modals pending
     mock_ctx_mgr.get_modal_states = MagicMock(return_value=[])
     mock_ctx_mgr.consume_modal_state = MagicMock(return_value=None)
@@ -37,7 +39,7 @@ class TestBrowserResize:
         page = make_page(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_resize",
-            {"context": "admin", "width": 1280, "height": 800},
+            {"instance": "admin", "width": 1280, "height": 800},
         )
         assert result.data["status"] == "success"
         page.set_viewport_size.assert_awaited_once_with({"width": 1280, "height": 800})
@@ -49,7 +51,7 @@ class TestBrowserPdfSave:
         out = tmp_path / "out.pdf"
         result = await mcp_client.call_tool(
             "browser_pdf_save",
-            {"context": "admin", "file_path": str(out)},
+            {"instance": "admin", "file_path": str(out)},
         )
         assert result.data["status"] == "success"
         assert out.exists()
@@ -58,7 +60,7 @@ class TestBrowserPdfSave:
     async def test_pdf_save_default_filename(self, mcp_client, mock_ctx_mgr, tmp_path, monkeypatch):
         make_page(mock_ctx_mgr)
         monkeypatch.setenv("JUSTPEN_WORKSPACE", str(tmp_path))
-        result = await mcp_client.call_tool("browser_pdf_save", {"context": "admin"})
+        result = await mcp_client.call_tool("browser_pdf_save", {"instance": "admin"})
         assert result.data["status"] == "success"
         saved = result.data["data"]["saved_to"]
         assert "output/evidence/page-" in saved
@@ -69,7 +71,7 @@ class TestBrowserPdfSave:
         out = tmp_path / "land.pdf"
         result = await mcp_client.call_tool(
             "browser_pdf_save",
-            {"context": "admin", "file_path": str(out), "landscape": True},
+            {"instance": "admin", "file_path": str(out), "landscape": True},
         )
         assert result.data["status"] == "success"
         page.pdf.assert_awaited_once()
@@ -82,7 +84,7 @@ class TestBrowserPdfSave:
         result = await mcp_client.call_tool(
             "browser_pdf_save",
             {
-                "context": "admin",
+                "instance": "admin",
                 "file_path": str(out),
                 "print_background": True,
             },
@@ -101,7 +103,7 @@ class TestBrowserResizeModalGuard:
         mock_ctx_mgr.get_modal_states = MagicMock(return_value=[{"kind": "dialog", "object": dialog, "page": page}])
         result = await mcp_client.call_tool(
             "browser_resize",
-            {"context": "admin", "width": 800, "height": 600},
+            {"instance": "admin", "width": 800, "height": 600},
         )
         assert result.data["error_type"] == "modal_state_blocked"
 
@@ -109,7 +111,7 @@ class TestBrowserResizeModalGuard:
 class TestBrowserTabs:
     async def test_list_tabs(self, mcp_client, mock_ctx_mgr):
         make_page(mock_ctx_mgr)
-        result = await mcp_client.call_tool("browser_tabs", {"context": "admin", "action": "list"})
+        result = await mcp_client.call_tool("browser_tabs", {"instance": "admin", "action": "list"})
         assert result.data["status"] == "success"
         assert "tabs" in result.data["data"]
 
@@ -117,7 +119,7 @@ class TestBrowserTabs:
         make_page(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_tabs",
-            {"context": "admin", "action": "new", "url": "https://x.com"},
+            {"instance": "admin", "action": "new", "url": "https://x.com"},
         )
         assert result.data["status"] == "success"
 
@@ -127,13 +129,15 @@ class TestBrowserTabs:
         page1 = MagicMock(bring_to_front=AsyncMock(), url="https://b")
         ctx = MagicMock()
         ctx.pages = [page0, page1]
+        rec = MagicMock()
+        rec.context = ctx
         mock_ctx_mgr.state.return_value.active_page_index = 0
-        mock_ctx_mgr.get.return_value = ctx
+        mock_ctx_mgr.get.return_value = rec
         mock_ctx_mgr.set_active_page = MagicMock()
 
         result = await mcp_client.call_tool(
             "browser_tabs",
-            {"context": "admin", "action": "select", "index": 1},
+            {"instance": "admin", "action": "select", "index": 1},
         )
         assert result.data["status"] == "success"
         mock_ctx_mgr.set_active_page.assert_called_once_with("admin", 1)
@@ -151,12 +155,14 @@ class TestBrowserTabs:
         page1.close.side_effect = close_page1
         ctx = MagicMock()
         ctx.pages = pages
+        rec = MagicMock()
+        rec.context = ctx
         mock_ctx_mgr.state.return_value.active_page_index = 1
-        mock_ctx_mgr.get.return_value = ctx
+        mock_ctx_mgr.get.return_value = rec
 
         result = await mcp_client.call_tool(
             "browser_tabs",
-            {"context": "admin", "action": "close", "index": 1},
+            {"instance": "admin", "action": "close", "index": 1},
         )
         assert result.data["status"] == "success"
         assert mock_ctx_mgr.state.return_value.active_page_index == 0
@@ -174,12 +180,14 @@ class TestBrowserTabs:
         page0.close.side_effect = close_page0
         ctx = MagicMock()
         ctx.pages = pages
+        rec = MagicMock()
+        rec.context = ctx
         mock_ctx_mgr.state.return_value.active_page_index = 2
-        mock_ctx_mgr.get.return_value = ctx
+        mock_ctx_mgr.get.return_value = rec
 
         result = await mcp_client.call_tool(
             "browser_tabs",
-            {"context": "admin", "action": "close", "index": 0},
+            {"instance": "admin", "action": "close", "index": 0},
         )
         assert result.data["status"] == "success"
         assert mock_ctx_mgr.state.return_value.active_page_index == 1
@@ -188,11 +196,13 @@ class TestBrowserTabs:
         make_page(mock_ctx_mgr)
         ctx = MagicMock()
         ctx.pages = [MagicMock(close=AsyncMock())]
+        rec = MagicMock()
+        rec.context = ctx
         mock_ctx_mgr.state.return_value.active_page_index = 0
-        mock_ctx_mgr.get.return_value = ctx
+        mock_ctx_mgr.get.return_value = rec
         result = await mcp_client.call_tool(
             "browser_tabs",
-            {"context": "admin", "action": "close", "index": -1},
+            {"instance": "admin", "action": "close", "index": -1},
         )
         assert result.data["error_type"] == "invalid_params"
 
@@ -200,11 +210,13 @@ class TestBrowserTabs:
         make_page(mock_ctx_mgr)
         ctx = MagicMock()
         ctx.pages = [MagicMock(bring_to_front=AsyncMock())]
+        rec = MagicMock()
+        rec.context = ctx
         mock_ctx_mgr.state.return_value.active_page_index = 0
-        mock_ctx_mgr.get.return_value = ctx
+        mock_ctx_mgr.get.return_value = rec
         result = await mcp_client.call_tool(
             "browser_tabs",
-            {"context": "admin", "action": "select", "index": -1},
+            {"instance": "admin", "action": "select", "index": -1},
         )
         assert result.data["error_type"] == "invalid_params"
 
@@ -224,13 +236,15 @@ class TestBrowserTabs:
 
         ctx = MagicMock()
         ctx.pages = pages
+        rec = MagicMock()
+        rec.context = ctx
         mock_ctx_mgr.state.return_value.active_page_index = 0
         ctx.new_page = AsyncMock(side_effect=add_page)
-        mock_ctx_mgr.get.return_value = ctx
+        mock_ctx_mgr.get.return_value = rec
 
         result = await mcp_client.call_tool(
             "browser_tabs",
-            {"context": "admin", "action": "new", "url": "https://new.example"},
+            {"instance": "admin", "action": "new", "url": "https://new.example"},
         )
         assert result.data["status"] == "success"
         assert mock_ctx_mgr.state.return_value.active_page_index == 1
@@ -240,7 +254,8 @@ class TestBrowserGenerateLocator:
     async def test_success_testid(self, mcp_client, mock_ctx_mgr):
         page = MagicMock()
         mock_ctx_mgr.active_page.return_value = page
-        mock_ctx_mgr.get.return_value = MagicMock()
+        rec = MagicMock()
+        mock_ctx_mgr.get.return_value = rec
         mock_ctx_mgr.get_modal_states = MagicMock(return_value=[])
 
         with patch(
@@ -254,7 +269,7 @@ class TestBrowserGenerateLocator:
         ):
             result = await mcp_client.call_tool(
                 "browser_generate_locator",
-                {"context": "admin", "ref": "e5"},
+                {"instance": "admin", "ref": "e5"},
             )
 
         assert result.data["status"] == "success"
@@ -264,7 +279,8 @@ class TestBrowserGenerateLocator:
 
     async def test_stale_ref(self, mcp_client, mock_ctx_mgr):
         mock_ctx_mgr.active_page.return_value = MagicMock()
-        mock_ctx_mgr.get.return_value = MagicMock()
+        rec = MagicMock()
+        mock_ctx_mgr.get.return_value = rec
         mock_ctx_mgr.get_modal_states = MagicMock(return_value=[])
 
         with patch(
@@ -273,26 +289,26 @@ class TestBrowserGenerateLocator:
         ):
             result = await mcp_client.call_tool(
                 "browser_generate_locator",
-                {"context": "admin", "ref": "e99"},
+                {"instance": "admin", "ref": "e99"},
             )
 
         assert result.data["status"] == "error"
         assert result.data["error_type"] == "stale_ref"
 
-    async def test_unknown_context(self, mcp_client, mock_ctx_mgr):
-        mock_ctx_mgr.get.side_effect = ContextNotFoundError("missing")
+    async def test_unknown_instance(self, mcp_client, mock_ctx_mgr):
+        mock_ctx_mgr.get.side_effect = InstanceNotFoundError("missing")
 
         result = await mcp_client.call_tool(
             "browser_generate_locator",
-            {"context": "admin", "ref": "e1"},
+            {"instance": "admin", "ref": "e1"},
         )
-        assert result.data["error_type"] == "context_not_found"
+        assert result.data["error_type"] == "instance_not_found"
 
     async def test_generate_locator_selector_mode(self, mcp_client, mock_ctx_mgr):
         make_page(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_generate_locator",
-            {"context": "admin", "selector": "#main"},
+            {"instance": "admin", "selector": "#main"},
         )
         assert result.data["status"] == "success"
         assert result.data["data"]["internal_selector"] == "#main"
@@ -304,7 +320,7 @@ class TestBrowserGenerateLocator:
         make_page(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_generate_locator",
-            {"context": "admin", "ref": "e1", "selector": "#x"},
+            {"instance": "admin", "ref": "e1", "selector": "#x"},
         )
         assert result.data["error_type"] == "invalid_params"
 
@@ -312,6 +328,6 @@ class TestBrowserGenerateLocator:
         make_page(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_generate_locator",
-            {"context": "admin"},
+            {"instance": "admin"},
         )
         assert result.data["error_type"] == "invalid_params"
