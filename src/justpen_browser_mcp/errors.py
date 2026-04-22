@@ -8,43 +8,33 @@ envelopes; all other exceptions become 'internal_error'.
 
 
 class BrowserMcpError(Exception):
-    """Base class for all browser_mcp internal exceptions.
-
-    Subclasses must define a class-level `error_type` string matching
-    one of the values in VALID_ERROR_TYPES.
-    """
+    """Base class for all browser_mcp internal exceptions."""
 
     error_type: str = "internal_error"
 
 
-class ContextNotFoundError(BrowserMcpError):
-    """Raised when a named context does not exist in the registry."""
+class InstanceNotFoundError(BrowserMcpError):
+    """Raised when a named instance does not exist in the registry."""
 
-    error_type = "context_not_found"
-
-
-class ContextAlreadyExistsError(BrowserMcpError):
-    """Raised when creating a context with a name that is already taken."""
-
-    error_type = "context_already_exists"
+    error_type = "instance_not_found"
 
 
-class InvalidStateFileError(BrowserMcpError):
-    """Raised when a storage-state file is malformed or cannot be parsed."""
+class InstanceAlreadyExistsError(BrowserMcpError):
+    """Raised when creating an instance with a name that is already taken."""
 
-    error_type = "invalid_state_file"
-
-
-class StateFileNotFoundError(BrowserMcpError):
-    """Raised when a storage-state file path does not exist on disk."""
-
-    error_type = "state_file_not_found"
+    error_type = "instance_already_exists"
 
 
-class BrowserNotRunningError(BrowserMcpError):
-    """Raised when an operation requires a running browser but none is live."""
+class InstanceLimitExceededError(BrowserMcpError):
+    """Raised when create_instance is called but max_instances is already reached."""
 
-    error_type = "browser_not_running"
+    error_type = "instance_limit_exceeded"
+
+
+class ProfileDirInUseError(BrowserMcpError):
+    """Raised when a persistent profile_dir is already held by another live instance."""
+
+    error_type = "profile_dir_in_use"
 
 
 class BinaryNotFoundError(BrowserMcpError):
@@ -121,11 +111,10 @@ class ModalStateBlockedError(BrowserMcpError):
 
 VALID_ERROR_TYPES = frozenset(
     {
-        "context_not_found",
-        "context_already_exists",
-        "invalid_state_file",
-        "state_file_not_found",
-        "browser_not_running",
+        "instance_not_found",
+        "instance_already_exists",
+        "instance_limit_exceeded",
+        "profile_dir_in_use",
         "binary_not_found",
         "element_not_found",
         "stale_ref",
