@@ -142,3 +142,28 @@ async def test_shutdown_all_continues_on_error(manager, monkeypatch):
     await manager.shutdown_all()
     # Registry cleared even though one close failed.
     assert await manager.list() == []
+
+
+@pytest.mark.asyncio
+async def test_shutdown_all_acquires_registry_lock(manager):
+    """Verify shutdown_all cannot run while registry_lock is held externally."""
+    # Simulate create() holding the registry lock during a slow launch.
+    held = asyncio.Event()
+    release = asyncio.Event()
+
+    async def hold_registry_lock():
+        async with manager._registry_lock:
+            held.set()
+            await release.wait()
+
+    holder = asyncio.create_task(hold_registry_lock())
+    await held.wait()
+
+    shutdown_task = asyncio.create_task(manager.shutdown_all())
+    for _ in range(10):
+        await asyncio.sleep(0)
+    assert not shutdown_task.done(), "shutdown_all should block on registry_lock"
+
+    release.set()
+    await holder
+    await shutdown_task

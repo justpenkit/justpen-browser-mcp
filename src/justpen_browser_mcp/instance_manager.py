@@ -233,16 +233,24 @@ class InstanceManager:
         return None
 
     async def shutdown_all(self) -> None:
-        """Close all instances in parallel; registry is cleared unconditionally."""
-        names = list(self._instances.keys())
-        results = await asyncio.gather(
-            *(self._close_one(n) for n in names),
-            return_exceptions=True,
-        )
-        for n, r in zip(names, results, strict=False):
-            if isinstance(r, BaseException):
-                logger.warning("Error closing instance %r on shutdown: %s", n, r)
-        self._instances.clear()
+        """Close every instance in parallel; drain in-flight creates first.
+
+        Acquires the registry lock so a concurrent create() call must either
+        complete (and its record gets closed by this shutdown) or block until
+        the registry is cleared. Without this guard, a create() that has passed
+        preflight but is still awaiting launch_instance() could insert a fresh
+        record AFTER shutdown_all has read the keys, leaking a live Camoufox.
+        """
+        async with self._registry_lock:
+            names = list(self._instances.keys())
+            results = await asyncio.gather(
+                *(self._close_one(n) for n in names),
+                return_exceptions=True,
+            )
+            for n, r in zip(names, results, strict=False):
+                if isinstance(r, BaseException):
+                    logger.warning("Error closing instance %r on shutdown: %s", n, r)
+            self._instances.clear()
 
     async def _close_one(self, name: str) -> None:
         rec = self._instances[name]
