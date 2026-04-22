@@ -41,6 +41,30 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def summarize_instance(rec: InstanceRecord) -> dict[str, Any]:
+    """Build the public InstanceSummary dict for a single record.
+
+    Shared between InstanceManager.list() and tool-layer wrappers so the
+    summary shape stays in one place.
+    """
+    pages = rec.context.pages
+    if pages:
+        idx = rec.state.active_page_index
+        if idx < 0 or idx >= len(pages):
+            idx = 0
+        active_url = pages[idx].url
+    else:
+        active_url = None
+    return {
+        "name": rec.name,
+        "mode": "persistent" if rec.profile_dir is not None else "ephemeral",
+        "profile_dir": rec.profile_dir,
+        "page_count": len(pages),
+        "active_url": active_url,
+        "created_at": rec.created_at.isoformat(),
+    }
+
+
 def _format_console_location(loc: SourceLocation | None) -> str | None:
     if not loc:
         return None
@@ -165,27 +189,7 @@ class InstanceManager:
     async def list(self) -> list[dict[str, Any]]:
         """Return summary info for all active instances."""
         snapshot = list(self._instances.items())
-        result: list[dict[str, Any]] = []
-        for name, rec in snapshot:
-            pages = rec.context.pages
-            if pages:
-                idx = rec.state.active_page_index
-                if idx < 0 or idx >= len(pages):
-                    idx = 0
-                active_url = pages[idx].url
-            else:
-                active_url = None
-            result.append(
-                {
-                    "name": name,
-                    "mode": "persistent" if rec.profile_dir is not None else "ephemeral",
-                    "profile_dir": rec.profile_dir,
-                    "page_count": len(pages),
-                    "active_url": active_url,
-                    "created_at": rec.created_at.isoformat(),
-                }
-            )
-        return result
+        return [summarize_instance(rec) for _, rec in snapshot]
 
     async def active_page(self, name: str) -> Page:
         """Return the active page for an instance, creating one if none exist."""

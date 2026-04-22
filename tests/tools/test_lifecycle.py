@@ -4,6 +4,8 @@ import pytest
 from fastmcp import FastMCP
 
 import justpen_browser_mcp.tools.lifecycle as lifecycle
+from justpen_browser_mcp.config import BrowserServerConfig
+from justpen_browser_mcp.instance_manager import InstanceManager
 
 
 @pytest.fixture
@@ -86,3 +88,18 @@ async def test_create_instance_profile_dir_collision_returns_error(mcp, manager,
     result = await _call(mcp, "browser_create_instance", name="bob", profile_dir=str(tmp_path))
     assert result["status"] == "error"
     assert result["error_type"] == "profile_dir_in_use"
+
+
+@pytest.mark.asyncio
+async def test_create_instance_limit_exceeded_returns_error(mcp, mock_launch):
+    """browser_create_instance surfaces InstanceLimitExceededError as an error envelope."""
+    cfg = BrowserServerConfig(log_level="INFO", max_instances=1)
+    local_mgr = InstanceManager(cfg)
+    lifecycle.register(mcp, local_mgr)
+    try:
+        await _call(mcp, "browser_create_instance", name="alice")
+        result = await _call(mcp, "browser_create_instance", name="bob")
+        assert result["status"] == "error"
+        assert result["error_type"] == "instance_limit_exceeded"
+    finally:
+        await local_mgr.shutdown_all()

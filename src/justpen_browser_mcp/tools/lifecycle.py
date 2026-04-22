@@ -6,6 +6,7 @@ import logging
 from typing import TYPE_CHECKING, Any, Literal
 
 from ..errors import BrowserMcpError
+from ..instance_manager import summarize_instance
 from ..responses import error_response, success_response
 
 if TYPE_CHECKING:
@@ -36,7 +37,7 @@ def register(mcp: FastMCP, mgr: InstanceManager) -> None:
         Ephemeral instances (profile_dir=None) leave no trace after destroy.
         """
         try:
-            await mgr.create(
+            record = await mgr.create(
                 name,
                 profile_dir=profile_dir,
                 headless=headless,
@@ -49,9 +50,7 @@ def register(mcp: FastMCP, mgr: InstanceManager) -> None:
         except Exception as e:
             logger.exception("browser_create_instance failed for %r", name)
             return error_response(name, "internal_error", str(e))
-        summaries = await mgr.list()
-        summary = next(s for s in summaries if s["name"] == name)
-        return success_response(instance=name, data=summary)
+        return success_response(instance=name, data=summarize_instance(record))
 
     @mcp.tool
     async def browser_destroy_instance(name: str) -> dict[str, Any]:
