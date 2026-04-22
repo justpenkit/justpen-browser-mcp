@@ -1,47 +1,20 @@
 """Tool modules for the camoufox-mcp server.
 
-Each module exports a `register(mcp, ctx_mgr)` function that registers
-its tools with the FastMCP instance. This file imports all tool modules
-to make them available as a package, but does NOT eagerly call register;
-that happens in __main__.py at server startup.
+Each module exports a ``register`` function that registers its tools with the
+FastMCP instance.  This file imports all tool modules to make them available as
+a package, but does NOT eagerly call register; that happens in __main__.py at
+server startup.
+
+NOTE: ``register_all`` is a **temporary stub** kept here so that downstream
+modules that reference it do not break before Task 8 (delete deprecated
+modules) and Task 9 (__main__.py rewire) land.  It will be removed or replaced
+in those tasks.
 """
 
-from fastmcp import FastMCP
+# Lifecycle is the first module to be fully migrated to the new InstanceManager
+# API.  Import it explicitly so it is importable without triggering the still-
+# broken legacy imports (context_manager, camoufox) that will be removed in
+# Task 8.
+from . import lifecycle
 
-from ..camoufox import CamoufoxLauncher
-from ..context_manager import ContextManager
-from . import (
-    code_execution,
-    cookies,
-    inspection,
-    interaction,
-    lifecycle,
-    mouse,
-    navigation,
-    page,
-    server_tools,
-    utility,
-    verification,
-)
-
-__all__ = ["register_all"]
-
-
-def register_all(mcp: FastMCP, ctx_mgr: ContextManager, launcher: CamoufoxLauncher) -> None:
-    """Register every tool category on the FastMCP instance.
-
-    Most tool modules only need (mcp, ctx_mgr). server_tools also needs
-    the launcher for browser_status to read is_running() without
-    triggering a launch.
-    """
-    lifecycle.register(mcp, ctx_mgr)
-    cookies.register(mcp, ctx_mgr)
-    navigation.register(mcp, ctx_mgr)
-    interaction.register(mcp, ctx_mgr)
-    mouse.register(mcp, ctx_mgr)
-    inspection.register(mcp, ctx_mgr)
-    verification.register(mcp, ctx_mgr)
-    code_execution.register(mcp, ctx_mgr)
-    utility.register(mcp, ctx_mgr)
-    page.register(mcp, ctx_mgr)
-    server_tools.register(mcp, ctx_mgr, launcher)
+__all__ = ["lifecycle"]
