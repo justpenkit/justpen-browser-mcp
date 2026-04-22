@@ -10,13 +10,13 @@ from typing import Any
 from fastmcp import FastMCP
 from playwright.async_api import Error as PlaywrightError, TimeoutError as PWTimeout
 
-from ..context_manager import ContextManager, assert_no_modal
 from ..errors import (
     BrowserMcpError,
     NavigationFailedError,
     NavigationTimeoutError,
     WaitTimeoutError,
 )
+from ..instance_manager import InstanceManager, assert_no_modal
 from ..responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
@@ -58,13 +58,13 @@ def canonicalize_browser_url(url: str) -> str:
     return url
 
 
-def _register_browser_navigate(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_navigate(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_navigate(context: str, url: str) -> dict[str, Any]:
-        """Navigate the active page in the given context to a URL.
+    async def browser_navigate(instance: str, url: str) -> dict[str, Any]:
+        """Navigate the active page in the given instance to a URL.
 
-        This navigates the CURRENT active page. Other tabs in the context
+        This navigates the CURRENT active page. Other tabs in the instance
         are untouched. To navigate a different tab, select it first via
         browser_tabs(action='select', index=N).
 
@@ -80,7 +80,7 @@ def _register_browser_navigate(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             — final URL after any redirects, page title after load
 
         Errors:
-            context_not_found    — call browser_create_context first
+            instance_not_found   — call browser_create_instance first
             modal_state_blocked  — a dialog or file-chooser is pending; resolve it first
             navigation_failed    — network error, invalid URL, or page crash
             navigation_timeout   — page did not finish loading in time
@@ -89,11 +89,11 @@ def _register_browser_navigate(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         are invalidated. Take a fresh snapshot before referencing elements.
         """
         try:
-            await ctx_mgr.get(context)
-            assert_no_modal(ctx_mgr, context)
+            await mgr.get(instance)
+            assert_no_modal(mgr, instance)
             normalized = canonicalize_browser_url(url)
-            async with ctx_mgr.lock_for(context):
-                page = await ctx_mgr.active_page(context)
+            async with mgr.lock_for(instance):
+                page = await mgr.active_page(instance)
                 try:
                     await page.goto(normalized, wait_until="domcontentloaded")
                 except PWTimeout as e:
@@ -105,7 +105,7 @@ def _register_browser_navigate(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                         # This is expected for export/report/download
                         # endpoints — not a real navigation failure.
                         return success_response(
-                            context,
+                            instance,
                             data={
                                 "url": page.url,
                                 "title": await page.title(),
@@ -116,20 +116,20 @@ def _register_browser_navigate(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                 with contextlib.suppress(PWTimeout):
                     await page.wait_for_load_state("load", timeout=5000)
                 return success_response(
-                    context,
+                    instance,
                     data={"url": page.url, "title": await page.title()},
                 )
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_navigate failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def _register_browser_navigate_back(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_navigate_back(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_navigate_back(context: str) -> dict[str, Any]:
+    async def browser_navigate_back(instance: str) -> dict[str, Any]:
         """Navigate back one step in the browser history for the active page.
 
         Equivalent to pressing the browser Back button. Has no effect if there
@@ -139,7 +139,7 @@ def _register_browser_navigate_back(mcp: FastMCP, ctx_mgr: ContextManager) -> No
             data: {"url": str}  — URL of the page after going back
 
         Errors:
-            context_not_found    — context does not exist
+            instance_not_found   — instance does not exist
             modal_state_blocked  — a dialog or file-chooser is pending; resolve it first
             navigation_failed    — Playwright error during back navigation
             navigation_timeout   — navigation did not complete in time
@@ -148,29 +148,29 @@ def _register_browser_navigate_back(mcp: FastMCP, ctx_mgr: ContextManager) -> No
         are invalidated. Take a fresh snapshot before referencing elements.
         """
         try:
-            await ctx_mgr.get(context)
-            assert_no_modal(ctx_mgr, context)
-            async with ctx_mgr.lock_for(context):
-                page = await ctx_mgr.active_page(context)
+            await mgr.get(instance)
+            assert_no_modal(mgr, instance)
+            async with mgr.lock_for(instance):
+                page = await mgr.active_page(instance)
                 try:
                     await page.go_back()
                 except PWTimeout as e:
                     raise NavigationTimeoutError(str(e)) from e
                 except PlaywrightError as e:
                     raise NavigationFailedError(str(e)) from e
-                return success_response(context, data={"url": page.url})
+                return success_response(instance, data={"url": page.url})
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_navigate_back failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def _register_browser_wait_for(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_wait_for(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
     async def browser_wait_for(
-        context: str,
+        instance: str,
         text: str | None = None,
         text_gone: str | None = None,
         time: float | None = None,
@@ -189,22 +189,22 @@ def _register_browser_wait_for(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             data: {"waited_for": str}  — description of the conditions waited on
 
         Errors:
-            context_not_found   — context does not exist
+            instance_not_found  — instance does not exist
             modal_state_blocked — a dialog or file-chooser is pending; resolve it first
             invalid_params      — none of text/text_gone/time were provided
             wait_timeout        — text did not appear/disappear in the default timeout
         """
         if text is None and text_gone is None and time is None:
             return error_response(
-                context,
+                instance,
                 "invalid_params",
                 "At least one of 'text', 'text_gone', or 'time' must be provided.",
             )
         try:
-            await ctx_mgr.get(context)
-            assert_no_modal(ctx_mgr, context)
-            async with ctx_mgr.lock_for(context):
-                page = await ctx_mgr.active_page(context)
+            await mgr.get(instance)
+            assert_no_modal(mgr, instance)
+            async with mgr.lock_for(instance):
+                page = await mgr.active_page(instance)
                 parts: list[str] = []
                 if time is not None:
                     capped_seconds = min(30.0, float(time))
@@ -222,16 +222,16 @@ def _register_browser_wait_for(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     except PWTimeout as e:
                         raise WaitTimeoutError(f"Text '{text}' did not appear: {e}") from e
                     parts.append(f"text={text!r}")
-                return success_response(context, data={"waited_for": ", ".join(parts)})
+                return success_response(instance, data={"waited_for": ", ".join(parts)})
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_wait_for failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def register(mcp: FastMCP, mgr: InstanceManager) -> None:
     """Register navigation tools on the MCP server."""
-    _register_browser_navigate(mcp, ctx_mgr)
-    _register_browser_navigate_back(mcp, ctx_mgr)
-    _register_browser_wait_for(mcp, ctx_mgr)
+    _register_browser_navigate(mcp, mgr)
+    _register_browser_navigate_back(mcp, mgr)
+    _register_browser_wait_for(mcp, mgr)
