@@ -6,6 +6,7 @@ from fastmcp import FastMCP
 import justpen_browser_mcp.tools.lifecycle as lifecycle
 from justpen_browser_mcp.config import BrowserServerConfig
 from justpen_browser_mcp.instance_manager import InstanceManager
+from justpen_browser_mcp.tools import register_all
 
 
 @pytest.fixture
@@ -103,3 +104,38 @@ async def test_create_instance_limit_exceeded_returns_error(mcp, mock_launch):
         assert result["error_type"] == "instance_limit_exceeded"
     finally:
         await local_mgr.shutdown_all()
+
+
+@pytest.mark.asyncio
+async def test_register_all_registers_every_tool_module(mcp, manager):
+    """register_all wires up all 10 tool modules on a FastMCP instance."""
+    register_all(mcp, manager)
+    # Sample tools from each module to prove they all landed.
+    expected = [
+        # lifecycle
+        "browser_create_instance",
+        "browser_destroy_instance",
+        "browser_list_instances",
+        # cookies
+        "browser_get_cookies",
+        # navigation
+        "browser_navigate",
+        "browser_wait_for",
+        # interaction
+        "browser_click",
+        # mouse
+        "browser_mouse_move_xy",
+        # inspection
+        "browser_snapshot",
+        # verification
+        "browser_verify_element_visible",
+        # code_execution
+        "browser_evaluate",
+        # utility
+        "browser_tabs",
+        # page
+        "browser_close",
+    ]
+    for name in expected:
+        tool = await mcp.get_tool(name)
+        assert tool is not None, f"Expected {name!r} to be registered"
