@@ -23,7 +23,7 @@ class TestMouseTools:
         page = make_page(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_mouse_click_xy",
-            {"context": "admin", "x": 100, "y": 200},
+            {"instance": "admin", "x": 100, "y": 200},
         )
         assert result.data["status"] == "success"
         page.mouse.click.assert_awaited_once_with(100, 200, button="left", click_count=1, delay=0)
@@ -32,7 +32,7 @@ class TestMouseTools:
         page = make_page(mock_ctx_mgr)
         await mcp_client.call_tool(
             "browser_mouse_click_xy",
-            {"context": "admin", "x": 50, "y": 75, "button": "right"},
+            {"instance": "admin", "x": 50, "y": 75, "button": "right"},
         )
         page.mouse.click.assert_awaited_once_with(50, 75, button="right", click_count=1, delay=0)
 
@@ -40,7 +40,7 @@ class TestMouseTools:
         page = make_page(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_mouse_click_xy",
-            {"context": "admin", "x": 10, "y": 20, "click_count": 2},
+            {"instance": "admin", "x": 10, "y": 20, "click_count": 2},
         )
         assert result.data["status"] == "success"
         page.mouse.click.assert_awaited_once_with(10, 20, button="left", click_count=2, delay=0)
@@ -49,7 +49,7 @@ class TestMouseTools:
         page = make_page(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_mouse_click_xy",
-            {"context": "admin", "x": 10, "y": 20, "delay_ms": 100},
+            {"instance": "admin", "x": 10, "y": 20, "delay_ms": 100},
         )
         assert result.data["status"] == "success"
         page.mouse.click.assert_awaited_once_with(10, 20, button="left", click_count=1, delay=100)
@@ -58,20 +58,20 @@ class TestMouseTools:
         page = make_page(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_mouse_move_xy",
-            {"context": "admin", "x": 10, "y": 20},
+            {"instance": "admin", "x": 10, "y": 20},
         )
         assert result.data["status"] == "success"
         page.mouse.move.assert_awaited_once_with(10, 20)
 
     async def test_mouse_down(self, mcp_client, mock_ctx_mgr):
         page = make_page(mock_ctx_mgr)
-        result = await mcp_client.call_tool("browser_mouse_down", {"context": "admin"})
+        result = await mcp_client.call_tool("browser_mouse_down", {"instance": "admin"})
         assert result.data["status"] == "success"
         page.mouse.down.assert_awaited_once_with(button="left")
 
     async def test_mouse_up(self, mcp_client, mock_ctx_mgr):
         page = make_page(mock_ctx_mgr)
-        result = await mcp_client.call_tool("browser_mouse_up", {"context": "admin"})
+        result = await mcp_client.call_tool("browser_mouse_up", {"instance": "admin"})
         assert result.data["status"] == "success"
         page.mouse.up.assert_awaited_once_with(button="left")
 
@@ -79,7 +79,7 @@ class TestMouseTools:
         page = make_page(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_mouse_drag_xy",
-            {"context": "admin", "from_x": 10, "from_y": 20, "to_x": 30, "to_y": 40},
+            {"instance": "admin", "from_x": 10, "from_y": 20, "to_x": 30, "to_y": 40},
         )
         assert result.data["status"] == "success"
         page.mouse.move.assert_any_await(10, 20)
@@ -91,7 +91,7 @@ class TestMouseTools:
         page = make_page(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_mouse_wheel",
-            {"context": "admin", "delta_x": 0, "delta_y": 100},
+            {"instance": "admin", "delta_x": 0, "delta_y": 100},
         )
         assert result.data["status"] == "success"
         page.mouse.wheel.assert_awaited_once_with(0, 100)
@@ -100,7 +100,7 @@ class TestMouseTools:
         page = make_page(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_mouse_wheel",
-            {"context": "admin", "delta_y": 50},
+            {"instance": "admin", "delta_y": 50},
         )
         assert result.data["status"] == "success"
         page.mouse.wheel.assert_awaited_once_with(0, 50)
@@ -109,7 +109,7 @@ class TestMouseTools:
         make_page(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_mouse_wheel",
-            {"context": "admin"},
+            {"instance": "admin"},
         )
         assert result.data["error_type"] == "invalid_params"
 
@@ -117,7 +117,7 @@ class TestMouseTools:
         page = make_page(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_mouse_drag_xy",
-            {"context": "admin", "from_x": 1, "from_y": 2, "to_x": 3, "to_y": 4},
+            {"instance": "admin", "from_x": 1, "from_y": 2, "to_x": 3, "to_y": 4},
         )
         assert result.data["status"] == "success"
         page.wait_for_load_state.assert_awaited_once_with("domcontentloaded", timeout=2000)
@@ -130,7 +130,7 @@ class TestMouseTools:
         mock_ctx_mgr.get_modal_states = MagicMock(return_value=[{"kind": "dialog", "object": dialog, "page": page}])
         result = await mcp_client.call_tool(
             "browser_mouse_click_xy",
-            {"context": "admin", "x": 1, "y": 2},
+            {"instance": "admin", "x": 1, "y": 2},
         )
         assert result.data["error_type"] == "modal_state_blocked"
         page.mouse.click.assert_not_awaited()
