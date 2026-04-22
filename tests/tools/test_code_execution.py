@@ -6,8 +6,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 def make_page(mock_ctx_mgr, eval_result="42"):
     page = MagicMock()
     page.evaluate = AsyncMock(return_value=eval_result)
+    rec = MagicMock()
+    rec.context = MagicMock()
     mock_ctx_mgr.active_page.return_value = page
-    mock_ctx_mgr.get.return_value = MagicMock()
+    mock_ctx_mgr.get.return_value = rec
     mock_ctx_mgr.get_modal_states = MagicMock(return_value=[])
     return page
 
@@ -17,7 +19,7 @@ class TestBrowserEvaluate:
         page = make_page(mock_ctx_mgr, eval_result="hello")
         result = await mcp_client.call_tool(
             "browser_evaluate",
-            {"context": "admin", "expression": "document.title"},
+            {"instance": "admin", "expression": "document.title"},
         )
         assert result.data["status"] == "success"
         assert result.data["data"]["result"] == "hello"
@@ -28,7 +30,7 @@ class TestBrowserEvaluate:
         page.evaluate = AsyncMock(side_effect=Exception("ReferenceError: foo not defined"))
         result = await mcp_client.call_tool(
             "browser_evaluate",
-            {"context": "admin", "expression": "foo"},
+            {"instance": "admin", "expression": "foo"},
         )
         assert result.data["error_type"] == "evaluation_failed"
 
@@ -43,7 +45,7 @@ class TestBrowserEvaluate:
             result = await mcp_client.call_tool(
                 "browser_evaluate",
                 {
-                    "context": "admin",
+                    "instance": "admin",
                     "expression": "el => el.tagName",
                     "ref": "e1",
                 },
@@ -61,7 +63,7 @@ class TestBrowserEvaluate:
         result = await mcp_client.call_tool(
             "browser_evaluate",
             {
-                "context": "admin",
+                "instance": "admin",
                 "expression": "el => el.textContent",
                 "selector": "#main",
             },
@@ -76,7 +78,7 @@ class TestBrowserEvaluate:
         result = await mcp_client.call_tool(
             "browser_evaluate",
             {
-                "context": "admin",
+                "instance": "admin",
                 "expression": "el => el",
                 "ref": "e1",
                 "selector": "#x",
@@ -92,7 +94,7 @@ class TestBrowserEvaluate:
         mock_ctx_mgr.get_modal_states = MagicMock(return_value=[{"kind": "dialog", "object": dialog, "page": page}])
         result = await mcp_client.call_tool(
             "browser_evaluate",
-            {"context": "admin", "expression": "1"},
+            {"instance": "admin", "expression": "1"},
         )
         assert result.data["error_type"] == "modal_state_blocked"
 
@@ -102,7 +104,7 @@ class TestBrowserRunCode:
         make_page(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_run_code",
-            {"context": "admin", "code": "return await page.title()"},
+            {"instance": "admin", "code": "return await page.title()"},
         )
         assert result.data["status"] in ("success", "error")
 
@@ -110,7 +112,7 @@ class TestBrowserRunCode:
         make_page(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_run_code",
-            {"context": "admin", "code": 'raise ValueError("boom")'},
+            {"instance": "admin", "code": 'raise ValueError("boom")'},
         )
         assert result.data["error_type"] == "evaluation_failed"
         msg = result.data["message"]
