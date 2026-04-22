@@ -55,7 +55,7 @@ class TestBrowserVerifyElementVisible:
         make_page(mock_ctx_mgr, visible=True)
         result = await mcp_client.call_tool(
             "browser_verify_element_visible",
-            {"context": "admin", "ref": "e1"},
+            {"instance": "admin", "ref": "e1"},
         )
         assert result.data["status"] == "success"
         assert result.data["data"]["visible"] is True
@@ -64,7 +64,7 @@ class TestBrowserVerifyElementVisible:
         make_page(mock_ctx_mgr, visible=False)
         result = await mcp_client.call_tool(
             "browser_verify_element_visible",
-            {"context": "admin", "ref": "e1"},
+            {"instance": "admin", "ref": "e1"},
         )
         assert result.data["error_type"] == "verification_failed"
 
@@ -88,7 +88,7 @@ class TestBrowserVerifyElementVisible:
         ):
             result = await mcp_client.call_tool(
                 "browser_verify_element_visible",
-                {"context": "admin", "ref": "e1"},
+                {"instance": "admin", "ref": "e1"},
             )
         assert result.data["status"] == "success"
         child_frame.locator.assert_called_once_with("aria-ref=e1")
@@ -98,7 +98,7 @@ class TestBrowserVerifyElementVisible:
         mock_ctx_mgr.get_modal_states = MagicMock(return_value=pending_dialog_states(page))
         result = await mcp_client.call_tool(
             "browser_verify_element_visible",
-            {"context": "admin", "ref": "e1"},
+            {"instance": "admin", "ref": "e1"},
         )
         assert result.data["error_type"] == "modal_state_blocked"
 
@@ -108,7 +108,7 @@ class TestBrowserVerifyListVisible:
         make_page(mock_ctx_mgr, visible=True)
         result = await mcp_client.call_tool(
             "browser_verify_list_visible",
-            {"context": "admin", "refs": ["e1", "e2", "e3"]},
+            {"instance": "admin", "refs": ["e1", "e2", "e3"]},
         )
         assert result.data["status"] == "success"
         assert result.data["data"]["visible_refs"] == ["e1", "e2", "e3"]
@@ -127,7 +127,7 @@ class TestBrowserVerifyListVisible:
 
         result = await mcp_client.call_tool(
             "browser_verify_list_visible",
-            {"context": "admin", "refs": ["e1", "e2", "e3"]},
+            {"instance": "admin", "refs": ["e1", "e2", "e3"]},
         )
         assert result.data["error_type"] == "verification_failed"
 
@@ -144,7 +144,7 @@ class TestBrowserVerifyListVisible:
         result = await mcp_client.call_tool(
             "browser_verify_list_visible",
             {
-                "context": "admin",
+                "instance": "admin",
                 "container_ref": "e3",
                 "items": ["foo", "bar"],
             },
@@ -172,7 +172,7 @@ class TestBrowserVerifyListVisible:
         result = await mcp_client.call_tool(
             "browser_verify_list_visible",
             {
-                "context": "admin",
+                "instance": "admin",
                 "container_ref": "e3",
                 "items": ["foo", "bar"],
             },
@@ -183,7 +183,7 @@ class TestBrowserVerifyListVisible:
         make_page(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_verify_list_visible",
-            {"context": "admin", "container_ref": "e3"},
+            {"instance": "admin", "container_ref": "e3"},
         )
         assert result.data["error_type"] == "invalid_params"
 
@@ -192,7 +192,7 @@ class TestBrowserVerifyListVisible:
         result = await mcp_client.call_tool(
             "browser_verify_list_visible",
             {
-                "context": "admin",
+                "instance": "admin",
                 "refs": ["e1"],
                 "container_ref": "e2",
                 "items": ["foo"],
@@ -204,7 +204,7 @@ class TestBrowserVerifyListVisible:
         make_page(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_verify_list_visible",
-            {"context": "admin"},
+            {"instance": "admin"},
         )
         assert result.data["error_type"] == "invalid_params"
 
@@ -212,7 +212,7 @@ class TestBrowserVerifyListVisible:
         make_page(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_verify_list_visible",
-            {"context": "admin", "refs": []},
+            {"instance": "admin", "refs": []},
         )
         assert result.data["error_type"] == "invalid_params"
 
@@ -220,7 +220,7 @@ class TestBrowserVerifyListVisible:
         make_page(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_verify_list_visible",
-            {"context": "admin", "container_ref": "e1", "items": []},
+            {"instance": "admin", "container_ref": "e1", "items": []},
         )
         assert result.data["error_type"] == "invalid_params"
 
@@ -230,7 +230,7 @@ class TestBrowserVerifyTextVisible:
         make_page(mock_ctx_mgr, text_present=True)
         result = await mcp_client.call_tool(
             "browser_verify_text_visible",
-            {"context": "admin", "text": "Welcome"},
+            {"instance": "admin", "text": "Welcome"},
         )
         assert result.data["status"] == "success"
 
@@ -238,7 +238,7 @@ class TestBrowserVerifyTextVisible:
         make_page(mock_ctx_mgr, text_present=False)
         result = await mcp_client.call_tool(
             "browser_verify_text_visible",
-            {"context": "admin", "text": "Welcome"},
+            {"instance": "admin", "text": "Welcome"},
         )
         assert result.data["error_type"] == "verification_failed"
 
@@ -257,7 +257,7 @@ class TestBrowserVerifyTextVisible:
 
         result = await mcp_client.call_tool(
             "browser_verify_text_visible",
-            {"context": "admin", "text": "Welcome"},
+            {"instance": "admin", "text": "Welcome"},
         )
         assert result.data["status"] == "success"
         child_frame.get_by_text.assert_called_once_with("Welcome")
@@ -266,7 +266,7 @@ class TestBrowserVerifyTextVisible:
         page, _ = make_page(mock_ctx_mgr, text_present=True)
         await mcp_client.call_tool(
             "browser_verify_text_visible",
-            {"context": "admin", "text": "Welcome"},
+            {"instance": "admin", "text": "Welcome"},
         )
         # Confirm we accessed .first on the get_by_text result.
         main_text_locator = page.main_frame.get_by_text.return_value
@@ -278,7 +278,7 @@ class TestBrowserVerifyTextVisible:
         mock_ctx_mgr.get_modal_states = MagicMock(return_value=pending_dialog_states(page))
         result = await mcp_client.call_tool(
             "browser_verify_text_visible",
-            {"context": "admin", "text": "Welcome"},
+            {"instance": "admin", "text": "Welcome"},
         )
         assert result.data["error_type"] == "modal_state_blocked"
 
@@ -288,7 +288,7 @@ class TestBrowserVerifyValue:
         make_page(mock_ctx_mgr, value="hello")
         result = await mcp_client.call_tool(
             "browser_verify_value",
-            {"context": "admin", "ref": "e1", "expected_value": "hello"},
+            {"instance": "admin", "ref": "e1", "expected_value": "hello"},
         )
         assert result.data["status"] == "success"
         assert result.data["data"]["value"] == "hello"
@@ -298,7 +298,7 @@ class TestBrowserVerifyValue:
         make_page(mock_ctx_mgr, value="actual")
         result = await mcp_client.call_tool(
             "browser_verify_value",
-            {"context": "admin", "ref": "e1", "expected_value": "expected"},
+            {"instance": "admin", "ref": "e1", "expected_value": "expected"},
         )
         assert result.data["error_type"] == "verification_failed"
 
@@ -307,7 +307,7 @@ class TestBrowserVerifyValue:
         result = await mcp_client.call_tool(
             "browser_verify_value",
             {
-                "context": "admin",
+                "instance": "admin",
                 "ref": "e1",
                 "expected_value": "true",
                 "element_type": "checkbox",
@@ -325,7 +325,7 @@ class TestBrowserVerifyValue:
         result = await mcp_client.call_tool(
             "browser_verify_value",
             {
-                "context": "admin",
+                "instance": "admin",
                 "ref": "e1",
                 "expected_value": "true",
                 "element_type": "checkbox",
@@ -338,7 +338,7 @@ class TestBrowserVerifyValue:
         result = await mcp_client.call_tool(
             "browser_verify_value",
             {
-                "context": "admin",
+                "instance": "admin",
                 "ref": "e1",
                 "expected_value": "1",
                 "element_type": "radio",
@@ -352,7 +352,7 @@ class TestBrowserVerifyValue:
         result = await mcp_client.call_tool(
             "browser_verify_value",
             {
-                "context": "admin",
+                "instance": "admin",
                 "ref": "e1",
                 "expected_value": "true",
                 "element_type": "bogus",
@@ -365,6 +365,6 @@ class TestBrowserVerifyValue:
         mock_ctx_mgr.get_modal_states = MagicMock(return_value=pending_dialog_states(page))
         result = await mcp_client.call_tool(
             "browser_verify_value",
-            {"context": "admin", "ref": "e1", "expected_value": "hello"},
+            {"instance": "admin", "ref": "e1", "expected_value": "hello"},
         )
         assert result.data["error_type"] == "modal_state_blocked"
