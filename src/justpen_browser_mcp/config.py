@@ -11,33 +11,31 @@ logger = logging.getLogger(__name__)
 class BrowserServerConfig:
     """Runtime configuration for the camoufox-mcp server.
 
-    Loaded once at server startup from environment variables. Defaults
-    are conservative (headless=True, log_level=INFO) and suitable for
-    Docker container execution.
+    Loaded once at server startup from environment variables.
     """
 
-    headless: bool = True
     log_level: str = "INFO"
+    max_instances: int = 10
 
     @classmethod
     def from_env(cls, env: Mapping[str, str]) -> "BrowserServerConfig":
         """Build a config from a dict-like env mapping (typically os.environ).
 
         Recognized variables:
-            BROWSER_MCP_HEADLESS: 'true' or 'false' (case-insensitive),
-                defaults to 'true'.
-            BROWSER_MCP_LOG_LEVEL: standard Python log level name,
-                defaults to 'INFO'.
+            BROWSER_MCP_LOG_LEVEL: standard Python log level name, defaults to 'INFO'.
+            BROWSER_MCP_MAX_INSTANCES: positive int cap on live instances, defaults to 10.
+                Invalid or non-positive values log a warning and fall back to the default.
         """
-        headless_raw = env.get("BROWSER_MCP_HEADLESS", "true").strip().lower()
-        if headless_raw not in ("true", "false"):
-            logger.warning(
-                "BROWSER_MCP_HEADLESS=%r is not 'true' or 'false', defaulting to 'true'",
-                headless_raw,
-            )
-            headless_raw = "true"
-        headless = headless_raw == "true"
-
         log_level = env.get("BROWSER_MCP_LOG_LEVEL", "INFO").strip().upper()
 
-        return cls(headless=headless, log_level=log_level)
+        raw = env.get("BROWSER_MCP_MAX_INSTANCES", "10").strip()
+        try:
+            max_instances = int(raw)
+        except ValueError:
+            logger.warning("BROWSER_MCP_MAX_INSTANCES=%r is not an int, defaulting to 10", raw)
+            max_instances = 10
+        if max_instances < 1:
+            logger.warning("BROWSER_MCP_MAX_INSTANCES=%d is not positive, defaulting to 10", max_instances)
+            max_instances = 10
+
+        return cls(log_level=log_level, max_instances=max_instances)
