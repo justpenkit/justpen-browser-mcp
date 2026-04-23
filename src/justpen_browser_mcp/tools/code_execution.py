@@ -10,19 +10,19 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from ..context_manager import ContextManager, assert_no_modal
 from ..errors import BrowserMcpError, EvaluationFailedError
+from ..instance_manager import InstanceManager, assert_no_modal
 from ..ref_resolver import resolve_ref
 from ..responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 
 
-def _register_browser_evaluate(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_evaluate(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
     async def browser_evaluate(
-        context: str,
+        instance: str,
         expression: str,
         ref: str | None = None,
         selector: str | None = None,
@@ -47,7 +47,7 @@ def _register_browser_evaluate(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             data: {"result": any}  — the JSON-serialized return value
 
         Errors:
-            context_not_found    — context does not exist
+            instance_not_found   — instance does not exist
             invalid_params       — both ref and selector were provided
             stale_ref            — ref no longer valid; take a fresh snapshot
             modal_state_blocked  — a dialog or file-chooser is pending; resolve it first
@@ -57,12 +57,12 @@ def _register_browser_evaluate(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         full async API (waiting for selectors, network conditions, etc.).
         """
         if ref is not None and selector is not None:
-            return error_response(context, "invalid_params", "provide ref or selector, not both")
+            return error_response(instance, "invalid_params", "provide ref or selector, not both")
         try:
-            await ctx_mgr.get(context)
-            async with ctx_mgr.lock_for(context):
-                assert_no_modal(ctx_mgr, context)
-                page = await ctx_mgr.active_page(context)
+            mgr.get(instance)
+            async with mgr.lock_for(instance):
+                assert_no_modal(mgr, instance)
+                page = await mgr.active_page(instance)
                 try:
                     if ref is not None:
                         locator = await resolve_ref(page, ref)
@@ -76,25 +76,25 @@ def _register_browser_evaluate(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
                     raise
                 except Exception as e:
                     raise EvaluationFailedError(str(e)) from e
-            return success_response(context, data={"result": result})
+            return success_response(instance, data={"result": result})
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_evaluate failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def _register_browser_run_code(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_run_code(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_run_code(context: str, code: str) -> dict[str, Any]:
+    async def browser_run_code(instance: str, code: str) -> dict[str, Any]:
         """Execute a Python async code snippet with full Playwright access.
 
         The snippet runs as the body of an async function. These locals are
         in scope:
             page    — the active Playwright Page object
             context — the Playwright BrowserContext object
-            ctx_mgr — the ContextManager (advanced use only)
+            mgr     — the InstanceManager (advanced use only)
 
         Use a `return` statement to return a value back to the agent.
         Any exception raised in the snippet is caught and returned as
@@ -104,7 +104,7 @@ def _register_browser_run_code(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             data: {"result": any}  — the return value of the snippet, or None
 
         Errors:
-            context_not_found    — context does not exist
+            instance_not_found   — instance does not exist
             modal_state_blocked  — a dialog or file chooser is pending
             evaluation_failed    — Python exception raised inside the snippet;
                                    error message includes the original traceback
@@ -112,29 +112,32 @@ def _register_browser_run_code(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
         Example code: `await page.wait_for_selector('#done'); return await page.title()`
         """
         try:
-            ctx = await ctx_mgr.get(context)
-            async with ctx_mgr.lock_for(context):
-                assert_no_modal(ctx_mgr, context)
-                page = await ctx_mgr.active_page(context)
-                wrapper = "async def _user_code(page, context, ctx_mgr):\n" + "\n".join(
+            rec = mgr.get(instance)
+            async with mgr.lock_for(instance):
+                assert_no_modal(mgr, instance)
+                page = await mgr.active_page(instance)
+                # Expose the Playwright BrowserContext as 'context' for backwards
+                # compatibility with existing code snippets that reference it by that name.
+                playwright_context = rec.context
+                wrapper = "async def _user_code(page, context, mgr):\n" + "\n".join(
                     "    " + line for line in code.split("\n")
                 )
                 try:
                     namespace: dict[str, Any] = {}
                     exec(wrapper, namespace)  # noqa: S102 — tool purpose: run agent-supplied Python against the browser
-                    result = await namespace["_user_code"](page, ctx, ctx_mgr)
+                    result = await namespace["_user_code"](page, playwright_context, mgr)
                 except Exception as e:
                     tb = traceback.format_exc()
                     raise EvaluationFailedError(f"run_code failed:\n{tb}") from e
-            return success_response(context, data={"result": result})
+            return success_response(instance, data={"result": result})
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_run_code failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def register(mcp: FastMCP, mgr: InstanceManager) -> None:
     """Register in-page code execution tools on the MCP server."""
-    _register_browser_evaluate(mcp, ctx_mgr)
-    _register_browser_run_code(mcp, ctx_mgr)
+    _register_browser_evaluate(mcp, mgr)
+    _register_browser_run_code(mcp, mgr)

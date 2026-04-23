@@ -10,7 +10,7 @@ Click the mouse at an absolute pixel position on the active page.
 
 ```python
 async def browser_mouse_click_xy(
-    context: str,
+    instance: str,
     x: int,
     y: int,
     button: str = "left",
@@ -23,7 +23,7 @@ async def browser_mouse_click_xy(
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 | `x` | `int` | — | Page-relative horizontal pixel coordinate (0 = left edge). |
 | `y` | `int` | — | Page-relative vertical pixel coordinate (0 = top edge). |
 | `button` | `str` | `"left"` | One of `"left"`, `"right"`, `"middle"`. |
@@ -38,7 +38,7 @@ async def browser_mouse_click_xy(
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 - `modal_state_blocked`
 - `internal_error`
 
@@ -47,13 +47,13 @@ async def browser_mouse_click_xy(
 Request:
 
 ```json
-{ "name": "browser_mouse_click_xy", "arguments": { "context": "main", "x": 120, "y": 340 } }
+{ "name": "browser_mouse_click_xy", "arguments": { "instance": "main", "x": 120, "y": 340 } }
 ```
 
 Response:
 
 ```json
-{ "status": "success", "context": "main", "data": { "clicked_at": [120, 340], "button": "left" } }
+{ "status": "success", "instance": "main", "data": { "clicked_at": [120, 340], "button": "left" } }
 ```
 
 **Notes** — Prefer `browser_click(ref=...)` when the target element is in the accessibility snapshot — it is more reliable and does not depend on exact layout coordinates.
@@ -65,14 +65,14 @@ Move the mouse cursor to an absolute pixel position without clicking.
 **Signature**
 
 ```python
-async def browser_mouse_move_xy(context: str, x: int, y: int) -> dict[str, Any]
+async def browser_mouse_move_xy(instance: str, x: int, y: int) -> dict[str, Any]
 ```
 
 **Parameters**
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 | `x` | `int` | — | Target horizontal pixel coordinate. |
 | `y` | `int` | — | Target vertical pixel coordinate. |
 
@@ -84,7 +84,7 @@ async def browser_mouse_move_xy(context: str, x: int, y: int) -> dict[str, Any]
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 - `modal_state_blocked`
 - `internal_error`
 
@@ -93,13 +93,13 @@ async def browser_mouse_move_xy(context: str, x: int, y: int) -> dict[str, Any]
 Request:
 
 ```json
-{ "name": "browser_mouse_move_xy", "arguments": { "context": "main", "x": 120, "y": 340 } }
+{ "name": "browser_mouse_move_xy", "arguments": { "instance": "main", "x": 120, "y": 340 } }
 ```
 
 Response:
 
 ```json
-{ "status": "success", "context": "main", "data": { "moved_to": [120, 340] } }
+{ "status": "success", "instance": "main", "data": { "moved_to": [120, 340] } }
 ```
 
 **Notes** — Useful for triggering hover effects at specific coordinates. Prefer `browser_hover(ref=...)` when the target is in the accessibility snapshot. Use before `browser_mouse_wheel` when targeting a specific scrollable container.
@@ -111,14 +111,14 @@ Press a mouse button down without releasing it.
 **Signature**
 
 ```python
-async def browser_mouse_down(context: str, button: str = "left") -> dict[str, Any]
+async def browser_mouse_down(instance: str, button: str = "left") -> dict[str, Any]
 ```
 
 **Parameters**
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 | `button` | `str` | `"left"` | One of `"left"`, `"right"`, `"middle"`. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
@@ -129,7 +129,7 @@ async def browser_mouse_down(context: str, button: str = "left") -> dict[str, An
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 - `modal_state_blocked`
 - `internal_error`
 
@@ -138,13 +138,13 @@ async def browser_mouse_down(context: str, button: str = "left") -> dict[str, An
 Request:
 
 ```json
-{ "name": "browser_mouse_down", "arguments": { "context": "main", "button": "left" } }
+{ "name": "browser_mouse_down", "arguments": { "instance": "main", "button": "left" } }
 ```
 
 Response:
 
 ```json
-{ "status": "success", "context": "main", "data": { "button_down": "left" } }
+{ "status": "success", "instance": "main", "data": { "button_down": "left" } }
 ```
 
 **Notes** — Pair with `browser_mouse_up` to complete a press-and-release sequence. For drag operations, prefer `browser_mouse_drag_xy` which handles the full sequence.
@@ -156,14 +156,14 @@ Release a previously pressed mouse button.
 **Signature**
 
 ```python
-async def browser_mouse_up(context: str, button: str = "left") -> dict[str, Any]
+async def browser_mouse_up(instance: str, button: str = "left") -> dict[str, Any]
 ```
 
 **Parameters**
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 | `button` | `str` | `"left"` | Must match the button passed to `browser_mouse_down`. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
@@ -174,7 +174,7 @@ async def browser_mouse_up(context: str, button: str = "left") -> dict[str, Any]
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 - `modal_state_blocked`
 - `internal_error`
 
@@ -183,13 +183,13 @@ async def browser_mouse_up(context: str, button: str = "left") -> dict[str, Any]
 Request:
 
 ```json
-{ "name": "browser_mouse_up", "arguments": { "context": "main", "button": "left" } }
+{ "name": "browser_mouse_up", "arguments": { "instance": "main", "button": "left" } }
 ```
 
 Response:
 
 ```json
-{ "status": "success", "context": "main", "data": { "button_up": "left" } }
+{ "status": "success", "instance": "main", "data": { "button_up": "left" } }
 ```
 
 ## browser_mouse_drag_xy
@@ -199,14 +199,14 @@ Drag the mouse from one absolute pixel position to another.
 **Signature**
 
 ```python
-async def browser_mouse_drag_xy(context: str, from_x: int, from_y: int, to_x: int, to_y: int) -> dict[str, Any]
+async def browser_mouse_drag_xy(instance: str, from_x: int, from_y: int, to_x: int, to_y: int) -> dict[str, Any]
 ```
 
 **Parameters**
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 | `from_x` | `int` | — | Starting horizontal pixel coordinate. |
 | `from_y` | `int` | — | Starting vertical pixel coordinate. |
 | `to_x` | `int` | — | Ending horizontal pixel coordinate. |
@@ -220,7 +220,7 @@ async def browser_mouse_drag_xy(context: str, from_x: int, from_y: int, to_x: in
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 - `modal_state_blocked`
 - `internal_error`
 
@@ -229,13 +229,13 @@ async def browser_mouse_drag_xy(context: str, from_x: int, from_y: int, to_x: in
 Request:
 
 ```json
-{ "name": "browser_mouse_drag_xy", "arguments": { "context": "main", "from_x": 50, "from_y": 100, "to_x": 300, "to_y": 100 } }
+{ "name": "browser_mouse_drag_xy", "arguments": { "instance": "main", "from_x": 50, "from_y": 100, "to_x": 300, "to_y": 100 } }
 ```
 
 Response:
 
 ```json
-{ "status": "success", "context": "main", "data": { "from": [50, 100], "to": [300, 100] } }
+{ "status": "success", "instance": "main", "data": { "from": [50, 100], "to": [300, 100] } }
 ```
 
 **Notes** — Performs: move to (`from_x`, `from_y`), press left button, move to (`to_x`, `to_y`), release. For element-to-element drag, prefer `browser_drag(source_ref, target_ref)` which uses accessibility refs and is more stable across layout changes.
@@ -247,14 +247,14 @@ Scroll the mouse wheel by the given pixel deltas at the current cursor position.
 **Signature**
 
 ```python
-async def browser_mouse_wheel(context: str, delta_x: int = 0, delta_y: int = 0) -> dict[str, Any]
+async def browser_mouse_wheel(instance: str, delta_x: int = 0, delta_y: int = 0) -> dict[str, Any]
 ```
 
 **Parameters**
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 | `delta_x` | `int` | `0` | Horizontal scroll in CSS pixels (positive = right). |
 | `delta_y` | `int` | `0` | Vertical scroll in CSS pixels (positive = down). |
 
@@ -266,7 +266,7 @@ async def browser_mouse_wheel(context: str, delta_x: int = 0, delta_y: int = 0) 
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 - `invalid_params`
 - `modal_state_blocked`
 - `internal_error`
@@ -276,13 +276,13 @@ async def browser_mouse_wheel(context: str, delta_x: int = 0, delta_y: int = 0) 
 Request:
 
 ```json
-{ "name": "browser_mouse_wheel", "arguments": { "context": "main", "delta_y": 300 } }
+{ "name": "browser_mouse_wheel", "arguments": { "instance": "main", "delta_y": 300 } }
 ```
 
 Response:
 
 ```json
-{ "status": "success", "context": "main", "data": { "scrolled": [0, 300] } }
+{ "status": "success", "instance": "main", "data": { "scrolled": [0, 300] } }
 ```
 
 **Notes** — At least one of `delta_x` or `delta_y` must be non-zero; providing both as `0` returns an `invalid_params` error immediately. The scroll is delivered at the current cursor position — call `browser_mouse_move_xy` first to target a specific scrollable container.

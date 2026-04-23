@@ -12,8 +12,8 @@ if TYPE_CHECKING:
 
     from playwright._impl._api_structures import SetCookieParam
 
-from ..context_manager import ContextManager
 from ..errors import BrowserMcpError, InvalidParamsError
+from ..instance_manager import InstanceManager
 from ..responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
@@ -38,19 +38,19 @@ def _verify_origin(page_url: str, requested_origin: str) -> None:
         )
 
 
-def _register_browser_get_cookies(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_get_cookies(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
     async def browser_get_cookies(
-        context: str,
+        instance: str,
         urls: list[str] | None = None,
         name: str | None = None,
     ) -> dict[str, Any]:
-        """Return cookies stored in the context, optionally filtered by URL and name.
+        """Return cookies stored in the instance, optionally filtered by URL and name.
 
         urls is a list of full URLs (e.g. ["https://example.com"]). When provided,
         only cookies applicable to those URLs are returned (matching domain/path rules).
-        When omitted, all cookies in the context are returned. When ``name`` is
+        When omitted, all cookies in the instance are returned. When ``name`` is
         given, the result is further filtered to cookies whose ``name`` matches
         exactly — an empty list is returned if none match (this is not an error).
 
@@ -60,34 +60,35 @@ def _register_browser_get_cookies(mcp: FastMCP, ctx_mgr: ContextManager) -> None
                                  "secure": bool, "sameSite": str}, ...]}
 
         Errors:
-            context_not_found — context does not exist
+            instance_not_found — instance does not exist
         """
         try:
-            ctx = await ctx_mgr.get(context)
-            async with ctx_mgr.lock_for(context):
+            rec = mgr.get(instance)
+            ctx = rec.context
+            async with mgr.lock_for(instance):
                 if urls is not None:
                     cookies = await ctx.cookies(urls)
                 else:
                     cookies = await ctx.cookies()
             if name is not None:
                 cookies = [c for c in cookies if c.get("name") == name]
-            return success_response(context, data={"cookies": cookies})
+            return success_response(instance, data={"cookies": cookies})
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except (PlaywrightError, OSError, RuntimeError, ValueError, TypeError) as e:
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def _register_browser_set_cookies(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_set_cookies(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_set_cookies(context: str, cookies: list[dict[str, Any]]) -> dict[str, Any]:
-        """Add or update cookies on the context using Playwright cookie format.
+    async def browser_set_cookies(instance: str, cookies: list[dict[str, Any]]) -> dict[str, Any]:
+        """Add or update cookies on the instance using Playwright cookie format.
 
         Each cookie dict must have at minimum: name, value. Playwright also
         requires either ``domain`` (with ``path``) OR ``url`` to identify
         which site the cookie belongs to — supplying either is fine. When
-        both are omitted, the context's active page hostname is used as a
+        both are omitted, the instance's active page hostname is used as a
         default ``domain`` (if a page exists).
         Optional fields: path (default "/"), expires (Unix timestamp), httpOnly,
         secure, sameSite ("Strict"|"Lax"|"None").
@@ -96,19 +97,19 @@ def _register_browser_set_cookies(mcp: FastMCP, ctx_mgr: ContextManager) -> None
             data: {"set_count": int}  — number of cookies applied
 
         Errors:
-            context_not_found — context does not exist
-            invalid_params    — cookie has neither domain nor url and no
-                                active page exists to default from
+            instance_not_found — instance does not exist
+            invalid_params     — cookie has neither domain nor url and no
+                                 active page exists to default from
 
-        Cookies set here affect all pages in the context immediately. To persist
-        them across sessions, call browser_export_context_state afterward.
+        Cookies set here affect all pages in the instance immediately.
         """
         try:
-            ctx = await ctx_mgr.get(context)
-            async with ctx_mgr.lock_for(context):
+            rec = mgr.get(instance)
+            ctx = rec.context
+            async with mgr.lock_for(instance):
                 default_domain: str | None = None
                 if ctx.pages:
-                    active_page = await ctx_mgr.active_page(context)
+                    active_page = await mgr.active_page(instance)
                     parsed = urlparse(active_page.url)
                     default_domain = parsed.hostname
                 processed: list[dict[str, Any]] = []
@@ -119,7 +120,7 @@ def _register_browser_set_cookies(mcp: FastMCP, ctx_mgr: ContextManager) -> None
                     if not has_domain and not has_url:
                         if default_domain is None:
                             return error_response(
-                                context,
+                                instance,
                                 "invalid_params",
                                 f"cookie {normalized.get('name')!r} has neither "
                                 "domain nor url, and no active page to default from",
@@ -129,52 +130,53 @@ def _register_browser_set_cookies(mcp: FastMCP, ctx_mgr: ContextManager) -> None
                         normalized = {**normalized, "path": "/"}
                     processed.append(normalized)
                 await ctx.add_cookies(cast("Sequence[SetCookieParam]", processed))
-            return success_response(context, data={"set_count": len(processed)})
+            return success_response(instance, data={"set_count": len(processed)})
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except (PlaywrightError, OSError, RuntimeError, ValueError, TypeError) as e:
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def _register_browser_clear_cookies(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_clear_cookies(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_clear_cookies(context: str) -> dict[str, Any]:
-        """Remove all cookies from the context.
+    async def browser_clear_cookies(instance: str) -> dict[str, Any]:
+        """Remove all cookies from the instance.
 
         All cookies across all domains are deleted. Pages currently loaded
-        in the context are not reloaded — the deletion takes effect on the
+        in the instance are not reloaded — the deletion takes effect on the
         next request that would send cookies.
 
         Returns on success:
             data: {"cleared": True}
 
         Errors:
-            context_not_found — context does not exist
+            instance_not_found — instance does not exist
         """
         try:
-            ctx = await ctx_mgr.get(context)
-            async with ctx_mgr.lock_for(context):
+            rec = mgr.get(instance)
+            ctx = rec.context
+            async with mgr.lock_for(instance):
                 await ctx.clear_cookies()
-            return success_response(context, data={"cleared": True})
+            return success_response(instance, data={"cleared": True})
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except (PlaywrightError, OSError, RuntimeError, ValueError, TypeError) as e:
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def _register_browser_get_local_storage(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_get_local_storage(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
     async def browser_get_local_storage(
-        context: str,
+        instance: str,
         origin: str,
         key: str | None = None,
     ) -> dict[str, Any]:
         """Read localStorage for the given origin.
 
         Opens a temporary page that navigates to origin, reads localStorage,
-        then closes — the context's active page is not disturbed.
+        then closes — the instance's active page is not disturbed.
         origin must be a fully-qualified URL including scheme (e.g. "https://example.com").
         When ``key`` is provided, only the value for that key is returned
         (``None`` if the key does not exist).
@@ -186,12 +188,13 @@ def _register_browser_get_local_storage(mcp: FastMCP, ctx_mgr: ContextManager) -
                 data: {"key": str, "value": str | None, "origin": str}
 
         Errors:
-            context_not_found — context does not exist
+            instance_not_found — instance does not exist
             internal_error    — navigation to origin failed (e.g. network error)
         """
         try:
-            ctx = await ctx_mgr.get(context)
-            async with ctx_mgr.lock_for(context):
+            rec = mgr.get(instance)
+            ctx = rec.context
+            async with mgr.lock_for(instance):
                 page = await ctx.new_page()
                 try:
                     await page.goto(origin)
@@ -199,7 +202,7 @@ def _register_browser_get_local_storage(mcp: FastMCP, ctx_mgr: ContextManager) -
                     if key is not None:
                         value = await page.evaluate("(k) => localStorage.getItem(k)", key)
                         return success_response(
-                            context,
+                            instance,
                             data={"key": key, "value": value, "origin": origin},
                         )
                     items = await page.evaluate(
@@ -210,34 +213,35 @@ def _register_browser_get_local_storage(mcp: FastMCP, ctx_mgr: ContextManager) -
                     )
                 finally:
                     await page.close()
-            return success_response(context, data={"items": items, "origin": origin})
+            return success_response(instance, data={"items": items, "origin": origin})
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_get_local_storage failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def _register_browser_set_local_storage(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_set_local_storage(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_set_local_storage(context: str, origin: str, items: dict[str, str]) -> dict[str, Any]:
+    async def browser_set_local_storage(instance: str, origin: str, items: dict[str, str]) -> dict[str, Any]:
         """Set localStorage key-value pairs for the given origin.
 
         Opens a temporary page that navigates to origin, sets each item via
-        localStorage.setItem, then closes — the context's active page is not disturbed.
+        localStorage.setItem, then closes — the instance's active page is not disturbed.
         All values must be strings (localStorage only stores strings).
 
         Returns on success:
             data: {"set_count": int, "origin": str}
 
         Errors:
-            context_not_found — context does not exist
+            instance_not_found — instance does not exist
             internal_error    — navigation to origin failed
         """
         try:
-            ctx = await ctx_mgr.get(context)
-            async with ctx_mgr.lock_for(context):
+            rec = mgr.get(instance)
+            ctx = rec.context
+            async with mgr.lock_for(instance):
                 page = await ctx.new_page()
                 try:
                     await page.goto(origin)
@@ -249,27 +253,27 @@ def _register_browser_set_local_storage(mcp: FastMCP, ctx_mgr: ContextManager) -
                 finally:
                     await page.close()
             return success_response(
-                context,
+                instance,
                 data={"set_count": len(items), "origin": origin},
             )
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_set_local_storage failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def _register_browser_clear_local_storage(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_clear_local_storage(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
     async def browser_clear_local_storage(
-        context: str,
+        instance: str,
         origin: str | None = None,
     ) -> dict[str, Any]:
         """Clear localStorage entries.
 
         When ``origin`` is provided, opens a temporary page that navigates
-        to origin, calls localStorage.clear(), then closes — the context's
+        to origin, calls localStorage.clear(), then closes — the instance's
         active page is not disturbed. ``origin`` must be a fully-qualified
         URL including scheme.
 
@@ -281,16 +285,17 @@ def _register_browser_clear_local_storage(mcp: FastMCP, ctx_mgr: ContextManager)
             data: {"cleared": True, "origin": str}  — the origin URL that was cleared
 
         Errors:
-            context_not_found — context does not exist
+            instance_not_found — instance does not exist
             internal_error    — navigation to origin failed
         """
         try:
-            ctx = await ctx_mgr.get(context)
-            async with ctx_mgr.lock_for(context):
+            rec = mgr.get(instance)
+            ctx = rec.context
+            async with mgr.lock_for(instance):
                 if origin is None:
-                    page = await ctx_mgr.active_page(context)
+                    page = await mgr.active_page(instance)
                     await page.evaluate("() => localStorage.clear()")
-                    return success_response(context, data={"cleared": True, "origin": page.url})
+                    return success_response(instance, data={"cleared": True, "origin": page.url})
                 page = await ctx.new_page()
                 try:
                     await page.goto(origin)
@@ -298,19 +303,19 @@ def _register_browser_clear_local_storage(mcp: FastMCP, ctx_mgr: ContextManager)
                     await page.evaluate("() => localStorage.clear()")
                 finally:
                     await page.close()
-            return success_response(context, data={"cleared": True, "origin": origin})
+            return success_response(instance, data={"cleared": True, "origin": origin})
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_clear_local_storage failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def register(mcp: FastMCP, mgr: InstanceManager) -> None:
     """Register cookie and web storage tools on the MCP server."""
-    _register_browser_get_cookies(mcp, ctx_mgr)
-    _register_browser_set_cookies(mcp, ctx_mgr)
-    _register_browser_clear_cookies(mcp, ctx_mgr)
-    _register_browser_get_local_storage(mcp, ctx_mgr)
-    _register_browser_set_local_storage(mcp, ctx_mgr)
-    _register_browser_clear_local_storage(mcp, ctx_mgr)
+    _register_browser_get_cookies(mcp, mgr)
+    _register_browser_set_cookies(mcp, mgr)
+    _register_browser_clear_cookies(mcp, mgr)
+    _register_browser_get_local_storage(mcp, mgr)
+    _register_browser_set_local_storage(mcp, mgr)
+    _register_browser_clear_local_storage(mcp, mgr)

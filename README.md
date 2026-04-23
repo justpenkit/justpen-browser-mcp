@@ -1,12 +1,13 @@
 # justpen-browser-mcp
 
-Camoufox-based MCP server with multi-context browser session isolation.
+Camoufox-based MCP server with multi-instance browser isolation.
 
 Exposes a stealth-patched Firefox (via [Camoufox](https://github.com/daijro/camoufox))
-to MCP-aware clients as a set of browser automation tools. Each named context
-is a fully isolated `BrowserContext` — cookies, storage, and cache do not leak
-between contexts — so a single server process can drive parallel logged-in
-flows for different users or tenants.
+to MCP-aware clients as a set of browser automation tools. Each named instance
+runs in its own Camoufox process with its own BrowserForge fingerprint and
+(optionally) its own persistent profile on disk, so a single server can drive
+fully isolated parallel sessions for different users, tenants, or pentest
+identities.
 
 ## Install
 
@@ -29,8 +30,8 @@ Full docs are on the MkDocs site: **<https://justpenkit.github.io/justpen-browse
 
 - [Install](https://justpenkit.github.io/justpen-browser-mcp/getting-started/install/) · [Run the server](https://justpenkit.github.io/justpen-browser-mcp/getting-started/run-server/) · [Configuration](https://justpenkit.github.io/justpen-browser-mcp/getting-started/configuration/)
 - Client setup: [Claude Code](https://justpenkit.github.io/justpen-browser-mcp/client-setup/claude-code/) · [Copilot CLI](https://justpenkit.github.io/justpen-browser-mcp/client-setup/copilot-cli/) · [Gemini CLI](https://justpenkit.github.io/justpen-browser-mcp/client-setup/gemini-cli/)
-- Concepts: [Response envelope](https://justpenkit.github.io/justpen-browser-mcp/concepts/response-envelope/) · [Contexts & isolation](https://justpenkit.github.io/justpen-browser-mcp/concepts/contexts-isolation/) · [Refs & snapshots](https://justpenkit.github.io/justpen-browser-mcp/concepts/refs-snapshots/) · [Modal state](https://justpenkit.github.io/justpen-browser-mcp/concepts/modal-state/)
-- [Tools reference](https://justpenkit.github.io/justpen-browser-mcp/tools-reference/lifecycle/) — lifecycle, navigation, interaction, mouse, inspection, verification, code execution, cookies, utility, page, server
+- Concepts: [Response envelope](https://justpenkit.github.io/justpen-browser-mcp/concepts/response-envelope/) · [Instances & isolation](https://justpenkit.github.io/justpen-browser-mcp/concepts/instances-isolation/) · [Refs & snapshots](https://justpenkit.github.io/justpen-browser-mcp/concepts/refs-snapshots/) · [Modal state](https://justpenkit.github.io/justpen-browser-mcp/concepts/modal-state/)
+- [Tools reference](https://justpenkit.github.io/justpen-browser-mcp/tools-reference/lifecycle/) — lifecycle, navigation, interaction, mouse, inspection, verification, code execution, cookies, utility, page
 
 ## Contributing
 

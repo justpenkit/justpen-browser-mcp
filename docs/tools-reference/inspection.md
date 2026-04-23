@@ -1,6 +1,6 @@
 # Inspection tools
 
-Inspection tools let you observe the current state of a browser context — its accessibility tree, visual appearance, console output, and network activity. `browser_snapshot` is the primary tool: it returns an LLM-friendly YAML accessibility tree where every interactive element carries a `[ref=eN]` tag that other tools consume to click, type, or drag without pixel coordinates. These refs are session-scoped and invalidated by navigation; see [Refs & snapshots](../concepts/refs-snapshots.md) for a full explanation of the ref lifecycle. Use `browser_screenshot` when visual fidelity matters, and `browser_console_messages` / `browser_network_requests` for debugging JavaScript errors and API calls.
+Inspection tools let you observe the current state of a browser instance — its accessibility tree, visual appearance, console output, and network activity. `browser_snapshot` is the primary tool: it returns an LLM-friendly YAML accessibility tree where every interactive element carries a `[ref=eN]` tag that other tools consume to click, type, or drag without pixel coordinates. These refs are session-scoped and invalidated by navigation; see [Refs & snapshots](../concepts/refs-snapshots.md) for a full explanation of the ref lifecycle. Use `browser_screenshot` when visual fidelity matters, and `browser_console_messages` / `browser_network_requests` for debugging JavaScript errors and API calls.
 
 ## browser_snapshot
 
@@ -9,14 +9,14 @@ Capture an accessibility snapshot of the active page in LLM-friendly YAML.
 **Signature**
 
 ```python
-async def browser_snapshot(context: str, selector: str | None = None) -> dict[str, Any]
+async def browser_snapshot(instance: str, selector: str | None = None) -> dict[str, Any]
 ```
 
 **Parameters**
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 | `selector` | `str \| None` | `None` | Optional CSS or aria selector to scope the snapshot to a subtree. When provided, refs are **not** included in the output. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
@@ -27,7 +27,7 @@ async def browser_snapshot(context: str, selector: str | None = None) -> dict[st
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 - `modal_state_blocked`
 - `internal_error`
 
@@ -36,7 +36,7 @@ async def browser_snapshot(context: str, selector: str | None = None) -> dict[st
 Request:
 
 ```json
-{ "name": "browser_snapshot", "arguments": { "context": "main" } }
+{ "name": "browser_snapshot", "arguments": { "instance": "main" } }
 ```
 
 Response:
@@ -44,7 +44,7 @@ Response:
 ```json
 {
   "status": "success",
-  "context": "main",
+  "instance": "main",
   "data": {
     "snapshot": "- button \"Submit\" [ref=e12]\n- textbox \"Email\" [ref=e7]",
     "url": "https://example.com/login"
@@ -62,7 +62,7 @@ Take a visual screenshot of the active page and return it as base64.
 
 ```python
 async def browser_screenshot(
-    context: str,
+    instance: str,
     image_format: str = "png",
     *,
     full_page: bool = False,
@@ -73,7 +73,7 @@ async def browser_screenshot(
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 | `image_format` | `str` | `"png"` | `"png"` (lossless) or `"jpeg"` (lossy, smaller). |
 | `full_page` | `bool` | `False` | Capture the entire scrollable page instead of just the current viewport. |
 
@@ -92,7 +92,7 @@ async def browser_screenshot(
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 - `invalid_params` — `image_format` is not `"png"` or `"jpeg"`
 - `modal_state_blocked`
 - `internal_error`
@@ -102,7 +102,7 @@ async def browser_screenshot(
 Request:
 
 ```json
-{ "name": "browser_screenshot", "arguments": { "context": "main", "image_format": "jpeg" } }
+{ "name": "browser_screenshot", "arguments": { "instance": "main", "image_format": "jpeg" } }
 ```
 
 Response:
@@ -110,7 +110,7 @@ Response:
 ```json
 {
   "status": "success",
-  "context": "main",
+  "instance": "main",
   "data": {
     "image_base64": "/9j/4AAQ...",
     "image_format": "jpeg",
@@ -124,19 +124,19 @@ Response:
 
 ## browser_console_messages
 
-Return all console messages collected since the context was created.
+Return all console messages collected since the instance was created.
 
 **Signature**
 
 ```python
-async def browser_console_messages(context: str, level: str | None = None) -> dict[str, Any]
+async def browser_console_messages(instance: str, level: str | None = None) -> dict[str, Any]
 ```
 
 **Parameters**
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 | `level` | `str \| None` | `None` | Filter by message type. Valid values: `"log"`, `"info"`, `"warning"`, `"error"`, `"debug"`. `None` returns all messages. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
@@ -152,7 +152,7 @@ async def browser_console_messages(context: str, level: str | None = None) -> di
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 - `invalid_params` — `level` is not one of the recognised values
 
 **Example**
@@ -160,7 +160,7 @@ async def browser_console_messages(context: str, level: str | None = None) -> di
 Request:
 
 ```json
-{ "name": "browser_console_messages", "arguments": { "context": "main", "level": "error" } }
+{ "name": "browser_console_messages", "arguments": { "instance": "main", "level": "error" } }
 ```
 
 Response:
@@ -168,7 +168,7 @@ Response:
 ```json
 {
   "status": "success",
-  "context": "main",
+  "instance": "main",
   "data": {
     "messages": [
       { "type": "error", "text": "Uncaught ReferenceError: foo is not defined", "location": "https://example.com/app.js:42:8" }
@@ -177,17 +177,17 @@ Response:
 }
 ```
 
-**Notes** — The buffer is cumulative and never cleared — it includes all messages across all pages and all navigations in the context (not just since the last navigation). Uncaught page errors are captured as `type="error"` entries with `location=null`. Useful for diagnosing JavaScript errors or confirming page-side logging without opening DevTools.
+**Notes** — The buffer is cumulative and never cleared — it includes all messages across all pages and all navigations in the instance (not just since the last navigation). Uncaught page errors are captured as `type="error"` entries with `location=null`. Useful for diagnosing JavaScript errors or confirming page-side logging without opening DevTools.
 
 ## browser_network_requests
 
-Return all network requests collected since the context was created.
+Return all network requests collected since the instance was created.
 
 **Signature**
 
 ```python
 async def browser_network_requests(
-    context: str,
+    instance: str,
     url_filter: str | None = None,
     *,
     static: bool = False,
@@ -198,7 +198,7 @@ async def browser_network_requests(
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 | `url_filter` | `str \| None` | `None` | Python regular expression. Only requests whose URL matches are returned. Applied after the static filter. An invalid regex returns `invalid_params`. |
 | `static` | `bool` | `False` | When `False` (default), static asset requests (image, font, stylesheet, media, manifest) are filtered out. Pass `True` to include them. |
 
@@ -217,7 +217,7 @@ async def browser_network_requests(
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 - `invalid_params` — `url_filter` is not a valid regular expression
 
 **Example**
@@ -225,7 +225,7 @@ async def browser_network_requests(
 Request:
 
 ```json
-{ "name": "browser_network_requests", "arguments": { "context": "main", "url_filter": "/api/" } }
+{ "name": "browser_network_requests", "arguments": { "instance": "main", "url_filter": "/api/" } }
 ```
 
 Response:
@@ -233,7 +233,7 @@ Response:
 ```json
 {
   "status": "success",
-  "context": "main",
+  "instance": "main",
   "data": {
     "requests": [
       { "url": "https://example.com/api/users", "method": "GET", "status": 200, "resource_type": "fetch", "failure": null }
@@ -242,4 +242,4 @@ Response:
 }
 ```
 
-**Notes** — The buffer is cumulative and never cleared — it covers all requests across all pages and all navigations in the context. By default, static resource types (image, font, stylesheet, media, manifest) are filtered out to reduce noise; pass `static=True` to include everything. Useful for verifying API calls were made, checking redirect chains, or diagnosing network errors during page load.
+**Notes** — The buffer is cumulative and never cleared — it covers all requests across all pages and all navigations in the instance. By default, static resource types (image, font, stylesheet, media, manifest) are filtered out to reduce noise; pass `static=True` to include everything. Useful for verifying API calls were made, checking redirect chains, or diagnosing network errors during page load.

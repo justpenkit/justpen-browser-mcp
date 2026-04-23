@@ -7,11 +7,11 @@ from fastmcp import FastMCP
 from playwright.async_api import Error as PlaywrightError, Locator, Page
 
 from ..coercion import coerce_bool
-from ..context_manager import ContextManager, assert_no_modal
 from ..errors import (
     BrowserMcpError,
     StaleRefError,
 )
+from ..instance_manager import InstanceManager, assert_no_modal
 from ..ref_resolver import resolve_ref
 from ..responses import error_response, success_response
 
@@ -92,10 +92,10 @@ async def _verify_items_in_container(
     return missing
 
 
-def _register_browser_verify_element_visible(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_verify_element_visible(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_verify_element_visible(context: str, ref: str) -> dict[str, Any]:
+    async def browser_verify_element_visible(instance: str, ref: str) -> dict[str, Any]:
         """Verify that the element identified by ref is currently visible on the page.
 
         ref is a [ref=eN] value from browser_snapshot. The check is synchronous
@@ -106,7 +106,7 @@ def _register_browser_verify_element_visible(mcp: FastMCP, ctx_mgr: ContextManag
             data: {"visible": True, "ref": str}
 
         Errors:
-            context_not_found    — context does not exist
+            instance_not_found   — instance does not exist
             modal_state_blocked  — a pending dialog blocks the page
             stale_ref            — ref is no longer in the accessibility tree
             verification_failed  — element exists but is not currently visible
@@ -114,27 +114,27 @@ def _register_browser_verify_element_visible(mcp: FastMCP, ctx_mgr: ContextManag
         Use browser_wait_for(text=...) first if the element may not have appeared yet.
         """
         try:
-            await ctx_mgr.get(context)
-            async with ctx_mgr.lock_for(context):
-                assert_no_modal(ctx_mgr, context)
-                page = await ctx_mgr.active_page(context)
+            mgr.get(instance)
+            async with mgr.lock_for(instance):
+                assert_no_modal(mgr, instance)
+                page = await mgr.active_page(instance)
                 locator = await _resolve_ref_in_any_frame(page, ref)
                 visible = await locator.is_visible()
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_verify_element_visible failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
         if not visible:
-            return error_response(context, "verification_failed", f"Element {ref} is not visible")
-        return success_response(context, data={"visible": True, "ref": ref})
+            return error_response(instance, "verification_failed", f"Element {ref} is not visible")
+        return success_response(instance, data={"visible": True, "ref": ref})
 
 
-def _register_browser_verify_list_visible(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_verify_list_visible(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
     async def browser_verify_list_visible(
-        context: str,
+        instance: str,
         refs: list[str] | None = None,
         container_ref: str | None = None,
         items: list[str] | None = None,
@@ -153,7 +153,7 @@ def _register_browser_verify_list_visible(mcp: FastMCP, ctx_mgr: ContextManager)
             container mode: data: {"container_ref": str, "verified_items": list[str]}
 
         Errors:
-            context_not_found    — context does not exist
+            instance_not_found   — instance does not exist
             modal_state_blocked  — a pending dialog blocks the page
             invalid_params       — neither/both modes supplied, or container_ref
                                    without items
@@ -164,51 +164,51 @@ def _register_browser_verify_list_visible(mcp: FastMCP, ctx_mgr: ContextManager)
         """
         validation_error = _validate_list_visible_params(refs, container_ref, items)
         if validation_error is not None:
-            return error_response(context, "invalid_params", validation_error)
+            return error_response(instance, "invalid_params", validation_error)
 
         try:
-            await ctx_mgr.get(context)
-            async with ctx_mgr.lock_for(context):
-                assert_no_modal(ctx_mgr, context)
-                page = await ctx_mgr.active_page(context)
+            mgr.get(instance)
+            async with mgr.lock_for(instance):
+                assert_no_modal(mgr, instance)
+                page = await mgr.active_page(instance)
 
                 if refs is not None:
                     missing = await _verify_refs_visible(page, refs)
                     if missing:
                         return error_response(
-                            context,
+                            instance,
                             "verification_failed",
                             f"These refs are not visible: {missing}",
                         )
-                    return success_response(context, data={"visible_refs": refs})
+                    return success_response(instance, data={"visible_refs": refs})
 
                 if container_ref is None or items is None:
-                    return error_response(context, "invalid_params", "container_ref and items are required")
+                    return error_response(instance, "invalid_params", "container_ref and items are required")
                 missing_items = await _verify_items_in_container(page, container_ref, items)
                 if missing_items:
                     return error_response(
-                        context,
+                        instance,
                         "verification_failed",
                         f"These items are not visible in container: {missing_items}",
                     )
                 return success_response(
-                    context,
+                    instance,
                     data={
                         "container_ref": container_ref,
                         "verified_items": items,
                     },
                 )
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_verify_list_visible failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def _register_browser_verify_text_visible(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_verify_text_visible(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_verify_text_visible(context: str, text: str) -> dict[str, Any]:
+    async def browser_verify_text_visible(instance: str, text: str) -> dict[str, Any]:
         """Verify that the given text is currently visible somewhere on the active page.
 
         The check is synchronous — the text must be visible at the moment of the call.
@@ -220,17 +220,17 @@ def _register_browser_verify_text_visible(mcp: FastMCP, ctx_mgr: ContextManager)
             data: {"text": str, "visible": True}
 
         Errors:
-            context_not_found    — context does not exist
+            instance_not_found   — instance does not exist
             modal_state_blocked  — a pending dialog blocks the page
             verification_failed  — the text is not visible on any frame of the page
 
         Use browser_wait_for(text=...) if the text may not have appeared yet.
         """
         try:
-            await ctx_mgr.get(context)
-            async with ctx_mgr.lock_for(context):
-                assert_no_modal(ctx_mgr, context)
-                page = await ctx_mgr.active_page(context)
+            mgr.get(instance)
+            async with mgr.lock_for(instance):
+                assert_no_modal(mgr, instance)
+                page = await mgr.active_page(instance)
                 frames = [
                     page.main_frame,
                     *(f for f in page.frames if f != page.main_frame),
@@ -245,20 +245,20 @@ def _register_browser_verify_text_visible(mcp: FastMCP, ctx_mgr: ContextManager)
                     except PlaywrightError:
                         continue
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_verify_text_visible failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
         if not found:
-            return error_response(context, "verification_failed", f"Text {text!r} is not visible on the page")
-        return success_response(context, data={"text": text, "visible": True})
+            return error_response(instance, "verification_failed", f"Text {text!r} is not visible on the page")
+        return success_response(instance, data={"text": text, "visible": True})
 
 
-def _register_browser_verify_value(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_verify_value(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
     async def browser_verify_value(
-        context: str,
+        instance: str,
         ref: str,
         expected_value: str,
         element_type: str = "text",
@@ -276,7 +276,7 @@ def _register_browser_verify_value(mcp: FastMCP, ctx_mgr: ContextManager) -> Non
             data: {"ref": str, "value": str|bool, "element_type": str}
 
         Errors:
-            context_not_found    — context does not exist
+            instance_not_found   — instance does not exist
             modal_state_blocked  — a pending dialog blocks the page
             invalid_params       — element_type not in {text, checkbox, radio}
             stale_ref            — ref is no longer in the accessibility tree
@@ -287,21 +287,21 @@ def _register_browser_verify_value(mcp: FastMCP, ctx_mgr: ContextManager) -> Non
         """
         if element_type not in ("text", "checkbox", "radio"):
             return error_response(
-                context,
+                instance,
                 "invalid_params",
                 f"element_type must be one of 'text', 'checkbox', 'radio'; got {element_type!r}",
             )
         try:
-            await ctx_mgr.get(context)
-            async with ctx_mgr.lock_for(context):
-                assert_no_modal(ctx_mgr, context)
-                page = await ctx_mgr.active_page(context)
+            mgr.get(instance)
+            async with mgr.lock_for(instance):
+                assert_no_modal(mgr, instance)
+                page = await mgr.active_page(instance)
                 locator = await _resolve_ref_in_any_frame(page, ref)
                 if element_type == "text":
                     actual = await locator.input_value()
                     if actual != expected_value:
                         return error_response(
-                            context,
+                            instance,
                             "verification_failed",
                             f"Element {ref} value is {actual!r}, expected {expected_value!r}",
                         )
@@ -310,24 +310,24 @@ def _register_browser_verify_value(mcp: FastMCP, ctx_mgr: ContextManager) -> Non
                     actual = await locator.is_checked()
                     if bool(actual) != expected_bool:
                         return error_response(
-                            context,
+                            instance,
                             "verification_failed",
                             f"Element {ref} checked state is {actual!r}, expected {expected_bool!r}",
                         )
             return success_response(
-                context,
+                instance,
                 data={"ref": ref, "value": actual, "element_type": element_type},
             )
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_verify_value failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def register(mcp: FastMCP, mgr: InstanceManager) -> None:
     """Register DOM verification tools on the MCP server."""
-    _register_browser_verify_element_visible(mcp, ctx_mgr)
-    _register_browser_verify_list_visible(mcp, ctx_mgr)
-    _register_browser_verify_text_visible(mcp, ctx_mgr)
-    _register_browser_verify_value(mcp, ctx_mgr)
+    _register_browser_verify_element_visible(mcp, mgr)
+    _register_browser_verify_list_visible(mcp, mgr)
+    _register_browser_verify_text_visible(mcp, mgr)
+    _register_browser_verify_value(mcp, mgr)

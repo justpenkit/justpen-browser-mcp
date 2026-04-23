@@ -1,190 +1,130 @@
 # Lifecycle tools
 
-Lifecycle tools manage the full lifespan of browser contexts — creating isolated sessions, persisting and restoring authentication state, querying what is alive, and tearing sessions down cleanly. Reach for these tools at the boundaries of a workflow: `browser_create_context` to open a session, `browser_export_context_state` / `browser_load_context_state` to save and replay login state across runs, `browser_list_contexts` to inspect what is currently active, and `browser_destroy_context` to shut everything down when the work is done.
+Lifecycle tools manage the full lifespan of browser instances — creating isolated sessions, querying what is alive, and tearing sessions down cleanly. Reach for these tools at the boundaries of a workflow: `browser_create_instance` to open a session, `browser_list_instances` to inspect what is currently active, and `browser_destroy_instance` to shut everything down when the work is done.
 
-## browser_create_context
+## browser_create_instance
 
-Create a new isolated browser context (like a fresh browser profile).
+Create a new isolated Camoufox browser instance with its own process and BrowserForge fingerprint.
 
 **Signature**
 
 ```python
-async def browser_create_context(context: str, state_path: str | None = None) -> dict[str, Any]
+async def browser_create_instance(
+    name: str,
+    *,
+    profile_dir: str | None = None,
+    headless: bool | Literal["virtual"] = True,
+    proxy: dict[str, str] | None = None,
+    humanize: bool | float = True,
+    window: tuple[int, int] | None = None,
+) -> dict[str, Any]
 ```
 
 **Parameters**
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Name for the new context. |
-| `state_path` | `str \| None` | `None` | Optional path to a Playwright storage-state JSON file to pre-load cookies and localStorage. |
+| `name` | `str` | — | Name for the new instance. Case-sensitive, must be unique across live instances. |
+| `profile_dir` | `str \| None` | `None` | Path to a persistent profile directory. `None` (default) creates an ephemeral instance with no on-disk trace. When a path is given and the directory already exists, Camoufox loads it; otherwise it is created. |
+| `headless` | `bool \| "virtual"` | `True` | `True` for headless mode (no visible window). `False` for a visible window. `"virtual"` uses a virtual framebuffer (Xvfb) on Linux. |
+| `proxy` | `dict[str, str] \| None` | `None` | Proxy configuration dict. Accepted keys: `server` (required, e.g. `"socks5://host:port"`), `username`, `password`, `bypass`. |
+| `humanize` | `bool \| float` | `True` | Camoufox humanization level. `True` enables default humanization; `False` disables it; a float sets the delay factor directly. |
+| `window` | `tuple[int, int] \| None` | `None` | Initial viewport size as `(width, height)`. `None` uses Camoufox defaults. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
 ```json
-{ "created": true }
+{
+  "name": "main",
+  "mode": "ephemeral",
+  "profile_dir": null,
+  "page_count": 0,
+  "active_url": null,
+  "created_at": "2026-04-22T10:00:00+00:00"
+}
 ```
+
+`mode` is `"ephemeral"` when `profile_dir` is `None`, `"persistent"` otherwise.
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_already_exists`
-- `state_file_not_found`
-- `invalid_state_file`
+- `instance_already_exists` — an instance with that name is already live.
+- `instance_limit_exceeded` — the `BROWSER_MCP_MAX_INSTANCES` cap has been reached; destroy an existing instance first.
+- `profile_dir_in_use` — another live instance is already using the requested `profile_dir`.
 
 **Example**
 
 Request:
 
 ```json
-{ "name": "browser_create_context", "arguments": { "context": "main" } }
+{ "name": "browser_create_instance", "arguments": { "name": "main" } }
 ```
 
 Response:
 
 ```json
-{ "status": "success", "context": "main", "data": { "created": true } }
+{
+  "status": "success",
+  "instance": "main",
+  "data": {
+    "name": "main",
+    "mode": "ephemeral",
+    "profile_dir": null,
+    "page_count": 0,
+    "active_url": null,
+    "created_at": "2026-04-22T10:00:00+00:00"
+  }
+}
 ```
 
-**Notes** — No pages exist immediately after creation. The first tool that needs a page (e.g. `browser_navigate`) creates one implicitly. When `state_path` is supplied the file must be valid Playwright storage-state JSON produced by `browser_export_context_state`.
+**Notes** — No pages exist immediately after creation. The first tool that needs a page (e.g. `browser_navigate`) creates one implicitly. For persistent instances, BrowserForge rolls a fresh fingerprint on each launch even when reusing an existing `profile_dir` — stored cookies and localStorage are preserved, but the fingerprint signals change. See [Instances & isolation](../concepts/instances-isolation.md) for a full discussion of ephemeral vs. persistent modes.
 
-## browser_load_context_state
+## browser_destroy_instance
 
-Replace the context's cookies and localStorage in-place from a saved state file without recreating the context.
+Shut down an instance and free all its resources.
 
 **Signature**
 
 ```python
-async def browser_load_context_state(context: str, state_path: str) -> dict[str, Any]
+async def browser_destroy_instance(name: str) -> dict[str, Any]
 ```
 
 **Parameters**
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
-| `state_path` | `str` | — | Path to a Playwright storage-state JSON file produced by `browser_export_context_state`. |
+| `name` | `str` | — | Instance name. |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
-
-```json
-{ "loaded_from": "/path/to/state.json" }
-```
-
-`failed_origins` is included only when non-empty — it lists origins whose localStorage could not be restored.
+**Returns** — see [response envelope](../concepts/response-envelope.md). `data` is an empty object (`{}`).
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
-- `state_file_not_found`
-- `invalid_state_file`
+- `instance_not_found` — no instance with that name is currently live.
 
 **Example**
 
 Request:
 
 ```json
-{ "name": "browser_load_context_state", "arguments": { "context": "main", "state_path": "/tmp/session.json" } }
+{ "name": "browser_destroy_instance", "arguments": { "name": "main" } }
 ```
 
 Response:
 
 ```json
-{ "status": "success", "context": "main", "data": { "loaded_from": "/tmp/session.json" } }
+{ "status": "success", "instance": "main", "data": {} }
 ```
 
-**Notes** — Unlike `browser_create_context(state_path=...)`, this tool does not recreate the context. The active page and all tabs remain open; only the cookie jar and localStorage are replaced.
+**Notes** — Camoufox is terminated and all in-memory browser state is discarded. If the instance was created with a `profile_dir`, that directory and its contents are left intact on disk — the profile survives for the next `browser_create_instance` call. To close a single tab while keeping the instance alive, use `browser_close` instead.
 
-## browser_export_context_state
+## browser_list_instances
 
-Write the context's current cookies and localStorage to a JSON file.
+Return summaries of all currently live instances.
 
 **Signature**
 
 ```python
-async def browser_export_context_state(context: str, state_path: str) -> dict[str, Any]
-```
-
-**Parameters**
-
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
-| `state_path` | `str` | — | Destination file path. Parent directories are created automatically. |
-
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
-
-```json
-{ "saved_to": "/absolute/path/to/state.json" }
-```
-
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
-
-- `context_not_found`
-
-**Example**
-
-Request:
-
-```json
-{ "name": "browser_export_context_state", "arguments": { "context": "main", "state_path": "/tmp/session.json" } }
-```
-
-Response:
-
-```json
-{ "status": "success", "context": "main", "data": { "saved_to": "/tmp/session.json" } }
-```
-
-## browser_destroy_context
-
-Close the context and remove it from the server's registry.
-
-**Signature**
-
-```python
-async def browser_destroy_context(context: str) -> dict[str, Any]
-```
-
-**Parameters**
-
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
-
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
-
-```json
-{ "destroyed": true }
-```
-
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
-
-- `context_not_found`
-
-**Example**
-
-Request:
-
-```json
-{ "name": "browser_destroy_context", "arguments": { "context": "main" } }
-```
-
-Response:
-
-```json
-{ "status": "success", "context": "main", "data": { "destroyed": true } }
-```
-
-**Notes** — If this was the last active context, Camoufox is automatically shut down; the next `browser_create_context` will re-launch it lazily. To close a single tab while keeping the context alive, use `browser_close` instead.
-
-## browser_list_contexts
-
-List all active browser contexts with summary information.
-
-**Signature**
-
-```python
-async def browser_list_contexts() -> dict[str, Any]
+async def browser_list_instances() -> dict[str, Any]
 ```
 
 **Parameters**
@@ -195,11 +135,29 @@ async def browser_list_contexts() -> dict[str, Any]
 
 ```json
 {
-  "contexts": [
-    { "context": "main", "page_count": 1, "active_url": "https://example.com", "cookie_count": 3 }
+  "instances": [
+    {
+      "name": "main",
+      "mode": "ephemeral",
+      "profile_dir": null,
+      "page_count": 1,
+      "active_url": "https://example.com",
+      "created_at": "2026-04-22T10:00:00+00:00"
+    }
   ]
 }
 ```
+
+Each entry in `instances` has:
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | `str` | Instance name. |
+| `mode` | `str` | `"ephemeral"` or `"persistent"`. |
+| `profile_dir` | `str \| null` | Absolute path to the profile directory, or `null` for ephemeral instances. |
+| `page_count` | `int` | Number of open tabs in the instance. |
+| `active_url` | `str \| null` | URL of the currently active page, or `null` when no pages are open. |
+| `created_at` | `str` | ISO 8601 timestamp (UTC) of when the instance was created. |
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
@@ -210,7 +168,7 @@ async def browser_list_contexts() -> dict[str, Any]
 Request:
 
 ```json
-{ "name": "browser_list_contexts", "arguments": {} }
+{ "name": "browser_list_instances", "arguments": {} }
 ```
 
 Response:
@@ -218,13 +176,20 @@ Response:
 ```json
 {
   "status": "success",
-  "context": null,
+  "instance": null,
   "data": {
-    "contexts": [
-      { "context": "main", "page_count": 2, "active_url": "https://example.com", "cookie_count": 5 }
+    "instances": [
+      {
+        "name": "main",
+        "mode": "ephemeral",
+        "profile_dir": null,
+        "page_count": 2,
+        "active_url": "https://example.com",
+        "created_at": "2026-04-22T10:00:00+00:00"
+      }
     ]
   }
 }
 ```
 
-**Notes** — Never raises a domain error — if no contexts exist the list is empty. `context` in the envelope is `null` because this is a server-level tool that does not target a specific context.
+**Notes** — Never raises a domain error — if no instances exist the list is empty. `instance` in the envelope is `null` because this is a server-level tool that does not target a specific instance.

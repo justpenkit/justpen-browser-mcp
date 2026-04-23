@@ -4,19 +4,19 @@ Navigation tools control where the active page points and how long the agent wai
 
 ## browser_navigate
 
-Navigate the active page in the given context to a URL.
+Navigate the active page in the given instance to a URL.
 
 **Signature**
 
 ```python
-async def browser_navigate(context: str, url: str) -> dict[str, Any]
+async def browser_navigate(instance: str, url: str) -> dict[str, Any]
 ```
 
 **Parameters**
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 | `url` | `str` | — | Destination URL. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
@@ -27,7 +27,7 @@ async def browser_navigate(context: str, url: str) -> dict[str, Any]
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 - `modal_state_blocked`
 - `navigation_failed`
 - `navigation_timeout`
@@ -37,13 +37,13 @@ async def browser_navigate(context: str, url: str) -> dict[str, Any]
 Request:
 
 ```json
-{ "name": "browser_navigate", "arguments": { "context": "main", "url": "https://example.com" } }
+{ "name": "browser_navigate", "arguments": { "instance": "main", "url": "https://example.com" } }
 ```
 
 Response:
 
 ```json
-{ "status": "success", "context": "main", "data": { "url": "https://example.com/", "title": "Example Domain" } }
+{ "status": "success", "instance": "main", "data": { "url": "https://example.com/", "title": "Example Domain" } }
 ```
 
 **Notes** — URL normalisation: `localhost[:PORT]` and bare IPv4 addresses receive an `http://` scheme; schemeless hostnames containing a dot receive `https://`. When a download is triggered instead of a page load, the response data includes an extra `"download": true` field alongside `url` and `title`. After any successful navigation, refs obtained from `browser_snapshot` are invalidated — take a fresh snapshot before referencing page elements.
@@ -55,14 +55,14 @@ Navigate back one step in the browser history for the active page.
 **Signature**
 
 ```python
-async def browser_navigate_back(context: str) -> dict[str, Any]
+async def browser_navigate_back(instance: str) -> dict[str, Any]
 ```
 
 **Parameters**
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -72,7 +72,7 @@ async def browser_navigate_back(context: str) -> dict[str, Any]
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 - `modal_state_blocked`
 - `navigation_failed`
 - `navigation_timeout`
@@ -82,13 +82,13 @@ async def browser_navigate_back(context: str) -> dict[str, Any]
 Request:
 
 ```json
-{ "name": "browser_navigate_back", "arguments": { "context": "main" } }
+{ "name": "browser_navigate_back", "arguments": { "instance": "main" } }
 ```
 
 Response:
 
 ```json
-{ "status": "success", "context": "main", "data": { "url": "https://example.com/" } }
+{ "status": "success", "instance": "main", "data": { "url": "https://example.com/" } }
 ```
 
 **Notes** — If there is no history entry to go back to, the page stays where it is and the returned `url` reflects the current location. After a successful back-navigation, previous snapshot refs are invalidated.
@@ -101,7 +101,7 @@ Wait for text to appear, text to disappear, or a fixed duration.
 
 ```python
 async def browser_wait_for(
-    context: str,
+    instance: str,
     text: str | None = None,
     text_gone: str | None = None,
     time: float | None = None,
@@ -112,7 +112,7 @@ async def browser_wait_for(
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 | `text` | `str \| None` | `None` | Wait until this string is visible on the page. |
 | `text_gone` | `str \| None` | `None` | Wait until this string is hidden on the page. |
 | `time` | `float \| None` | `None` | Seconds to wait unconditionally (capped at 30). |
@@ -125,7 +125,7 @@ async def browser_wait_for(
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 - `modal_state_blocked`
 - `invalid_params`
 - `wait_timeout`
@@ -135,13 +135,13 @@ async def browser_wait_for(
 Request:
 
 ```json
-{ "name": "browser_wait_for", "arguments": { "context": "main", "text": "Dashboard" } }
+{ "name": "browser_wait_for", "arguments": { "instance": "main", "text": "Dashboard" } }
 ```
 
 Response:
 
 ```json
-{ "status": "success", "context": "main", "data": { "waited_for": "text='Dashboard'" } }
+{ "status": "success", "instance": "main", "data": { "waited_for": "text='Dashboard'" } }
 ```
 
 **Notes** — At least one of `text`, `text_gone`, or `time` must be provided; omitting all three returns an `invalid_params` error immediately. When multiple conditions are given they are evaluated in order: `time` first, then `text_gone`, then `text`.

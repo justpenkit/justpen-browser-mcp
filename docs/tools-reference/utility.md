@@ -9,14 +9,14 @@ Resize the viewport of the active page to the given pixel dimensions.
 **Signature**
 
 ```python
-async def browser_resize(context: str, width: int, height: int) -> dict[str, Any]
+async def browser_resize(instance: str, width: int, height: int) -> dict[str, Any]
 ```
 
 **Parameters**
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 | `width` | `int` | — | Viewport width in pixels. |
 | `height` | `int` | — | Viewport height in pixels. |
 
@@ -28,23 +28,23 @@ async def browser_resize(context: str, width: int, height: int) -> dict[str, Any
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 
 **Example**
 
 Request:
 
 ```json
-{ "name": "browser_resize", "arguments": { "context": "main", "width": 1920, "height": 1080 } }
+{ "name": "browser_resize", "arguments": { "instance": "main", "width": 1920, "height": 1080 } }
 ```
 
 Response:
 
 ```json
-{ "status": "success", "context": "main", "data": { "width": 1920, "height": 1080 } }
+{ "status": "success", "instance": "main", "data": { "width": 1920, "height": 1080 } }
 ```
 
-**Notes** — Affects only the active page; other tabs in the context are unchanged. Changes take effect immediately. Use this to test responsive layouts or to ensure a particular viewport before taking a screenshot.
+**Notes** — Affects only the active page; other tabs in the instance are unchanged. Changes take effect immediately. Use this to test responsive layouts or to ensure a particular viewport before taking a screenshot.
 
 ## browser_pdf_save
 
@@ -54,7 +54,7 @@ Render the active page as a PDF and save it to the given file path.
 
 ```python
 async def browser_pdf_save(
-    context: str,
+    instance: str,
     file_path: str | None = None,
     paper_format: str = "A4",
     *,
@@ -67,7 +67,7 @@ async def browser_pdf_save(
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 | `file_path` | `str \| None` | `None` | Destination path. When omitted, defaults to `$JUSTPEN_WORKSPACE/output/evidence/page-{timestamp}.pdf`. |
 | `paper_format` | `str` | `"A4"` | Paper size string: `"A4"`, `"Letter"`, `"A3"`, etc. |
 | `landscape` | `bool` | `False` | Rotate to landscape orientation. |
@@ -81,7 +81,7 @@ async def browser_pdf_save(
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 - `modal_state_blocked`
 - `internal_error`
 
@@ -92,7 +92,7 @@ Request:
 ```json
 {
   "name": "browser_pdf_save",
-  "arguments": { "context": "main", "paper_format": "Letter", "landscape": true }
+  "arguments": { "instance": "main", "paper_format": "Letter", "landscape": true }
 }
 ```
 
@@ -101,7 +101,7 @@ Response:
 ```json
 {
   "status": "success",
-  "context": "main",
+  "instance": "main",
   "data": { "saved_to": "/workspace/output/evidence/page-1719234567.pdf", "size_bytes": 156789 }
 }
 ```
@@ -116,7 +116,7 @@ Generate a stable, durable Playwright locator for an element.
 
 ```python
 async def browser_generate_locator(
-    context: str,
+    instance: str,
     ref: str | None = None,
     selector: str | None = None,
     element: str | None = None,
@@ -127,7 +127,7 @@ async def browser_generate_locator(
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 | `ref` | `str \| None` | `None` | Ephemeral snapshot ref to resolve into a stable locator. Mutually exclusive with `selector`. |
 | `selector` | `str \| None` | `None` | Raw CSS selector to pass through verbatim. Mutually exclusive with `ref`. |
 | `element` | `str \| None` | `None` | Optional free-form human description (logged; not used by the implementation). |
@@ -145,7 +145,7 @@ async def browser_generate_locator(
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 - `invalid_params` — neither or both of `ref`/`selector` supplied
 - `modal_state_blocked`
 - `stale_ref` — ref is from an older snapshot; capture a new snapshot
@@ -157,7 +157,7 @@ Request:
 ```json
 {
   "name": "browser_generate_locator",
-  "arguments": { "context": "main", "ref": "e12", "element": "Submit button" }
+  "arguments": { "instance": "main", "ref": "e12", "element": "Submit button" }
 }
 ```
 
@@ -166,7 +166,7 @@ Response:
 ```json
 {
   "status": "success",
-  "context": "main",
+  "instance": "main",
   "data": {
     "ref": "e12",
     "selector": null,
@@ -180,13 +180,13 @@ Response:
 
 ## browser_tabs
 
-Manage tabs (pages) within a browser context.
+Manage tabs (pages) within a browser instance.
 
 **Signature**
 
 ```python
 async def browser_tabs(
-    context: str,
+    instance: str,
     action: str,
     index: int | None = None,
     url: str | None = None,
@@ -197,7 +197,7 @@ async def browser_tabs(
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 | `action` | `str` | — | One of `"list"`, `"new"`, `"close"`, `"select"`. |
 | `index` | `int \| None` | `None` | Tab index (required for `"close"` and `"select"`). |
 | `url` | `str \| None` | `None` | URL to navigate to when opening a new tab (only for `"new"`). |
@@ -211,7 +211,7 @@ async def browser_tabs(
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 - `invalid_params` — unrecognized action, or index missing/out of range
 
 **Example**
@@ -219,7 +219,7 @@ async def browser_tabs(
 Request (list):
 
 ```json
-{ "name": "browser_tabs", "arguments": { "context": "main", "action": "list" } }
+{ "name": "browser_tabs", "arguments": { "instance": "main", "action": "list" } }
 ```
 
 Response:
@@ -227,7 +227,7 @@ Response:
 ```json
 {
   "status": "success",
-  "context": "main",
+  "instance": "main",
   "data": { "tabs": [{"index": 0, "url": "https://example.com"}, {"index": 1, "url": "https://example.com/page2"}] }
 }
 ```
@@ -237,7 +237,7 @@ Request (new):
 ```json
 {
   "name": "browser_tabs",
-  "arguments": { "context": "main", "action": "new", "url": "https://example.com/page2" }
+  "arguments": { "instance": "main", "action": "new", "url": "https://example.com/page2" }
 }
 ```
 
@@ -246,9 +246,9 @@ Response:
 ```json
 {
   "status": "success",
-  "context": "main",
+  "instance": "main",
   "data": { "index": 1, "url": "https://example.com/page2" }
 }
 ```
 
-**Notes** — The `action` parameter is required and must be one of the four values listed above. For `"close"` and `"select"`, the `index` parameter must be a valid tab index (0-based). The active page index is automatically adjusted when a tab is closed to ensure the context always has an active page.
+**Notes** — The `action` parameter is required and must be one of the four values listed above. For `"close"` and `"select"`, the `index` parameter must be a valid tab index (0-based). The active page index is automatically adjusted when a tab is closed to ensure the instance always has an active page.

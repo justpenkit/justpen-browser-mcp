@@ -7,8 +7,8 @@ from typing import Any, Literal, cast
 from fastmcp import FastMCP
 from playwright.async_api import TimeoutError as PWTimeout
 
-from ..context_manager import ContextManager, assert_no_modal
 from ..errors import BrowserMcpError, InvalidParamsError
+from ..instance_manager import InstanceManager, assert_no_modal
 from ..responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
@@ -22,11 +22,11 @@ def _validated_button(button: str) -> Literal["left", "middle", "right"]:
     return cast("Literal['left', 'middle', 'right']", button)
 
 
-def _register_browser_mouse_click_xy(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_mouse_click_xy(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
     async def browser_mouse_click_xy(
-        context: str,
+        instance: str,
         x: int,
         y: int,
         button: str = "left",
@@ -48,29 +48,29 @@ def _register_browser_mouse_click_xy(mcp: FastMCP, ctx_mgr: ContextManager) -> N
             data: {"clicked_at": [x, y], "button": str}
 
         Errors:
-            context_not_found    — context does not exist
+            instance_not_found   — instance does not exist
             modal_state_blocked  — a dialog or file-chooser is pending; resolve it first
         """
         try:
-            await ctx_mgr.get(context)
-            assert_no_modal(ctx_mgr, context)
-            async with ctx_mgr.lock_for(context):
-                page = await ctx_mgr.active_page(context)
+            mgr.get(instance)
+            assert_no_modal(mgr, instance)
+            async with mgr.lock_for(instance):
+                page = await mgr.active_page(instance)
                 await page.mouse.click(x, y, button=_validated_button(button), click_count=click_count, delay=delay_ms)
                 with contextlib.suppress(PWTimeout):
                     await page.wait_for_load_state("domcontentloaded", timeout=2000)
-            return success_response(context, data={"clicked_at": [x, y], "button": button})
+            return success_response(instance, data={"clicked_at": [x, y], "button": button})
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_mouse_click_xy failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def _register_browser_mouse_move_xy(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_mouse_move_xy(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_mouse_move_xy(context: str, x: int, y: int) -> dict[str, Any]:
+    async def browser_mouse_move_xy(instance: str, x: int, y: int) -> dict[str, Any]:
         """Move the mouse cursor to an absolute pixel position without clicking.
 
         This is a low-level positional tool useful for triggering hover effects
@@ -83,27 +83,27 @@ def _register_browser_mouse_move_xy(mcp: FastMCP, ctx_mgr: ContextManager) -> No
             data: {"moved_to": [x, y]}
 
         Errors:
-            context_not_found    — context does not exist
+            instance_not_found   — instance does not exist
             modal_state_blocked  — a dialog or file-chooser is pending; resolve it first
         """
         try:
-            await ctx_mgr.get(context)
-            assert_no_modal(ctx_mgr, context)
-            async with ctx_mgr.lock_for(context):
-                page = await ctx_mgr.active_page(context)
+            mgr.get(instance)
+            assert_no_modal(mgr, instance)
+            async with mgr.lock_for(instance):
+                page = await mgr.active_page(instance)
                 await page.mouse.move(x, y)
-            return success_response(context, data={"moved_to": [x, y]})
+            return success_response(instance, data={"moved_to": [x, y]})
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_mouse_move_xy failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def _register_browser_mouse_down(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_mouse_down(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_mouse_down(context: str, button: str = "left") -> dict[str, Any]:
+    async def browser_mouse_down(instance: str, button: str = "left") -> dict[str, Any]:
         """Press a mouse button down (without releasing it).
 
         Low-level tool for building custom gesture sequences. button is "left",
@@ -114,27 +114,27 @@ def _register_browser_mouse_down(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             data: {"button_down": str}
 
         Errors:
-            context_not_found    — context does not exist
+            instance_not_found   — instance does not exist
             modal_state_blocked  — a dialog or file-chooser is pending; resolve it first
         """
         try:
-            await ctx_mgr.get(context)
-            assert_no_modal(ctx_mgr, context)
-            async with ctx_mgr.lock_for(context):
-                page = await ctx_mgr.active_page(context)
+            mgr.get(instance)
+            assert_no_modal(mgr, instance)
+            async with mgr.lock_for(instance):
+                page = await mgr.active_page(instance)
                 await page.mouse.down(button=_validated_button(button))
-            return success_response(context, data={"button_down": button})
+            return success_response(instance, data={"button_down": button})
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_mouse_down failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def _register_browser_mouse_up(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_mouse_up(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_mouse_up(context: str, button: str = "left") -> dict[str, Any]:
+    async def browser_mouse_up(instance: str, button: str = "left") -> dict[str, Any]:
         """Release a previously pressed mouse button.
 
         Low-level tool to be used after browser_mouse_down. button must match
@@ -145,27 +145,27 @@ def _register_browser_mouse_up(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
             data: {"button_up": str}
 
         Errors:
-            context_not_found    — context does not exist
+            instance_not_found   — instance does not exist
             modal_state_blocked  — a dialog or file-chooser is pending; resolve it first
         """
         try:
-            await ctx_mgr.get(context)
-            assert_no_modal(ctx_mgr, context)
-            async with ctx_mgr.lock_for(context):
-                page = await ctx_mgr.active_page(context)
+            mgr.get(instance)
+            assert_no_modal(mgr, instance)
+            async with mgr.lock_for(instance):
+                page = await mgr.active_page(instance)
                 await page.mouse.up(button=_validated_button(button))
-            return success_response(context, data={"button_up": button})
+            return success_response(instance, data={"button_up": button})
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_mouse_up failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def _register_browser_mouse_drag_xy(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_mouse_drag_xy(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_mouse_drag_xy(context: str, from_x: int, from_y: int, to_x: int, to_y: int) -> dict[str, Any]:
+    async def browser_mouse_drag_xy(instance: str, from_x: int, from_y: int, to_x: int, to_y: int) -> dict[str, Any]:
         """Drag the mouse from one absolute pixel position to another.
 
         Performs: move to (from_x, from_y), press left button, move to (to_x, to_y),
@@ -178,32 +178,32 @@ def _register_browser_mouse_drag_xy(mcp: FastMCP, ctx_mgr: ContextManager) -> No
             data: {"from": [from_x, from_y], "to": [to_x, to_y]}
 
         Errors:
-            context_not_found    — context does not exist
+            instance_not_found   — instance does not exist
             modal_state_blocked  — a dialog or file-chooser is pending; resolve it first
         """
         try:
-            await ctx_mgr.get(context)
-            assert_no_modal(ctx_mgr, context)
-            async with ctx_mgr.lock_for(context):
-                page = await ctx_mgr.active_page(context)
+            mgr.get(instance)
+            assert_no_modal(mgr, instance)
+            async with mgr.lock_for(instance):
+                page = await mgr.active_page(instance)
                 await page.mouse.move(from_x, from_y)
                 await page.mouse.down()
                 await page.mouse.move(to_x, to_y)
                 await page.mouse.up()
                 with contextlib.suppress(PWTimeout):
                     await page.wait_for_load_state("domcontentloaded", timeout=2000)
-            return success_response(context, data={"from": [from_x, from_y], "to": [to_x, to_y]})
+            return success_response(instance, data={"from": [from_x, from_y], "to": [to_x, to_y]})
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_mouse_drag_xy failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def _register_browser_mouse_wheel(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def _register_browser_mouse_wheel(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_mouse_wheel(context: str, delta_x: int = 0, delta_y: int = 0) -> dict[str, Any]:
+    async def browser_mouse_wheel(instance: str, delta_x: int = 0, delta_y: int = 0) -> dict[str, Any]:
         """Scroll the mouse wheel by the given pixel deltas at the current cursor position.
 
         delta_x is horizontal scroll (positive = right), delta_y is vertical
@@ -216,35 +216,35 @@ def _register_browser_mouse_wheel(mcp: FastMCP, ctx_mgr: ContextManager) -> None
             data: {"scrolled": [delta_x, delta_y]}
 
         Errors:
-            context_not_found    — context does not exist
+            instance_not_found   — instance does not exist
             invalid_params       — both delta_x and delta_y are zero
             modal_state_blocked  — a dialog or file-chooser is pending; resolve it first
         """
         try:
             if delta_x == 0 and delta_y == 0:
                 return error_response(
-                    context,
+                    instance,
                     "invalid_params",
                     "at least one of delta_x or delta_y must be non-zero",
                 )
-            await ctx_mgr.get(context)
-            assert_no_modal(ctx_mgr, context)
-            async with ctx_mgr.lock_for(context):
-                page = await ctx_mgr.active_page(context)
+            mgr.get(instance)
+            assert_no_modal(mgr, instance)
+            async with mgr.lock_for(instance):
+                page = await mgr.active_page(instance)
                 await page.mouse.wheel(delta_x, delta_y)
-            return success_response(context, data={"scrolled": [delta_x, delta_y]})
+            return success_response(instance, data={"scrolled": [delta_x, delta_y]})
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(instance, e.error_type, str(e))
         except Exception as e:
             logger.exception("browser_mouse_wheel failed")
-            return error_response(context, "internal_error", str(e))
+            return error_response(instance, "internal_error", str(e))
 
 
-def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def register(mcp: FastMCP, mgr: InstanceManager) -> None:
     """Register low-level mouse tools on the MCP server."""
-    _register_browser_mouse_click_xy(mcp, ctx_mgr)
-    _register_browser_mouse_move_xy(mcp, ctx_mgr)
-    _register_browser_mouse_down(mcp, ctx_mgr)
-    _register_browser_mouse_up(mcp, ctx_mgr)
-    _register_browser_mouse_drag_xy(mcp, ctx_mgr)
-    _register_browser_mouse_wheel(mcp, ctx_mgr)
+    _register_browser_mouse_click_xy(mcp, mgr)
+    _register_browser_mouse_move_xy(mcp, mgr)
+    _register_browser_mouse_down(mcp, mgr)
+    _register_browser_mouse_up(mcp, mgr)
+    _register_browser_mouse_drag_xy(mcp, mgr)
+    _register_browser_mouse_wheel(mcp, mgr)

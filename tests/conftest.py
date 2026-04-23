@@ -1,58 +1,44 @@
-"""Shared fixtures for browser_mcp tests.
+"""Shared pytest fixtures — InstanceManager with mocked Camoufox."""
 
-The `mcp_client` fixture builds a fresh FastMCP instance + mocked
-ContextManager and returns a FastMCP test client. Tools are registered
-on the fresh instance so tests don't interfere with each other.
-"""
-
-import asyncio
+from contextlib import AsyncExitStack
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from fastmcp import FastMCP
-from fastmcp.client import Client
 
-from justpen_browser_mcp.context_manager import ContextState
-from justpen_browser_mcp.tools import register_all
+from justpen_browser_mcp.config import BrowserServerConfig
+from justpen_browser_mcp.instance_manager import InstanceManager
 
 
 @pytest.fixture
-def mock_ctx_mgr():
-    """A mocked ContextManager whose methods are AsyncMocks ready to be
-    configured per-test."""
-    mgr = MagicMock(name="ContextManager")
-    mgr.create = AsyncMock()
-    mgr.get = AsyncMock()
-    mgr.destroy = AsyncMock()
-    mgr.list = AsyncMock(return_value=[])
-    mgr.export_state = AsyncMock()
-    mgr.load_state = AsyncMock()
-    mgr.active_page = AsyncMock()
-    mgr.lock_for = MagicMock()
-    mgr.lock_for.return_value = asyncio.Lock()
-    # Default ContextState so tools that read mgr.state(name).X work out of
-    # the box; tests that care about specific values overwrite on the return
-    # value (e.g. mock_ctx_mgr.state.return_value.console_messages = [...]).
-    mgr.state = MagicMock(return_value=ContextState())
-    mgr.list_names = MagicMock(return_value=[])
-    return mgr
+def mock_launch(monkeypatch):
+    """Patch launch_instance to return a fake stack + MagicMock BrowserContext.
+
+    Each call yields a fresh context so tests can assert per-instance isolation.
+    The returned stack's aclose is a real AsyncExitStack so tests can verify
+    clean teardown without touching Playwright.
+    """
+    launched: list[dict[str, Any]] = []
+
+    async def _fake_launch(**kwargs: Any):
+        stack = AsyncExitStack()
+        await stack.__aenter__()
+        ctx = MagicMock()
+        ctx.pages = []
+        ctx.on = MagicMock()
+        ctx.cookies = AsyncMock(return_value=[])
+        ctx.close = AsyncMock()
+        ctx.new_page = AsyncMock()
+        launched.append({"kwargs": kwargs, "ctx": ctx})
+        return stack, ctx
+
+    monkeypatch.setattr("justpen_browser_mcp.instance_manager.launch_instance", _fake_launch)
+    return launched
 
 
 @pytest.fixture
-def mock_launcher():
-    """A mocked CamoufoxLauncher."""
-    launcher = MagicMock(name="CamoufoxLauncher")
-    launcher.is_running = MagicMock(return_value=False)
-    launcher.shutdown = AsyncMock()
-    return launcher
-
-
-@pytest.fixture
-async def mcp_client(mock_ctx_mgr, mock_launcher):
-    """A FastMCP test client with all tools registered against mocked deps."""
-    mcp = FastMCP("camoufox-mcp-test")
-
-    register_all(mcp, mock_ctx_mgr, mock_launcher)
-
-    async with Client(mcp) as client:
-        yield client
+async def manager(mock_launch):
+    cfg = BrowserServerConfig(log_level="INFO", max_instances=10)
+    mgr = InstanceManager(cfg)
+    yield mgr
+    await mgr.shutdown_all()

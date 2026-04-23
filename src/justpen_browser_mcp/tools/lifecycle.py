@@ -1,175 +1,75 @@
-"""Context lifecycle tools — 5 tools.
+"""Instance lifecycle tools: create, destroy, list."""
 
-browser_create_context, browser_load_context_state, browser_export_context_state,
-browser_destroy_context, browser_list_contexts.
-"""
+from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any, Literal
 
-from fastmcp import FastMCP
-
-from ..context_manager import ContextManager
 from ..errors import BrowserMcpError
+from ..instance_manager import summarize_instance
 from ..responses import error_response, success_response
+
+if TYPE_CHECKING:
+    from fastmcp import FastMCP
+
+    from ..instance_manager import InstanceManager
 
 logger = logging.getLogger(__name__)
 
 
-def _register_browser_create_context(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+def register(mcp: FastMCP, mgr: InstanceManager) -> None:
+    """Register instance-lifecycle tools on the MCP server."""
 
     @mcp.tool
-    async def browser_create_context(context: str, state_path: str | None = None) -> dict[str, Any]:
-        """Create a new isolated browser context (like a fresh browser profile).
+    async def browser_create_instance(
+        name: str,
+        *,
+        profile_dir: str | None = None,
+        headless: bool | Literal["virtual"] = True,
+        proxy: dict[str, str] | None = None,
+        humanize: bool | float = True,
+        window: tuple[int, int] | None = None,
+    ) -> dict[str, Any]:
+        """Create a new isolated Camoufox browser instance.
 
-        state_path is optional. When supplied, the context is pre-loaded with
-        the Playwright storage_state JSON at that path (cookies + localStorage).
-        The file must exist and be valid JSON produced by browser_export_context_state.
-
-        Returns on success:
-            data: {"created": True}
-
-        Errors:
-            context_already_exists — a context with this name already exists
-            state_file_not_found   — state_path supplied but the file doesn't exist
-            invalid_state_file     — state_path exists but cannot be parsed as storage state
-
-        Each context maps to one Playwright BrowserContext. No pages exist
-        immediately after creation. The first tool call that needs a page
-        (e.g. browser_navigate) implicitly creates one, or you can create
-        one explicitly with browser_tabs(action="new").
-        Contexts are fully isolated: cookies, localStorage, and sessions do not
-        cross context boundaries.
+        Each instance runs in its own Camoufox process with its own BrowserForge
+        fingerprint and (if `profile_dir` is provided) its own on-disk profile.
+        Ephemeral instances (profile_dir=None) leave no trace after destroy.
         """
         try:
-            await ctx_mgr.create(context, state_path=state_path)
-            return success_response(context=context, data={"created": True})
+            record = await mgr.create(
+                name,
+                profile_dir=profile_dir,
+                headless=headless,
+                proxy=proxy,
+                humanize=humanize,
+                window=window,
+            )
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(name, e.error_type, str(e))
         except Exception as e:
-            logger.exception("browser_create_context failed")
-            return error_response(context, "internal_error", str(e))
-
-
-def _register_browser_load_context_state(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+            logger.exception("browser_create_instance failed for %r", name)
+            return error_response(name, "internal_error", str(e))
+        return success_response(instance=name, data=summarize_instance(record))
 
     @mcp.tool
-    async def browser_load_context_state(context: str, state_path: str) -> dict[str, Any]:
-        """Replace the context's cookies and localStorage in-place from a saved state file.
-
-        Unlike browser_create_context(state_path=...), this does NOT recreate the context —
-        it applies the stored state to the already-running context. The active page and
-        all tabs remain open; only the cookie jar and localStorage are replaced.
-
-        Returns on success:
-            data: {"loaded_from": str}  — the path that was applied
-
-        Errors:
-            context_not_found    — context does not exist; call browser_create_context first
-            state_file_not_found — the file at state_path does not exist
-            invalid_state_file   — file exists but is not valid Playwright storage_state JSON
-        """
+    async def browser_destroy_instance(name: str) -> dict[str, Any]:
+        """Destroy an instance and free its resources. Persistent profile dir survives on disk."""
         try:
-            async with ctx_mgr.lock_for(context):
-                failed_origins = await ctx_mgr.load_state(context, state_path)
-            data: dict[str, Any] = {"loaded_from": state_path}
-            if failed_origins:
-                data["failed_origins"] = failed_origins
-            return success_response(context=context, data=data)
+            await mgr.destroy(name)
         except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            return error_response(name, e.error_type, str(e))
         except Exception as e:
-            logger.exception("browser_load_context_state failed")
-            return error_response(context, "internal_error", str(e))
-
-
-def _register_browser_export_context_state(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
+            logger.exception("browser_destroy_instance failed for %r", name)
+            return error_response(name, "internal_error", str(e))
+        return success_response(instance=name)
 
     @mcp.tool
-    async def browser_export_context_state(context: str, state_path: str) -> dict[str, Any]:
-        """Write the context's current cookies and localStorage to a JSON file.
-
-        Produces a Playwright storage_state JSON file. Parent directories are
-        created automatically if they don't exist. The file can later be passed
-        to browser_create_context(state_path=...) or browser_load_context_state.
-
-        Returns on success:
-            data: {"saved_to": str}  — the absolute path the file was written to
-
-        Errors:
-            context_not_found — context does not exist
-
-        Use this to persist login sessions across agent runs or to share
-        authentication state between contexts.
-        """
+    async def browser_list_instances() -> dict[str, Any]:
+        """Return summaries of all live instances."""
         try:
-            async with ctx_mgr.lock_for(context):
-                await ctx_mgr.export_state(context, state_path)
-            return success_response(context=context, data={"saved_to": state_path})
-        except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
+            summaries = await mgr.list()
         except Exception as e:
-            logger.exception("browser_export_context_state failed")
-            return error_response(context, "internal_error", str(e))
-
-
-def _register_browser_destroy_context(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
-
-    @mcp.tool
-    async def browser_destroy_context(context: str) -> dict[str, Any]:
-        """Close the context and remove it from the server's registry.
-
-        All pages in the context are closed. If this was the last active context,
-        Camoufox is automatically shut down (browser process exits). The next
-        browser_create_context call will re-launch it lazily.
-
-        Returns on success:
-            data: {"destroyed": True}
-
-        Errors:
-            context_not_found — context does not exist
-
-        This is the correct way to fully tear down a browser session. For closing
-        a single tab while keeping the context alive, use browser_close instead.
-        """
-        try:
-            await ctx_mgr.destroy(context)
-            return success_response(context=context, data={"destroyed": True})
-        except BrowserMcpError as e:
-            return error_response(context, e.error_type, str(e))
-        except Exception as e:
-            logger.exception("browser_destroy_context failed")
-            return error_response(context, "internal_error", str(e))
-
-
-def _register_browser_list_contexts(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
-
-    @mcp.tool
-    async def browser_list_contexts() -> dict[str, Any]:
-        """List all active browser contexts with summary information.
-
-        Returns on success:
-            data: {"contexts": [{"context": str, "page_count": int,
-                                  "active_url": str, "cookie_count": int}, ...]}
-
-        Never raises an error — if no contexts exist the list is empty.
-        This is a server-level tool: no context argument is needed.
-
-        Use this to discover what sessions are alive before deciding which
-        context to use for subsequent tool calls.
-        """
-        try:
-            contexts = await ctx_mgr.list()
-            return success_response(context=None, data={"contexts": contexts})
-        except Exception as e:
-            logger.exception("browser_list_contexts failed")
+            logger.exception("browser_list_instances failed")
             return error_response(None, "internal_error", str(e))
-
-
-def register(mcp: FastMCP, ctx_mgr: ContextManager) -> None:
-    """Register context lifecycle tools on the MCP server."""
-    _register_browser_create_context(mcp, ctx_mgr)
-    _register_browser_load_context_state(mcp, ctx_mgr)
-    _register_browser_export_context_state(mcp, ctx_mgr)
-    _register_browser_destroy_context(mcp, ctx_mgr)
-    _register_browser_list_contexts(mcp, ctx_mgr)
+        return success_response(instance=None, data={"instances": summaries})

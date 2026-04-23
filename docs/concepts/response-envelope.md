@@ -7,7 +7,7 @@ Every tool returns one of two envelope shapes.
 ```json
 {
   "status": "success",
-  "context": "<context-name> | null",
+  "instance": "<instance-name> | null",
   "data": {}
 }
 ```
@@ -17,22 +17,22 @@ Every tool returns one of two envelope shapes.
 ```json
 {
   "status": "error",
-  "context": "<context-name> | null",
+  "instance": "<instance-name> | null",
   "error_type": "<type>",
   "message": "<human-readable description>"
 }
 ```
 
-`context` is `null` for server-level tools (`browser_status`, `browser_list_contexts`) that are not scoped to a specific context.
+`instance` is `null` for server-level tools (`browser_list_instances`) that are not scoped to a specific instance.
 
 ### error_type values
 
 | `error_type` | Meaning |
 |---|---|
-| `context_not_found` | No context with the given name exists; call `browser_create_context` first. |
-| `context_already_exists` | A context with that name is already registered. |
-| `invalid_state_file` | The supplied state file exists but cannot be parsed as Playwright storage state JSON. |
-| `state_file_not_found` | The supplied state file path does not exist. |
+| `instance_not_found` | No instance with the given name exists; call `browser_create_instance` first. |
+| `instance_already_exists` | An instance with that name is already registered. |
+| `instance_limit_exceeded` | The `BROWSER_MCP_MAX_INSTANCES` cap has been reached; destroy an existing instance first. |
+| `profile_dir_in_use` | The requested `profile_dir` is already locked by another live instance. |
 | `browser_not_running` | Camoufox is not running; no page operation is possible. |
 | `binary_not_found` | The Camoufox binary could not be located on the host. |
 | `element_not_found` | The element could not be found in the page's accessibility tree. |

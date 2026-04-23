@@ -2,11 +2,11 @@
 
 from unittest.mock import AsyncMock, MagicMock
 
-from justpen_browser_mcp.errors import ContextNotFoundError
+from justpen_browser_mcp.errors import InstanceNotFoundError
 
 
 def make_ctx_with_page(mock_ctx_mgr, cookies=None, eval_result=None):
-    """Wire mock_ctx_mgr.get to return a mock context with a mock active page."""
+    """Wire mock_ctx_mgr.get to return a mock InstanceRecord with a mock active page."""
     page = MagicMock()
     page.url = "about:blank"
     page.evaluate = AsyncMock(return_value=eval_result if eval_result is not None else {})
@@ -23,7 +23,10 @@ def make_ctx_with_page(mock_ctx_mgr, cookies=None, eval_result=None):
     ctx.clear_cookies = AsyncMock()
     ctx.new_page = AsyncMock(return_value=page)
     ctx.pages = [page]
-    mock_ctx_mgr.get.return_value = ctx
+
+    rec = MagicMock()
+    rec.context = ctx
+    mock_ctx_mgr.get.return_value = rec
     mock_ctx_mgr.active_page.return_value = page
     return ctx, page
 
@@ -37,7 +40,7 @@ class TestBrowserGetCookies:
                 {"name": "csrf", "value": "xyz"},
             ],
         )
-        result = await mcp_client.call_tool("browser_get_cookies", {"context": "admin"})
+        result = await mcp_client.call_tool("browser_get_cookies", {"instance": "admin"})
         assert result.data["status"] == "success"
         assert len(result.data["data"]["cookies"]) == 2
 
@@ -50,7 +53,7 @@ class TestBrowserGetCookies:
                 {"name": "baz", "value": "3"},
             ],
         )
-        result = await mcp_client.call_tool("browser_get_cookies", {"context": "admin", "name": "bar"})
+        result = await mcp_client.call_tool("browser_get_cookies", {"instance": "admin", "name": "bar"})
         assert result.data["status"] == "success"
         cookies = result.data["data"]["cookies"]
         assert len(cookies) == 1
@@ -60,15 +63,15 @@ class TestBrowserGetCookies:
         ctx, _ = make_ctx_with_page(mock_ctx_mgr, cookies=[{"name": "x", "value": "1"}])
         result = await mcp_client.call_tool(
             "browser_get_cookies",
-            {"context": "admin", "urls": ["https://app.example.com"]},
+            {"instance": "admin", "urls": ["https://app.example.com"]},
         )
         ctx.cookies.assert_awaited_once_with(["https://app.example.com"])
         assert result.data["status"] == "success"
 
-    async def test_unknown_context(self, mcp_client, mock_ctx_mgr):
-        mock_ctx_mgr.get.side_effect = ContextNotFoundError("not here")
-        result = await mcp_client.call_tool("browser_get_cookies", {"context": "admin"})
-        assert result.data["error_type"] == "context_not_found"
+    async def test_unknown_instance(self, mcp_client, mock_ctx_mgr):
+        mock_ctx_mgr.get.side_effect = InstanceNotFoundError("not here")
+        result = await mcp_client.call_tool("browser_get_cookies", {"instance": "admin"})
+        assert result.data["error_type"] == "instance_not_found"
 
 
 class TestBrowserSetCookies:
@@ -78,7 +81,7 @@ class TestBrowserSetCookies:
         result = await mcp_client.call_tool(
             "browser_set_cookies",
             {
-                "context": "admin",
+                "instance": "admin",
                 "cookies": [{"name": "x", "value": "1", "domain": "example.com", "path": "/"}],
             },
         )
@@ -91,7 +94,7 @@ class TestBrowserSetCookies:
         result = await mcp_client.call_tool(
             "browser_set_cookies",
             {
-                "context": "admin",
+                "instance": "admin",
                 "cookies": [{"name": "session", "value": "abc"}],
             },
         )
@@ -110,7 +113,7 @@ class TestBrowserSetCookies:
         result = await mcp_client.call_tool(
             "browser_set_cookies",
             {
-                "context": "admin",
+                "instance": "admin",
                 "cookies": [{"name": "session", "value": "abc"}],
             },
         )
@@ -125,7 +128,7 @@ class TestBrowserSetCookies:
         result = await mcp_client.call_tool(
             "browser_set_cookies",
             {
-                "context": "admin",
+                "instance": "admin",
                 "cookies": [{"name": "session", "value": "abc"}],
             },
         )
@@ -138,7 +141,7 @@ class TestBrowserSetCookies:
         cookie = {"name": "session", "value": "abc", "url": "https://x.com"}
         result = await mcp_client.call_tool(
             "browser_set_cookies",
-            {"context": "admin", "cookies": [cookie]},
+            {"instance": "admin", "cookies": [cookie]},
         )
         assert result.data["status"] == "success"
         ctx.add_cookies.assert_awaited_once()
@@ -151,7 +154,7 @@ class TestBrowserSetCookies:
 class TestBrowserClearCookies:
     async def test_clears(self, mcp_client, mock_ctx_mgr):
         ctx, _ = make_ctx_with_page(mock_ctx_mgr)
-        result = await mcp_client.call_tool("browser_clear_cookies", {"context": "admin"})
+        result = await mcp_client.call_tool("browser_clear_cookies", {"instance": "admin"})
         assert result.data["status"] == "success"
         ctx.clear_cookies.assert_awaited_once()
 
@@ -164,7 +167,7 @@ class TestBrowserGetLocalStorage:
         )
         result = await mcp_client.call_tool(
             "browser_get_local_storage",
-            {"context": "admin", "origin": "https://app.example.com"},
+            {"instance": "admin", "origin": "https://app.example.com"},
         )
         assert result.data["status"] == "success"
         assert result.data["data"]["items"] == {"auth_token": "xyz", "theme": "dark"}
@@ -175,7 +178,7 @@ class TestBrowserGetLocalStorage:
         result = await mcp_client.call_tool(
             "browser_get_local_storage",
             {
-                "context": "admin",
+                "instance": "admin",
                 "origin": "https://app.example.com",
                 "key": "theme",
             },
@@ -193,7 +196,7 @@ class TestBrowserSetLocalStorage:
         result = await mcp_client.call_tool(
             "browser_set_local_storage",
             {
-                "context": "admin",
+                "instance": "admin",
                 "origin": "https://app.example.com",
                 "items": {"auth_token": "xyz"},
             },
@@ -207,7 +210,7 @@ class TestBrowserSetLocalStorage:
         result = await mcp_client.call_tool(
             "browser_set_local_storage",
             {
-                "context": "admin",
+                "instance": "admin",
                 "origin": "https://app.example.com",
                 "items": items,
             },
@@ -229,7 +232,7 @@ class TestBrowserClearLocalStorage:
         _ctx, page = make_ctx_with_page(mock_ctx_mgr)
         result = await mcp_client.call_tool(
             "browser_clear_local_storage",
-            {"context": "admin", "origin": "https://app.example.com"},
+            {"instance": "admin", "origin": "https://app.example.com"},
         )
         assert result.data["status"] == "success"
         page.goto.assert_awaited_once_with("https://app.example.com")
@@ -242,7 +245,7 @@ class TestBrowserClearLocalStorage:
         page.url = "https://already-here.example.com/"
         result = await mcp_client.call_tool(
             "browser_clear_local_storage",
-            {"context": "admin"},
+            {"instance": "admin"},
         )
         assert result.data["status"] == "success"
         # Should NOT have opened a new page
