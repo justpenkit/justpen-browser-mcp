@@ -39,7 +39,7 @@ def _register_browser_resize(mcp: FastMCP, mgr: InstanceManager) -> None:
             instance_not_found — instance does not exist
         """
         try:
-            await mgr.get(instance)
+            mgr.get(instance)
             assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
                 page = await mgr.active_page(instance)
@@ -83,7 +83,7 @@ def _register_browser_pdf_save(mcp: FastMCP, mgr: InstanceManager) -> None:
             internal_error      — PDF generation failed (e.g. not in headless mode)
         """
         try:
-            await mgr.get(instance)
+            mgr.get(instance)
             assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
                 page = await mgr.active_page(instance)
@@ -178,7 +178,7 @@ def _register_browser_generate_locator(mcp: FastMCP, mgr: InstanceManager) -> No
         if element:
             logger.debug("browser_generate_locator: %s", element)
         try:
-            await mgr.get(instance)
+            mgr.get(instance)
             assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
                 page = await mgr.active_page(instance)
@@ -287,7 +287,7 @@ def _register_browser_tabs(mcp: FastMCP, mgr: InstanceManager) -> None:
                 f"action must be 'list'|'new'|'close'|'select', got {action!r}",
             )
         try:
-            rec = await mgr.get(instance)
+            rec = mgr.get(instance)
             async with mgr.lock_for(instance):
                 ctx = rec.context
                 istate = mgr.state(instance)

@@ -59,7 +59,7 @@ def _register_browser_evaluate(mcp: FastMCP, mgr: InstanceManager) -> None:
         if ref is not None and selector is not None:
             return error_response(instance, "invalid_params", "provide ref or selector, not both")
         try:
-            await mgr.get(instance)
+            mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
                 page = await mgr.active_page(instance)
@@ -112,7 +112,7 @@ def _register_browser_run_code(mcp: FastMCP, mgr: InstanceManager) -> None:
         Example code: `await page.wait_for_selector('#done'); return await page.title()`
         """
         try:
-            rec = await mgr.get(instance)
+            rec = mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
                 page = await mgr.active_page(instance)

@@ -52,7 +52,7 @@ def _register_browser_mouse_click_xy(mcp: FastMCP, mgr: InstanceManager) -> None
             modal_state_blocked  — a dialog or file-chooser is pending; resolve it first
         """
         try:
-            await mgr.get(instance)
+            mgr.get(instance)
             assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
                 page = await mgr.active_page(instance)
@@ -87,7 +87,7 @@ def _register_browser_mouse_move_xy(mcp: FastMCP, mgr: InstanceManager) -> None:
             modal_state_blocked  — a dialog or file-chooser is pending; resolve it first
         """
         try:
-            await mgr.get(instance)
+            mgr.get(instance)
             assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
                 page = await mgr.active_page(instance)
@@ -118,7 +118,7 @@ def _register_browser_mouse_down(mcp: FastMCP, mgr: InstanceManager) -> None:
             modal_state_blocked  — a dialog or file-chooser is pending; resolve it first
         """
         try:
-            await mgr.get(instance)
+            mgr.get(instance)
             assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
                 page = await mgr.active_page(instance)
@@ -149,7 +149,7 @@ def _register_browser_mouse_up(mcp: FastMCP, mgr: InstanceManager) -> None:
             modal_state_blocked  — a dialog or file-chooser is pending; resolve it first
         """
         try:
-            await mgr.get(instance)
+            mgr.get(instance)
             assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
                 page = await mgr.active_page(instance)
@@ -182,7 +182,7 @@ def _register_browser_mouse_drag_xy(mcp: FastMCP, mgr: InstanceManager) -> None:
             modal_state_blocked  — a dialog or file-chooser is pending; resolve it first
         """
         try:
-            await mgr.get(instance)
+            mgr.get(instance)
             assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
                 page = await mgr.active_page(instance)
@@ -227,7 +227,7 @@ def _register_browser_mouse_wheel(mcp: FastMCP, mgr: InstanceManager) -> None:
                     "invalid_params",
                     "at least one of delta_x or delta_y must be non-zero",
                 )
-            await mgr.get(instance)
+            mgr.get(instance)
             assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
                 page = await mgr.active_page(instance)

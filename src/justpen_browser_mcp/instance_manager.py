@@ -146,7 +146,7 @@ class InstanceManager:
             logger.info("Created instance %r (mode=%s)", name, "persistent" if resolved_profile_dir else "ephemeral")
             return record
 
-    async def get(self, name: str) -> InstanceRecord:
+    def get(self, name: str) -> InstanceRecord:
         """Look up an instance by name. Raises InstanceNotFoundError if missing."""
         rec = self._instances.get(name)
         if rec is None:
@@ -155,17 +155,11 @@ class InstanceManager:
 
     def lock_for(self, name: str) -> asyncio.Lock:
         """Return the per-instance lock for serializing tool operations."""
-        rec = self._instances.get(name)
-        if rec is None:
-            raise InstanceNotFoundError(f"Instance {name!r} does not exist.")
-        return rec.lock
+        return self.get(name).lock
 
     def state(self, name: str) -> InstanceState:
         """Return the InstanceState for a named instance."""
-        rec = self._instances.get(name)
-        if rec is None:
-            raise InstanceNotFoundError(f"Instance {name!r} does not exist.")
-        return rec.state
+        return self.get(name).state
 
     def list_names(self) -> list[str]:
         """Return the names of all active instances."""
@@ -193,7 +187,7 @@ class InstanceManager:
 
     async def active_page(self, name: str) -> Page:
         """Return the active page for an instance, creating one if none exist."""
-        rec = await self.get(name)
+        rec = self.get(name)
         if not rec.context.pages:
             page = await rec.context.new_page()
             rec.state.active_page_index = 0
@@ -206,9 +200,7 @@ class InstanceManager:
 
     def set_active_page(self, name: str, index: int) -> None:
         """Set which tab is the logical active page for an instance."""
-        rec = self._instances.get(name)
-        if rec is None:
-            raise InstanceNotFoundError(f"Instance {name!r} does not exist.")
+        rec = self.get(name)
         if index < 0 or index >= len(rec.context.pages):
             raise InvalidParamsError(f"tab index {index} out of range (have {len(rec.context.pages)} pages)")
         rec.state.active_page_index = index
@@ -218,19 +210,13 @@ class InstanceManager:
 
         Entries whose page has closed are pruned automatically.
         """
-        rec = self._instances.get(name)
-        if rec is None:
-            raise InstanceNotFoundError(f"Instance {name!r} does not exist.")
-        states = rec.state.modal_states
+        states = self.get(name).state.modal_states
         states[:] = [s for s in states if not s["page"].is_closed()]
         return list(states)
 
     def consume_modal_state(self, name: str, kind: str) -> dict[str, Any] | None:
         """Pop and return the oldest pending modal of the given kind, or None."""
-        rec = self._instances.get(name)
-        if rec is None:
-            raise InstanceNotFoundError(f"Instance {name!r} does not exist.")
-        states = rec.state.modal_states
+        states = self.get(name).state.modal_states
         for i, state in enumerate(states):
             if state["kind"] == kind:
                 return states.pop(i)

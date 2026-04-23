@@ -63,7 +63,7 @@ def _register_browser_snapshot(mcp: FastMCP, mgr: InstanceManager) -> None:
             internal_error       — snapshot call failed
         """
         try:
-            await mgr.get(instance)
+            mgr.get(instance)
             assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
                 page = await mgr.active_page(instance)
@@ -117,7 +117,7 @@ def _register_browser_screenshot(mcp: FastMCP, mgr: InstanceManager) -> None:
                 f"image_format must be 'png' or 'jpeg', got {image_format!r}",
             )
         try:
-            await mgr.get(instance)
+            mgr.get(instance)
             assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
                 page = await mgr.active_page(instance)
@@ -199,7 +199,7 @@ def _register_browser_console_messages(mcp: FastMCP, mgr: InstanceManager) -> No
                 f"level must be one of {sorted(_VALID_CONSOLE_LEVELS)}, got {level!r}",
             )
         try:
-            await mgr.get(instance)
+            mgr.get(instance)
             messages = list(mgr.state(instance).console_messages)
             if level is not None:
                 messages = [m for m in messages if m.get("type") == level]
@@ -261,7 +261,7 @@ def _register_browser_network_requests(mcp: FastMCP, mgr: InstanceManager) -> No
                     f"url_filter is not a valid regular expression: {e}",
                 )
         try:
-            await mgr.get(instance)
+            mgr.get(instance)
             requests = list(mgr.state(instance).network_requests)
             if not static:
                 requests = [r for r in requests if r.get("resource_type") not in _STATIC_RESOURCE_TYPES]

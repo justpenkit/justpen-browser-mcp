@@ -44,7 +44,7 @@ def mock_mgr():
     are MagicMocks.  Tests can override individual attributes as needed.
     """
     mgr = MagicMock()
-    mgr.get = AsyncMock(return_value=MagicMock())
+    mgr.get = MagicMock(return_value=MagicMock())
     mgr.active_page = AsyncMock()
     mgr.lock_for = MagicMock(return_value=_AsyncLockContext())
     mgr.state = MagicMock(return_value=MagicMock())

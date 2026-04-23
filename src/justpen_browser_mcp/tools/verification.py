@@ -114,7 +114,7 @@ def _register_browser_verify_element_visible(mcp: FastMCP, mgr: InstanceManager)
         Use browser_wait_for(text=...) first if the element may not have appeared yet.
         """
         try:
-            await mgr.get(instance)
+            mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
                 page = await mgr.active_page(instance)
@@ -167,7 +167,7 @@ def _register_browser_verify_list_visible(mcp: FastMCP, mgr: InstanceManager) ->
             return error_response(instance, "invalid_params", validation_error)
 
         try:
-            await mgr.get(instance)
+            mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
                 page = await mgr.active_page(instance)
@@ -227,7 +227,7 @@ def _register_browser_verify_text_visible(mcp: FastMCP, mgr: InstanceManager) ->
         Use browser_wait_for(text=...) if the text may not have appeared yet.
         """
         try:
-            await mgr.get(instance)
+            mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
                 page = await mgr.active_page(instance)
@@ -292,7 +292,7 @@ def _register_browser_verify_value(mcp: FastMCP, mgr: InstanceManager) -> None:
                 f"element_type must be one of 'text', 'checkbox', 'radio'; got {element_type!r}",
             )
         try:
-            await mgr.get(instance)
+            mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
                 page = await mgr.active_page(instance)

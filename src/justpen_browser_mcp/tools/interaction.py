@@ -63,7 +63,7 @@ def _register_browser_click(mcp: FastMCP, mgr: InstanceManager) -> None:
                 bad = [m for m in modifiers if m not in _VALID_MODIFIERS]
                 if bad:
                     return error_response(instance, "invalid_params", f"unknown modifiers: {bad!r}")
-            await mgr.get(instance)
+            mgr.get(instance)
             assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
                 page = await mgr.active_page(instance)
@@ -114,7 +114,7 @@ def _register_browser_type(mcp: FastMCP, mgr: InstanceManager) -> None:
             internal_error       — element is not editable or is disabled
         """
         try:
-            await mgr.get(instance)
+            mgr.get(instance)
             assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
                 page = await mgr.active_page(instance)
@@ -190,7 +190,7 @@ def _register_browser_fill_form(mcp: FastMCP, mgr: InstanceManager) -> None:
         retain their new values. Take a fresh snapshot to verify the form state.
         """
         try:
-            await mgr.get(instance)
+            mgr.get(instance)
             assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
                 page = await mgr.active_page(instance)
@@ -229,7 +229,7 @@ def _register_browser_select_option(mcp: FastMCP, mgr: InstanceManager) -> None:
             internal_error       — value not found in options, or element not a select
         """
         try:
-            await mgr.get(instance)
+            mgr.get(instance)
             assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
                 page = await mgr.active_page(instance)
@@ -262,7 +262,7 @@ def _register_browser_hover(mcp: FastMCP, mgr: InstanceManager) -> None:
             modal_state_blocked  — a dialog or file-chooser is pending; resolve it first
         """
         try:
-            await mgr.get(instance)
+            mgr.get(instance)
             assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
                 page = await mgr.active_page(instance)
@@ -296,7 +296,7 @@ def _register_browser_drag(mcp: FastMCP, mgr: InstanceManager) -> None:
             internal_error       — drag not supported by the element or framework
         """
         try:
-            await mgr.get(instance)
+            mgr.get(instance)
             assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
                 page = await mgr.active_page(instance)
@@ -330,7 +330,7 @@ def _register_browser_press_key(mcp: FastMCP, mgr: InstanceManager) -> None:
             internal_error       — key name not recognized by Playwright
         """
         try:
-            await mgr.get(instance)
+            mgr.get(instance)
             assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
                 page = await mgr.active_page(instance)
@@ -367,7 +367,7 @@ def _register_browser_file_upload(mcp: FastMCP, mgr: InstanceManager) -> None:
             internal_error       — set_files failed (path not found, etc.)
         """
         try:
-            await mgr.get(instance)
+            mgr.get(instance)
             async with mgr.lock_for(instance):
                 state = mgr.consume_modal_state(instance, "filechooser")
                 if state is None:
@@ -425,7 +425,7 @@ def _register_browser_handle_dialog(mcp: FastMCP, mgr: InstanceManager) -> None:
             modal_state_blocked  — no dialog is currently pending
         """
         try:
-            await mgr.get(instance)
+            mgr.get(instance)
             async with mgr.lock_for(instance):
                 state = mgr.consume_modal_state(instance, "dialog")
                 if state is None:

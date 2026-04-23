@@ -39,7 +39,7 @@ def register(mcp: FastMCP, mgr: InstanceManager) -> None:
             instance_not_found — instance does not exist
         """
         try:
-            rec = await mgr.get(instance)
+            rec = mgr.get(instance)
             async with mgr.lock_for(instance):
                 ctx = rec.context
                 if not ctx.pages:

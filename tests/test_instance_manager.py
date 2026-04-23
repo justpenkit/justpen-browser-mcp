@@ -179,7 +179,7 @@ async def test_shutdown_all_acquires_registry_lock(manager):
 @pytest.mark.asyncio
 async def test_get_raises_on_missing(manager):
     with pytest.raises(InstanceNotFoundError):
-        await manager.get("nope")
+        manager.get("nope")
 
 
 @pytest.mark.asyncio

@@ -63,7 +63,7 @@ def _register_browser_get_cookies(mcp: FastMCP, mgr: InstanceManager) -> None:
             instance_not_found — instance does not exist
         """
         try:
-            rec = await mgr.get(instance)
+            rec = mgr.get(instance)
             ctx = rec.context
             async with mgr.lock_for(instance):
                 if urls is not None:
@@ -104,7 +104,7 @@ def _register_browser_set_cookies(mcp: FastMCP, mgr: InstanceManager) -> None:
         Cookies set here affect all pages in the instance immediately.
         """
         try:
-            rec = await mgr.get(instance)
+            rec = mgr.get(instance)
             ctx = rec.context
             async with mgr.lock_for(instance):
                 default_domain: str | None = None
@@ -154,7 +154,7 @@ def _register_browser_clear_cookies(mcp: FastMCP, mgr: InstanceManager) -> None:
             instance_not_found — instance does not exist
         """
         try:
-            rec = await mgr.get(instance)
+            rec = mgr.get(instance)
             ctx = rec.context
             async with mgr.lock_for(instance):
                 await ctx.clear_cookies()
@@ -192,7 +192,7 @@ def _register_browser_get_local_storage(mcp: FastMCP, mgr: InstanceManager) -> N
             internal_error    — navigation to origin failed (e.g. network error)
         """
         try:
-            rec = await mgr.get(instance)
+            rec = mgr.get(instance)
             ctx = rec.context
             async with mgr.lock_for(instance):
                 page = await ctx.new_page()
@@ -239,7 +239,7 @@ def _register_browser_set_local_storage(mcp: FastMCP, mgr: InstanceManager) -> N
             internal_error    — navigation to origin failed
         """
         try:
-            rec = await mgr.get(instance)
+            rec = mgr.get(instance)
             ctx = rec.context
             async with mgr.lock_for(instance):
                 page = await ctx.new_page()
@@ -289,7 +289,7 @@ def _register_browser_clear_local_storage(mcp: FastMCP, mgr: InstanceManager) ->
             internal_error    — navigation to origin failed
         """
         try:
-            rec = await mgr.get(instance)
+            rec = mgr.get(instance)
             ctx = rec.context
             async with mgr.lock_for(instance):
                 if origin is None:

@@ -89,7 +89,7 @@ def _register_browser_navigate(mcp: FastMCP, mgr: InstanceManager) -> None:
         are invalidated. Take a fresh snapshot before referencing elements.
         """
         try:
-            await mgr.get(instance)
+            mgr.get(instance)
             assert_no_modal(mgr, instance)
             normalized = canonicalize_browser_url(url)
             async with mgr.lock_for(instance):
@@ -148,7 +148,7 @@ def _register_browser_navigate_back(mcp: FastMCP, mgr: InstanceManager) -> None:
         are invalidated. Take a fresh snapshot before referencing elements.
         """
         try:
-            await mgr.get(instance)
+            mgr.get(instance)
             assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
                 page = await mgr.active_page(instance)
@@ -201,7 +201,7 @@ def _register_browser_wait_for(mcp: FastMCP, mgr: InstanceManager) -> None:
                 "At least one of 'text', 'text_gone', or 'time' must be provided.",
             )
         try:
-            await mgr.get(instance)
+            mgr.get(instance)
             assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
                 page = await mgr.active_page(instance)
