@@ -95,11 +95,7 @@ async def browser_destroy_instance(name: str) -> dict[str, Any]
 |------|------|---------|-------------|
 | `name` | `str` | — | Instance name. |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
-
-```json
-{ "destroyed": true }
-```
+**Returns** — see [response envelope](../concepts/response-envelope.md). `data` is an empty object (`{}`).
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
@@ -116,7 +112,7 @@ Request:
 Response:
 
 ```json
-{ "status": "success", "instance": "main", "data": { "destroyed": true } }
+{ "status": "success", "instance": "main", "data": {} }
 ```
 
 **Notes** — Camoufox is terminated and all in-memory browser state is discarded. If the instance was created with a `profile_dir`, that directory and its contents are left intact on disk — the profile survives for the next `browser_create_instance` call. To close a single tab while keeping the instance alive, use `browser_close` instead.

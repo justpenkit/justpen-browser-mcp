@@ -28,7 +28,7 @@ Each instance has its own:
 | **BrowserForge fingerprint** | Canvas, WebGL, font list, timezone, language, and dozens of other signals are independently generated per launch. |
 | **Cookies & storage** | Cookies, localStorage, sessionStorage, and cache are isolated from every other instance. |
 | **Optional proxy** | The `proxy` parameter scopes a SOCKS5/HTTP proxy to this instance only. |
-| **Optional persistent profile** | The `profile_dir` parameter pins a Chromium-style profile directory; omit it for an ephemeral instance. |
+| **Optional persistent profile** | The `profile_dir` parameter pins a Firefox-style profile directory; omit it for an ephemeral instance. |
 
 ## Naming
 
