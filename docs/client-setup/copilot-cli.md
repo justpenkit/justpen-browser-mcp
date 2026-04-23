@@ -49,8 +49,7 @@ interaction tools.
 
 - **`command not found`** — the `justpen-browser-mcp` script is not on the
   `PATH` Copilot CLI sees. Use the absolute-path form above.
-- **Headless surprise** — `BROWSER_MCP_HEADLESS` defaults to `true`; set it to
-  `false` in the env block of the mcpServers entry while debugging.
+- **Headless mode** — `browser_create_instance` defaults to `headless=true`. Pass `headless=false` to the tool call when you want to watch the browser for debugging.
 - **Stdio transport only** — this server speaks MCP over stdio; HTTP transport
   is not supported. Only the `command` form works.
 

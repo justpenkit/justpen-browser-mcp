@@ -10,7 +10,7 @@ Click an element by its accessibility ref from `browser_snapshot`.
 
 ```python
 async def browser_click(
-    context: str,
+    instance: str,
     ref: str,
     *,
     double_click: bool = False,
@@ -23,7 +23,7 @@ async def browser_click(
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 | `ref` | `str` | — | Element ref from `browser_snapshot` (e.g. `"e5"`). See [Refs & snapshots](../concepts/refs-snapshots.md). |
 | `double_click` | `bool` | `False` | Perform a double-click instead of a single click. |
 | `button` | `str` | `"left"` | Mouse button: `"left"`, `"right"`, or `"middle"`. |
@@ -37,7 +37,7 @@ async def browser_click(
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 - `stale_ref`
 - `invalid_params`
 - `modal_state_blocked`
@@ -47,12 +47,12 @@ async def browser_click(
 
 Request:
 ```json
-{ "name": "browser_click", "arguments": { "context": "main", "ref": "e5" } }
+{ "name": "browser_click", "arguments": { "instance": "main", "ref": "e5" } }
 ```
 
 Response:
 ```json
-{ "status": "success", "context": "main", "data": { "clicked": "e5" } }
+{ "status": "success", "instance": "main", "data": { "clicked": "e5" } }
 ```
 
 **Notes** — The element is scrolled into view and clicked at its center. May trigger navigation, form submission, or open a modal. After a click that causes navigation, snapshot refs are invalidated — take a fresh snapshot before referencing page elements again.
@@ -65,7 +65,7 @@ Type text into an editable element identified by its accessibility ref.
 
 ```python
 async def browser_type(
-    context: str,
+    instance: str,
     ref: str,
     text: str,
     *,
@@ -78,7 +78,7 @@ async def browser_type(
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 | `ref` | `str` | — | Element ref from `browser_snapshot`. See [Refs & snapshots](../concepts/refs-snapshots.md). |
 | `text` | `str` | — | Text to type. |
 | `clear_first` | `bool` | `True` | Clear the existing value before typing (uses `fill`, which is instant). Set to `False` to append via simulated keystrokes. |
@@ -92,7 +92,7 @@ async def browser_type(
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 - `stale_ref`
 - `modal_state_blocked`
 - `internal_error`
@@ -101,12 +101,12 @@ async def browser_type(
 
 Request:
 ```json
-{ "name": "browser_type", "arguments": { "context": "main", "ref": "e12", "text": "hello@example.com" } }
+{ "name": "browser_type", "arguments": { "instance": "main", "ref": "e12", "text": "hello@example.com" } }
 ```
 
 Response:
 ```json
-{ "status": "success", "context": "main", "data": { "typed_into": "e12" } }
+{ "status": "success", "instance": "main", "data": { "typed_into": "e12" } }
 ```
 
 ## browser_fill_form
@@ -116,14 +116,14 @@ Fill multiple form fields in one call, in the order provided.
 **Signature**
 
 ```python
-async def browser_fill_form(context: str, fields: list[dict[str, Any]]) -> dict[str, Any]
+async def browser_fill_form(instance: str, fields: list[dict[str, Any]]) -> dict[str, Any]
 ```
 
 **Parameters**
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 | `fields` | `list[dict]` | — | Ordered list of field descriptors. Each dict must have `"ref"` (from `browser_snapshot`) and `"value"`, plus an optional `"type"`: `"textbox"` (default), `"checkbox"`, `"radio"`, or `"combobox"`. See [Refs & snapshots](../concepts/refs-snapshots.md). |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
@@ -134,7 +134,7 @@ async def browser_fill_form(context: str, fields: list[dict[str, Any]]) -> dict[
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 - `stale_ref`
 - `invalid_params`
 - `modal_state_blocked`
@@ -147,7 +147,7 @@ Request:
 {
   "name": "browser_fill_form",
   "arguments": {
-    "context": "main",
+    "instance": "main",
     "fields": [
       { "ref": "e10", "value": "Alice" },
       { "ref": "e11", "value": "alice@example.com" },
@@ -159,7 +159,7 @@ Request:
 
 Response:
 ```json
-{ "status": "success", "context": "main", "data": { "filled_count": 3 } }
+{ "status": "success", "instance": "main", "data": { "filled_count": 3 } }
 ```
 
 **Notes** — Filling is sequential: if any field fails, the tool stops at that field and earlier fields retain their new values. Take a fresh snapshot to verify the form state after a partial failure. Checkbox and radio values are coerced via `coerce_bool`, which accepts real booleans or the strings `"true"`/`"false"`/`"1"`/`"0"`/`"checked"`/`"unchecked"`/`"yes"`/`"no"` (case-insensitive).
@@ -171,14 +171,14 @@ Select an option in a `<select>` dropdown by its HTML `value` attribute.
 **Signature**
 
 ```python
-async def browser_select_option(context: str, ref: str, value: str | list[str]) -> dict[str, Any]
+async def browser_select_option(instance: str, ref: str, value: str | list[str]) -> dict[str, Any]
 ```
 
 **Parameters**
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 | `ref` | `str` | — | Ref of the `<select>` element from `browser_snapshot`. See [Refs & snapshots](../concepts/refs-snapshots.md). |
 | `value` | `str \| list[str]` | — | HTML `value` attribute of the option to select (not the display label). Pass a list for multi-select elements. |
 
@@ -190,7 +190,7 @@ async def browser_select_option(context: str, ref: str, value: str | list[str]) 
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 - `stale_ref`
 - `modal_state_blocked`
 - `internal_error`
@@ -199,12 +199,12 @@ async def browser_select_option(context: str, ref: str, value: str | list[str]) 
 
 Request:
 ```json
-{ "name": "browser_select_option", "arguments": { "context": "main", "ref": "e20", "value": "us" } }
+{ "name": "browser_select_option", "arguments": { "instance": "main", "ref": "e20", "value": "us" } }
 ```
 
 Response:
 ```json
-{ "status": "success", "context": "main", "data": { "selected": "us" } }
+{ "status": "success", "instance": "main", "data": { "selected": "us" } }
 ```
 
 **Notes** — Use the snapshot to inspect option elements nested under the `<select>` to find the correct `value` attributes. To select multiple options, pass a list: `"value": ["opt1", "opt2"]`.
@@ -216,14 +216,14 @@ Hover the mouse over an element identified by its accessibility ref.
 **Signature**
 
 ```python
-async def browser_hover(context: str, ref: str) -> dict[str, Any]
+async def browser_hover(instance: str, ref: str) -> dict[str, Any]
 ```
 
 **Parameters**
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 | `ref` | `str` | — | Element ref from `browser_snapshot`. See [Refs & snapshots](../concepts/refs-snapshots.md). |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
@@ -234,7 +234,7 @@ async def browser_hover(context: str, ref: str) -> dict[str, Any]
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 - `stale_ref`
 - `modal_state_blocked`
 
@@ -242,12 +242,12 @@ async def browser_hover(context: str, ref: str) -> dict[str, Any]
 
 Request:
 ```json
-{ "name": "browser_hover", "arguments": { "context": "main", "ref": "e8" } }
+{ "name": "browser_hover", "arguments": { "instance": "main", "ref": "e8" } }
 ```
 
 Response:
 ```json
-{ "status": "success", "context": "main", "data": { "hovered": "e8" } }
+{ "status": "success", "instance": "main", "data": { "hovered": "e8" } }
 ```
 
 **Notes** — The element is scrolled into view and the cursor is positioned at its center. Useful for triggering hover-activated menus, tooltips, or CSS `:hover` styles. Take a fresh snapshot after hovering to observe any newly-revealed elements.
@@ -259,14 +259,14 @@ Drag an element to a target element using accessibility refs.
 **Signature**
 
 ```python
-async def browser_drag(context: str, source_ref: str, target_ref: str) -> dict[str, Any]
+async def browser_drag(instance: str, source_ref: str, target_ref: str) -> dict[str, Any]
 ```
 
 **Parameters**
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 | `source_ref` | `str` | — | Ref of the element to drag (from `browser_snapshot`). See [Refs & snapshots](../concepts/refs-snapshots.md). |
 | `target_ref` | `str` | — | Ref of the drop target (from `browser_snapshot`). |
 
@@ -278,7 +278,7 @@ async def browser_drag(context: str, source_ref: str, target_ref: str) -> dict[s
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 - `stale_ref`
 - `modal_state_blocked`
 - `internal_error`
@@ -287,12 +287,12 @@ async def browser_drag(context: str, source_ref: str, target_ref: str) -> dict[s
 
 Request:
 ```json
-{ "name": "browser_drag", "arguments": { "context": "main", "source_ref": "e3", "target_ref": "e7" } }
+{ "name": "browser_drag", "arguments": { "instance": "main", "source_ref": "e3", "target_ref": "e7" } }
 ```
 
 Response:
 ```json
-{ "status": "success", "context": "main", "data": { "dragged": "e3", "to": "e7" } }
+{ "status": "success", "instance": "main", "data": { "dragged": "e3", "to": "e7" } }
 ```
 
 **Notes** — Performs a full pointer-event drag sequence: mouse-down on the source, move to the target center, mouse-up. Works for most drag-and-drop implementations that use pointer events. Frameworks that rely on HTML5 drag events or custom libraries may not respond correctly.
@@ -304,14 +304,14 @@ Press a keyboard key on the active page (sent to whatever element currently has 
 **Signature**
 
 ```python
-async def browser_press_key(context: str, key: str) -> dict[str, Any]
+async def browser_press_key(instance: str, key: str) -> dict[str, Any]
 ```
 
 **Parameters**
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 | `key` | `str` | — | Playwright key name, e.g. `"Enter"`, `"Tab"`, `"Escape"`, `"ArrowDown"`, `"Control+A"`, `"Shift+Tab"`. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
@@ -322,7 +322,7 @@ async def browser_press_key(context: str, key: str) -> dict[str, Any]
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 - `modal_state_blocked`
 - `internal_error`
 
@@ -330,12 +330,12 @@ async def browser_press_key(context: str, key: str) -> dict[str, Any]
 
 Request:
 ```json
-{ "name": "browser_press_key", "arguments": { "context": "main", "key": "Tab" } }
+{ "name": "browser_press_key", "arguments": { "instance": "main", "key": "Tab" } }
 ```
 
 Response:
 ```json
-{ "status": "success", "context": "main", "data": { "pressed": "Tab" } }
+{ "status": "success", "instance": "main", "data": { "pressed": "Tab" } }
 ```
 
 **Notes** — When `key` is `"Enter"`, the tool waits up to 2 s for `domcontentloaded` in case the key triggers a form submission. See the [Playwright keyboard documentation](https://playwright.dev/python/docs/api/class-keyboard) for the full list of key names.
@@ -347,14 +347,14 @@ Resolve a pending native file-chooser dialog by attaching files or cancelling.
 **Signature**
 
 ```python
-async def browser_file_upload(context: str, paths: list[str] | None = None) -> dict[str, Any]
+async def browser_file_upload(instance: str, paths: list[str] | None = None) -> dict[str, Any]
 ```
 
 **Parameters**
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 | `paths` | `list[str] \| None` | `None` | Absolute paths of the files to attach. `None` or an empty list cancels the file chooser without attaching any files. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape (mutually exclusive):
@@ -369,7 +369,7 @@ async def browser_file_upload(context: str, paths: list[str] | None = None) -> d
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 - `modal_state_blocked`
 - `internal_error`
 
@@ -377,12 +377,12 @@ async def browser_file_upload(context: str, paths: list[str] | None = None) -> d
 
 Request:
 ```json
-{ "name": "browser_file_upload", "arguments": { "context": "main", "paths": ["/tmp/report.pdf"] } }
+{ "name": "browser_file_upload", "arguments": { "instance": "main", "paths": ["/tmp/report.pdf"] } }
 ```
 
 Response:
 ```json
-{ "status": "success", "context": "main", "data": { "uploaded_count": 1 } }
+{ "status": "success", "instance": "main", "data": { "uploaded_count": 1 } }
 ```
 
 **Notes** — A file-chooser must already be pending before calling this tool (opened by a prior `browser_click` on a file input). The modal-state listener captures the chooser automatically. If the `set_files` call fails and the page is still alive, the chooser is re-queued so you can retry. See [Modal state](../concepts/modal-state.md) for the broader dialog/chooser lifecycle.
@@ -394,14 +394,14 @@ Resolve a pending JavaScript dialog (alert, confirm, or prompt).
 **Signature**
 
 ```python
-async def browser_handle_dialog(context: str, *, accept: bool, prompt_text: str | None = None) -> dict[str, Any]
+async def browser_handle_dialog(instance: str, *, accept: bool, prompt_text: str | None = None) -> dict[str, Any]
 ```
 
 **Parameters**
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 | `accept` | `bool` | — | `True` to accept the dialog (calls `dialog.accept`); `False` to dismiss it. |
 | `prompt_text` | `str \| None` | `None` | Text to submit with a `prompt` dialog. Ignored for `alert` and `confirm` dialogs. |
 
@@ -413,19 +413,19 @@ async def browser_handle_dialog(context: str, *, accept: bool, prompt_text: str 
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 - `modal_state_blocked`
 
 **Example**
 
 Request:
 ```json
-{ "name": "browser_handle_dialog", "arguments": { "context": "main", "accept": true } }
+{ "name": "browser_handle_dialog", "arguments": { "instance": "main", "accept": true } }
 ```
 
 Response:
 ```json
-{ "status": "success", "context": "main", "data": { "action": "accepted", "dialog_type": "alert", "message": "Upload complete." } }
+{ "status": "success", "instance": "main", "data": { "action": "accepted", "dialog_type": "alert", "message": "Upload complete." } }
 ```
 
 **Notes** — The dialog must already be open before calling this tool; it was triggered by a prior tool call and captured automatically by the modal-state listener. This tool does not pre-register a handler for future dialogs. See [Modal state](../concepts/modal-state.md) for the broader dialog lifecycle.

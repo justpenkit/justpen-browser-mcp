@@ -9,14 +9,14 @@ Verify that the element identified by a ref is currently visible on the page.
 **Signature**
 
 ```python
-async def browser_verify_element_visible(context: str, ref: str) -> dict[str, Any]
+async def browser_verify_element_visible(instance: str, ref: str) -> dict[str, Any]
 ```
 
 **Parameters**
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 | `ref` | `str` | — | Element ref (`[ref=eN]`) from `browser_snapshot`. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
@@ -27,7 +27,7 @@ async def browser_verify_element_visible(context: str, ref: str) -> dict[str, An
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 - `modal_state_blocked`
 - `stale_ref` — ref is no longer in the accessibility tree
 - `verification_failed` — element exists but is not currently visible
@@ -37,13 +37,13 @@ async def browser_verify_element_visible(context: str, ref: str) -> dict[str, An
 Request:
 
 ```json
-{ "name": "browser_verify_element_visible", "arguments": { "context": "main", "ref": "e12" } }
+{ "name": "browser_verify_element_visible", "arguments": { "instance": "main", "ref": "e12" } }
 ```
 
 Response:
 
 ```json
-{ "status": "success", "context": "main", "data": { "visible": true, "ref": "e12" } }
+{ "status": "success", "instance": "main", "data": { "visible": true, "ref": "e12" } }
 ```
 
 **Notes** — The visibility check is synchronous — no waiting is performed. Refs that live inside iframes are resolved by falling back through child frames. Use `browser_wait_for(text=...)` first if the element may not have appeared yet.
@@ -56,7 +56,7 @@ Verify visibility of multiple elements in either refs mode or container mode.
 
 ```python
 async def browser_verify_list_visible(
-    context: str,
+    instance: str,
     refs: list[str] | None = None,
     container_ref: str | None = None,
     items: list[str] | None = None,
@@ -67,7 +67,7 @@ async def browser_verify_list_visible(
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 | `refs` | `list[str] \| None` | `None` | **Refs mode**: list of element refs that must all be visible. Mutually exclusive with `container_ref`/`items`. |
 | `container_ref` | `str \| None` | `None` | **Container mode**: ref of the parent element. Required when using `items`. |
 | `items` | `list[str] \| None` | `None` | **Container mode**: list of text strings that must be visible as descendants of `container_ref`. |
@@ -88,7 +88,7 @@ Container mode:
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 - `modal_state_blocked`
 - `invalid_params` — neither mode supplied, both modes supplied, or `container_ref` given without `items`
 - `stale_ref` — a ref is no longer in the accessibility tree
@@ -99,13 +99,13 @@ Container mode:
 Request (refs mode):
 
 ```json
-{ "name": "browser_verify_list_visible", "arguments": { "context": "main", "refs": ["e3", "e7"] } }
+{ "name": "browser_verify_list_visible", "arguments": { "instance": "main", "refs": ["e3", "e7"] } }
 ```
 
 Response:
 
 ```json
-{ "status": "success", "context": "main", "data": { "visible_refs": ["e3", "e7"] } }
+{ "status": "success", "instance": "main", "data": { "visible_refs": ["e3", "e7"] } }
 ```
 
 Request (container mode):
@@ -113,14 +113,14 @@ Request (container mode):
 ```json
 {
   "name": "browser_verify_list_visible",
-  "arguments": { "context": "main", "container_ref": "e5", "items": ["Apple", "Banana"] }
+  "arguments": { "instance": "main", "container_ref": "e5", "items": ["Apple", "Banana"] }
 }
 ```
 
 Response:
 
 ```json
-{ "status": "success", "context": "main", "data": { "container_ref": "e5", "verified_items": ["Apple", "Banana"] } }
+{ "status": "success", "instance": "main", "data": { "container_ref": "e5", "verified_items": ["Apple", "Banana"] } }
 ```
 
 **Notes** — The two modes are mutually exclusive: pass either `refs` or `container_ref`+`items`, never both. Container mode matches by text substring (`get_by_text`) and uses `.first` to avoid strict-mode violations when text appears multiple times. Useful for post-action assertions such as verifying all rows of a rendered list.
@@ -132,14 +132,14 @@ Verify that the given text is currently visible somewhere on the active page.
 **Signature**
 
 ```python
-async def browser_verify_text_visible(context: str, text: str) -> dict[str, Any]
+async def browser_verify_text_visible(instance: str, text: str) -> dict[str, Any]
 ```
 
 **Parameters**
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 | `text` | `str` | — | Text to look for (case-insensitive substring match). |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
@@ -150,7 +150,7 @@ async def browser_verify_text_visible(context: str, text: str) -> dict[str, Any]
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 - `modal_state_blocked`
 - `verification_failed` — the text is not visible on any frame of the page
 
@@ -159,13 +159,13 @@ async def browser_verify_text_visible(context: str, text: str) -> dict[str, Any]
 Request:
 
 ```json
-{ "name": "browser_verify_text_visible", "arguments": { "context": "main", "text": "Welcome" } }
+{ "name": "browser_verify_text_visible", "arguments": { "instance": "main", "text": "Welcome" } }
 ```
 
 Response:
 
 ```json
-{ "status": "success", "context": "main", "data": { "text": "Welcome", "visible": true } }
+{ "status": "success", "instance": "main", "data": { "text": "Welcome", "visible": true } }
 ```
 
 **Notes** — Matching is a case-insensitive non-exact substring search via `get_by_text`. Both the main frame and all child frames are searched. Uses `.first` to avoid strict-mode violations when the text matches multiple elements. Use `browser_wait_for(text=...)` if the text may not have appeared yet.
@@ -178,7 +178,7 @@ Verify the value or checked state of an input element.
 
 ```python
 async def browser_verify_value(
-    context: str,
+    instance: str,
     ref: str,
     expected_value: str,
     element_type: str = "text",
@@ -189,7 +189,7 @@ async def browser_verify_value(
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `context` | `str` | — | Context name. |
+| `instance` | `str` | — | Instance name. |
 | `ref` | `str` | — | Element ref (`[ref=eN]`) from `browser_snapshot`. |
 | `expected_value` | `str` | — | Expected value. String for `"text"` mode; coerced to bool for `"checkbox"`/`"radio"` (accepts `"true"`, `"false"`, `"1"`, `"0"`, `"checked"`, `"unchecked"`). |
 | `element_type` | `str` | `"text"` | Comparison mode: `"text"` (reads via `input_value()`), `"checkbox"`, or `"radio"` (reads via `is_checked()`). |
@@ -208,7 +208,7 @@ For checkbox/radio mode `value` is a `bool`:
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `context_not_found`
+- `instance_not_found`
 - `modal_state_blocked`
 - `invalid_params` — `element_type` is not one of `"text"`, `"checkbox"`, `"radio"`
 - `stale_ref` — ref is no longer in the accessibility tree
@@ -221,7 +221,7 @@ Request:
 ```json
 {
   "name": "browser_verify_value",
-  "arguments": { "context": "main", "ref": "e7", "expected_value": "alice@example.com" }
+  "arguments": { "instance": "main", "ref": "e7", "expected_value": "alice@example.com" }
 }
 ```
 
@@ -230,7 +230,7 @@ Response:
 ```json
 {
   "status": "success",
-  "context": "main",
+  "instance": "main",
   "data": { "ref": "e7", "value": "alice@example.com", "element_type": "text" }
 }
 ```

@@ -7,17 +7,18 @@ file. Variables are read at server startup.
 
 | Variable | Default | Description |
 |---|---|---|
-| `BROWSER_MCP_HEADLESS` | `true` | Launch Camoufox in headless mode. Accepts `true` or `false` (case-insensitive). |
+| `BROWSER_MCP_MAX_INSTANCES` | `10` | Maximum number of concurrently live Camoufox instances. Must be a positive integer; invalid values (non-integer, zero, or negative) fall back to `10` with a warning logged to stderr. |
 | `BROWSER_MCP_LOG_LEVEL` | `INFO` | Python log level name for server-side logging to stderr. |
 
-## Headless default
+## Instance cap
 
-`BROWSER_MCP_HEADLESS` defaults to `true`. Set it to `false` (case-insensitive)
-to watch Camoufox drive the browser — useful for debugging locators and
-modal-state bugs.
+`BROWSER_MCP_MAX_INSTANCES` controls how many Camoufox processes the server
+will run at the same time. Once the cap is reached, `browser_create_instance`
+returns an `instance_limit_exceeded` error until an existing instance is
+destroyed.
 
 ```bash
-BROWSER_MCP_HEADLESS=false justpen-browser-mcp
+BROWSER_MCP_MAX_INSTANCES=5 justpen-browser-mcp
 ```
 
 ## Log level

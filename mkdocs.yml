@@ -1,5 +1,5 @@
 site_name: justpen-browser-mcp
-site_description: Camoufox-based MCP server with multi-context browser session isolation
+site_description: Camoufox-based MCP server with multi-instance browser session isolation
 site_url: https://justpenkit.github.io/justpen-browser-mcp/
 repo_url: https://github.com/justpenkit/justpen-browser-mcp
 repo_name: justpenkit/justpen-browser-mcp
@@ -44,7 +44,7 @@ nav:
       - Configuration: getting-started/configuration.md
   - Concepts:
       - Response envelope: concepts/response-envelope.md
-      - Contexts & isolation: concepts/contexts-isolation.md
+      - Instances & isolation: concepts/instances-isolation.md
       - Refs & snapshots: concepts/refs-snapshots.md
       - Modal state: concepts/modal-state.md
   - Client setup:
@@ -62,7 +62,6 @@ nav:
       - Cookies & storage: tools-reference/cookies.md
       - Utility: tools-reference/utility.md
       - Page: tools-reference/page.md
-      - Server: tools-reference/server-tools.md
   - Contributing:
       - PR checklist: contributing/pr-checklist.md
       - Release process: contributing/release-process.md
