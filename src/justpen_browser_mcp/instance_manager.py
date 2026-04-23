@@ -172,9 +172,7 @@ class InstanceManager:
         in-flight tool operation on this instance completes before teardown.
         """
         async with self._registry_lock:
-            rec = self._instances.get(name)
-            if rec is None:
-                raise InstanceNotFoundError(f"Instance {name!r} does not exist.")
+            rec = self.get(name)
             async with rec.lock:
                 await rec.stack.aclose()
                 del self._instances[name]
