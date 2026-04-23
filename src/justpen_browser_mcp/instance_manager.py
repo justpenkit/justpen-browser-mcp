@@ -12,8 +12,9 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
+
+from anyio import Path as AsyncPath
 
 from .errors import (
     InstanceAlreadyExistsError,
@@ -110,11 +111,9 @@ class InstanceManager:
                     f"Destroy an existing instance first."
                 )
             if profile_dir is not None:
-                # Path.resolve() is pure normalization here (strict=False, no I/O on
-                # missing paths); the ASYNC240 suppression is intentional and safe.
-                normalized = Path(profile_dir).resolve()  # noqa: ASYNC240
+                normalized = await AsyncPath(profile_dir).resolve()
                 for r in self._instances.values():
-                    if r.profile_dir is not None and Path(r.profile_dir).resolve() == normalized:  # noqa: ASYNC240
+                    if r.profile_dir is not None and await AsyncPath(r.profile_dir).resolve() == normalized:
                         raise ProfileDirInUseError(
                             f"Cannot create instance {name!r}: profile_dir {profile_dir!r} is "
                             f"already in use by instance {r.name!r}. Destroy it first or choose "

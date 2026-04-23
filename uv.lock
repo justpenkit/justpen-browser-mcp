@@ -817,6 +817,7 @@ name = "justpen-browser-mcp"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "anyio" },
     { name = "camoufox" },
     { name = "fastmcp" },
     { name = "pillow" },
@@ -840,6 +841,7 @@ docs = [
 
 [package.metadata]
 requires-dist = [
+    { name = "anyio", specifier = ">=4.13.0" },
     { name = "camoufox", specifier = ">=0.4" },
     { name = "fastmcp", specifier = ">=2.0" },
     { name = "pillow", specifier = ">=10.0" },
