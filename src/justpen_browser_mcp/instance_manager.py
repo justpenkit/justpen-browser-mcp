@@ -110,10 +110,11 @@ class InstanceManager:
                     f"Cannot create instance {name!r}: limit of {self._max} reached. "
                     f"Destroy an existing instance first."
                 )
+            resolved_profile_dir: str | None = None
             if profile_dir is not None:
-                normalized = await AsyncPath(profile_dir).resolve()
+                resolved_profile_dir = str(await AsyncPath(profile_dir).resolve())
                 for r in self._instances.values():
-                    if r.profile_dir is not None and await AsyncPath(r.profile_dir).resolve() == normalized:
+                    if r.profile_dir == resolved_profile_dir:
                         raise ProfileDirInUseError(
                             f"Cannot create instance {name!r}: profile_dir {profile_dir!r} is "
                             f"already in use by instance {r.name!r}. Destroy it first or choose "
@@ -121,7 +122,7 @@ class InstanceManager:
                         )
 
             stack, ctx = await launch_instance(
-                profile_dir=profile_dir,
+                profile_dir=resolved_profile_dir,
                 headless=headless,
                 proxy=proxy,
                 humanize=humanize,
@@ -138,11 +139,11 @@ class InstanceManager:
                 context=ctx,
                 lock=asyncio.Lock(),
                 state=state,
-                profile_dir=profile_dir,
+                profile_dir=resolved_profile_dir,
                 created_at=datetime.now(tz=UTC),
             )
             self._instances[name] = record
-            logger.info("Created instance %r (mode=%s)", name, "persistent" if profile_dir else "ephemeral")
+            logger.info("Created instance %r (mode=%s)", name, "persistent" if resolved_profile_dir else "ephemeral")
             return record
 
     async def get(self, name: str) -> InstanceRecord:
