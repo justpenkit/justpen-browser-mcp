@@ -6,8 +6,8 @@
     "node": ">=24"
   },
   "devDependencies": {
-    "prettier": "3.3.3",
-    "prettier-plugin-toml": "2.0.1",
+    "prettier": "3.8.3",
+    "prettier-plugin-toml": "2.0.6",
     "astro": "^6.0.0",
     "@astrojs/starlight": "^0.38.0"
   }
