@@ -43,3 +43,6 @@ playwright/.cache/
 
 # Git worktrees
 .worktrees/
+
+# Node (prettier toolchain only — not a Node project otherwise)
+node_modules/
