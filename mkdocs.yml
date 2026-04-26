@@ -64,8 +64,6 @@ nav:
       - Page: tools-reference/page.md
   - Contributing:
       - PR checklist: contributing/pr-checklist.md
-      - Release process: contributing/release-process.md
       - Lint & typing: contributing/lint-typing.md
-      - Code intelligence: contributing/code-intelligence.md
 
 strict: true
