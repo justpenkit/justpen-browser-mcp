@@ -64,4 +64,4 @@ Superpowers skills write artifacts under `.superpowers/` at repo root (gitignore
 - Design specs → `.superpowers/docs/specs/YYYY-MM-DD-<topic>-design.md`
 - Implementation plans → `.superpowers/docs/plans/YYYY-MM-DD-<topic>-plan.md`
 
-Never write superpowers artifacts into the tracked `docs/` tree — that directory is reserved for the public MkDocs site.
+Never write superpowers artifacts into the tracked `docs/` tree — that directory is reserved for the public Astro Starlight site.

@@ -9,7 +9,8 @@ package-lock.json
 .venv/
 node_modules/
 dist/
-site/
+docs/dist/
+docs/.astro/
 htmlcov/
 .pytest_cache/
 .ruff_cache/
