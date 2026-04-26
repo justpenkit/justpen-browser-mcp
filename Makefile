@@ -5,10 +5,11 @@
 VERSION := $(shell grep '^version' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
 VENV := .venv
 PRETTIER := ./node_modules/.bin/prettier
+NPX := npx
 
 help:
 	@echo "justpen-browser-mcp Makefile targets:"
-	@echo "  setup                  uv sync dev+docs, fetch Camoufox binary, npm install, install git hooks"
+	@echo "  setup                  uv sync dev, fetch Camoufox binary, npm install, install git hooks, astro sync"
 	@echo "  clean                  Remove venv, node_modules, caches"
 	@echo "  test                   Run non-e2e tests"
 	@echo "  test-e2e               Run e2e tests (requires Camoufox)"
@@ -25,8 +26,8 @@ help:
 	@echo "  lock-check             Verify uv.lock is in sync with pyproject.toml"
 	@echo "  check                  format-check + lint + typecheck + test"
 	@echo "  pre-commit             Run all pre-commit hooks"
-	@echo "  docs-build             Build the MkDocs site (strict mode)"
-	@echo "  docs-serve             Serve the MkDocs site locally with live reload"
+	@echo "  docs-build             Build the docs site (Astro Starlight static build)"
+	@echo "  docs-serve             Serve the docs site locally with live reload"
 	@echo "  bump-patch             Bump patch version, commit, tag locally"
 	@echo "  bump-minor             Bump minor version, commit, tag locally"
 	@echo "  bump-major             Bump major version, commit, tag locally"
@@ -40,17 +41,18 @@ setup:
 	    echo "ERROR: npm not found in PATH. Install Node.js 24+ from https://nodejs.org and re-run 'make setup'."; \
 	    exit 1; \
 	}
-	uv sync --locked --group dev --group docs
+	uv sync --locked --group dev
 	uv run python -m camoufox fetch
 	uv run --group dev pre-commit install --install-hooks
 	npm install --no-audit --no-fund
+	$(NPX) astro --root docs sync
 
 pre-commit:
 	uv run --group dev pre-commit run --all-files
 
 clean:
 	rm -rf $(VENV)
-	rm -rf dist/ site/ htmlcov/ node_modules/
+	rm -rf dist/ htmlcov/ node_modules/ docs/dist/ docs/.astro/
 	rm -rf .pytest_cache .ruff_cache
 	rm -f .coverage .coverage.* coverage.xml
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
@@ -107,11 +109,11 @@ lock-check:
 
 check: format-check lint typecheck test
 
-docs-build:
-	uv run --group docs mkdocs build --strict
+docs-build: node_modules
+	$(NPX) astro --root docs build
 
-docs-serve:
-	uv run --group docs mkdocs serve
+docs-serve: node_modules
+	$(NPX) astro --root docs dev
 
 bump-patch bump-minor bump-major:
 	@segment=$$(echo $@ | sed 's/^bump-//'); \
