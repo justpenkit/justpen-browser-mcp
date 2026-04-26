@@ -33,13 +33,13 @@ async def browser_mouse_click_xy(
 | `click_count` | `int` | `1`      | Number of clicks to deliver; use `2` for a double-click.   |
 | `delay_ms`    | `int` | `0`      | Delay in milliseconds between mousedown and mouseup.       |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
 ```json
 { "clicked_at": [120, 340], "button": "left" }
 ```
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 - `modal_state_blocked`
@@ -79,13 +79,13 @@ async def browser_mouse_move_xy(instance: str, x: int, y: int) -> dict[str, Any]
 | `x`        | `int` | —       | Target horizontal pixel coordinate. |
 | `y`        | `int` | —       | Target vertical pixel coordinate.   |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
 ```json
 { "moved_to": [120, 340] }
 ```
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 - `modal_state_blocked`
@@ -124,13 +124,13 @@ async def browser_mouse_down(instance: str, button: str = "left") -> dict[str, A
 | `instance` | `str` | —        | Instance name.                          |
 | `button`   | `str` | `"left"` | One of `"left"`, `"right"`, `"middle"`. |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
 ```json
 { "button_down": "left" }
 ```
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 - `modal_state_blocked`
@@ -169,13 +169,13 @@ async def browser_mouse_up(instance: str, button: str = "left") -> dict[str, Any
 | `instance` | `str` | —        | Instance name.                                        |
 | `button`   | `str` | `"left"` | Must match the button passed to `browser_mouse_down`. |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
 ```json
 { "button_up": "left" }
 ```
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 - `modal_state_blocked`
@@ -215,13 +215,13 @@ async def browser_mouse_drag_xy(instance: str, from_x: int, from_y: int, to_x: i
 | `to_x`     | `int` | —       | Ending horizontal pixel coordinate.   |
 | `to_y`     | `int` | —       | Ending vertical pixel coordinate.     |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
 ```json
 { "from": [50, 100], "to": [300, 100] }
 ```
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 - `modal_state_blocked`
@@ -264,13 +264,13 @@ async def browser_mouse_wheel(instance: str, delta_x: int = 0, delta_y: int = 0)
 | `delta_x`  | `int` | `0`     | Horizontal scroll in CSS pixels (positive = right). |
 | `delta_y`  | `int` | `0`     | Vertical scroll in CSS pixels (positive = down).    |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
 ```json
 { "scrolled": [0, 300] }
 ```
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 - `invalid_params`

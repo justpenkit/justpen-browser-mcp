@@ -11,7 +11,7 @@ When `browser_snapshot` is called with `selector=<css-or-aria>`, it returns a sc
 
 Interaction tools (click, hover, fill, drag) operate on **refs** — opaque
 identifiers returned by inspection tools (see
-[Inspection tools](../tools-reference/inspection.md)). A ref is valid for the
+[Inspection tools](/tools-reference/inspection/)). A ref is valid for the
 lifetime of the snapshot it came from; re-snapshot if the page mutates.
 
 ## Why aria-refs instead of CSS selectors

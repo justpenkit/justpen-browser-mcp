@@ -9,7 +9,7 @@ Wire `justpen-browser-mcp` into [Claude Code](https://claude.com/claude-code).
 
 - Claude Code installed and authenticated
 - `justpen-browser-mcp` installed and on `PATH` (see
-  [Install](../getting-started/install.md))
+  [Install](/getting-started/install/))
 
 ## Registration
 

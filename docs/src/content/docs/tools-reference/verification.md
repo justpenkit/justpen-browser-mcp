@@ -3,7 +3,7 @@ title: Verification
 description: Wait for conditions and assert page state.
 ---
 
-Verification tools let you assert that the current state of a page matches expectations — checking element visibility, text presence, or input values — without the round-trip of a full snapshot. Each tool returns on success or emits a `verification_failed` error code (specific to this module) when the assertion does not hold; see [envelope error codes](../concepts/response-envelope.md#error_type-values) for the full list of `error_type` values. Use `browser_wait_for` before any verification if the state you need has not yet appeared.
+Verification tools let you assert that the current state of a page matches expectations — checking element visibility, text presence, or input values — without the round-trip of a full snapshot. Each tool returns on success or emits a `verification_failed` error code (specific to this module) when the assertion does not hold; see [envelope error codes](/concepts/response-envelope/#error_type-values) for the full list of `error_type` values. Use `browser_wait_for` before any verification if the state you need has not yet appeared.
 
 ## browser_verify_element_visible
 
@@ -22,13 +22,13 @@ async def browser_verify_element_visible(instance: str, ref: str) -> dict[str, A
 | `instance` | `str` | —       | Instance name.                                    |
 | `ref`      | `str` | —       | Element ref (`[ref=eN]`) from `browser_snapshot`. |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
 ```json
 { "visible": true, "ref": "e12" }
 ```
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 - `modal_state_blocked`
@@ -75,7 +75,7 @@ async def browser_verify_list_visible(
 | `container_ref` | `str \| None`       | `None`  | **Container mode**: ref of the parent element. Required when using `items`.                                    |
 | `items`         | `list[str] \| None` | `None`  | **Container mode**: list of text strings that must be visible as descendants of `container_ref`.               |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape depends on mode:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape depends on mode:
 
 Refs mode:
 
@@ -89,7 +89,7 @@ Container mode:
 { "container_ref": "e5", "verified_items": ["Apple", "Banana", "Cherry"] }
 ```
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 - `modal_state_blocked`
@@ -149,13 +149,13 @@ async def browser_verify_text_visible(instance: str, text: str) -> dict[str, Any
 | `instance` | `str` | —       | Instance name.                                       |
 | `text`     | `str` | —       | Text to look for (case-insensitive substring match). |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
 ```json
 { "text": "Welcome", "visible": true }
 ```
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 - `modal_state_blocked`
@@ -201,7 +201,7 @@ async def browser_verify_value(
 | `expected_value` | `str` | —        | Expected value. String for `"text"` mode; coerced to bool for `"checkbox"`/`"radio"` (accepts `"true"`, `"false"`, `"1"`, `"0"`, `"checked"`, `"unchecked"`). |
 | `element_type`   | `str` | `"text"` | Comparison mode: `"text"` (reads via `input_value()`), `"checkbox"`, or `"radio"` (reads via `is_checked()`).                                                 |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
 ```json
 { "ref": "e7", "value": "alice@example.com", "element_type": "text" }
@@ -213,7 +213,7 @@ For checkbox/radio mode `value` is a `bool`:
 { "ref": "e9", "value": true, "element_type": "checkbox" }
 ```
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 - `modal_state_blocked`

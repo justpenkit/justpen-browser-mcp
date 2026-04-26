@@ -23,13 +23,13 @@ async def browser_resize(instance: str, width: int, height: int) -> dict[str, An
 | `width`    | `int` | —       | Viewport width in pixels.  |
 | `height`   | `int` | —       | Viewport height in pixels. |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
 ```json
 { "width": 1920, "height": 1080 }
 ```
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 
@@ -76,13 +76,13 @@ async def browser_pdf_save(
 | `landscape`        | `bool`        | `False` | Rotate to landscape orientation.                                                                       |
 | `print_background` | `bool`        | `False` | Include CSS backgrounds in output.                                                                     |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
 ```json
 { "saved_to": "/workspace/output/evidence/page-1719234567.pdf", "size_bytes": 156789 }
 ```
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 - `modal_state_blocked`
@@ -135,7 +135,7 @@ async def browser_generate_locator(
 | `selector` | `str \| None` | `None`  | Raw CSS selector to pass through verbatim. Mutually exclusive with `ref`.                    |
 | `element`  | `str \| None` | `None`  | Optional free-form human description (logged; not used by the implementation).               |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
 ```json
 {
@@ -146,7 +146,7 @@ async def browser_generate_locator(
 }
 ```
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 - `invalid_params` — neither or both of `ref`/`selector` supplied
@@ -205,14 +205,14 @@ async def browser_tabs(
 | `index`    | `int \| None` | `None`  | Tab index (required for `"close"` and `"select"`).            |
 | `url`      | `str \| None` | `None`  | URL to navigate to when opening a new tab (only for `"new"`). |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape depends on `action`:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape depends on `action`:
 
 - `"list"`: `{"tabs": [{"index": 0, "url": "https://example.com"}, ...]}`
 - `"new"`: `{"index": 1, "url": "https://example.com"}`
 - `"close"`: `{"closed_index": 1}`
 - `"select"`: `{"selected_index": 1}`
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 - `invalid_params` — unrecognized action, or index missing/out of range

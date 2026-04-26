@@ -22,13 +22,13 @@ async def browser_navigate(instance: str, url: str) -> dict[str, Any]
 | `instance` | `str` | —       | Instance name.   |
 | `url`      | `str` | —       | Destination URL. |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
 ```json
 { "url": "https://example.com/page", "title": "Page Title" }
 ```
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 - `modal_state_blocked`
@@ -71,13 +71,13 @@ async def browser_navigate_back(instance: str) -> dict[str, Any]
 | ---------- | ----- | ------- | -------------- |
 | `instance` | `str` | —       | Instance name. |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
 ```json
 { "url": "https://example.com/" }
 ```
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 - `modal_state_blocked`
@@ -124,13 +124,13 @@ async def browser_wait_for(
 | `text_gone` | `str \| None`   | `None`  | Wait until this string is hidden on the page.   |
 | `time`      | `float \| None` | `None`  | Seconds to wait unconditionally (capped at 30). |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
 ```json
 { "waited_for": "2.0s, text='Dashboard'" }
 ```
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 - `modal_state_blocked`

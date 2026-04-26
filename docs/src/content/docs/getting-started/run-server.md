@@ -35,10 +35,10 @@ path instead.
 
 ## Logs
 
-Server-side logs go to stderr. See [Configuration](configuration.md) for the
+Server-side logs go to stderr. See [Configuration](/getting-started/configuration/) for the
 `BROWSER_MCP_LOG_LEVEL` variable.
 
 ## Next steps
 
-- Wire it into a client: [Client setup → Claude Code](../client-setup/claude-code.md)
-- See the tool surface: [Tools reference → Lifecycle](../tools-reference/lifecycle.md)
+- Wire it into a client: [Client setup → Claude Code](/client-setup/claude-code/)
+- See the tool surface: [Tools reference → Lifecycle](/tools-reference/lifecycle/)

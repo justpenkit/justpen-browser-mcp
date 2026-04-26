@@ -24,13 +24,13 @@ async def browser_evaluate(instance: str, expression: str, ref: str | None = Non
 | `ref`        | `str \| None` | `None`  | Optional accessibility ref from `browser_snapshot`; runs the expression via `locator.evaluate()` with the element as the first argument. Mutually exclusive with `selector`. |
 | `selector`   | `str \| None` | `None`  | Optional CSS/aria selector; same semantics as `ref`. Mutually exclusive with `ref`.                                                                                          |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
 ```json
 { "result": "Example Domain" }
 ```
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 - `invalid_params` — both `ref` and `selector` were provided
@@ -71,13 +71,13 @@ async def browser_run_code(instance: str, code: str) -> dict[str, Any]
 | `instance` | `str` | —       | Instance name.                                                                                                                                                         |
 | `code`     | `str` | —       | Python code body. Runs as the body of an async function with `page`, `context` (Playwright BrowserContext), and `ctx_mgr` in scope. Use `return` to send a value back. |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
 ```json
 { "result": "Task Complete" }
 ```
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 - `modal_state_blocked` — a dialog or file chooser is pending; resolve it first

@@ -3,7 +3,7 @@ title: Inspection
 description: Snapshot, screenshot, console, and network inspection.
 ---
 
-Inspection tools let you observe the current state of a browser instance — its accessibility tree, visual appearance, console output, and network activity. `browser_snapshot` is the primary tool: it returns an LLM-friendly YAML accessibility tree where every interactive element carries a `[ref=eN]` tag that other tools consume to click, type, or drag without pixel coordinates. These refs are session-scoped and invalidated by navigation; see [Refs & snapshots](../concepts/refs-snapshots.md) for a full explanation of the ref lifecycle. Use `browser_screenshot` when visual fidelity matters, and `browser_console_messages` / `browser_network_requests` for debugging JavaScript errors and API calls.
+Inspection tools let you observe the current state of a browser instance — its accessibility tree, visual appearance, console output, and network activity. `browser_snapshot` is the primary tool: it returns an LLM-friendly YAML accessibility tree where every interactive element carries a `[ref=eN]` tag that other tools consume to click, type, or drag without pixel coordinates. These refs are session-scoped and invalidated by navigation; see [Refs & snapshots](/concepts/refs-snapshots/) for a full explanation of the ref lifecycle. Use `browser_screenshot` when visual fidelity matters, and `browser_console_messages` / `browser_network_requests` for debugging JavaScript errors and API calls.
 
 ## browser_snapshot
 
@@ -22,13 +22,13 @@ async def browser_snapshot(instance: str, selector: str | None = None) -> dict[s
 | `instance` | `str`         | —       | Instance name.                                                                                                            |
 | `selector` | `str \| None` | `None`  | Optional CSS or aria selector to scope the snapshot to a subtree. When provided, refs are **not** included in the output. |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
 ```json
 { "snapshot": "<yaml string>", "url": "https://example.com/page" }
 ```
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 - `modal_state_blocked`
@@ -80,7 +80,7 @@ async def browser_screenshot(
 | `image_format` | `str`  | `"png"` | `"png"` (lossless) or `"jpeg"` (lossy, smaller).                         |
 | `full_page`    | `bool` | `False` | Capture the entire scrollable page instead of just the current viewport. |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
 ```json
 {
@@ -93,7 +93,7 @@ async def browser_screenshot(
 
 `width` and `height` are `null` when PIL/Pillow is unavailable.
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 - `invalid_params` — `image_format` is not `"png"` or `"jpeg"`
@@ -142,7 +142,7 @@ async def browser_console_messages(instance: str, level: str | None = None) -> d
 | `instance` | `str`         | —       | Instance name.                                                                                                           |
 | `level`    | `str \| None` | `None`  | Filter by message type. Valid values: `"log"`, `"info"`, `"warning"`, `"error"`, `"debug"`. `None` returns all messages. |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
 ```json
 {
@@ -157,7 +157,7 @@ async def browser_console_messages(instance: str, level: str | None = None) -> d
 }
 ```
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 - `invalid_params` — `level` is not one of the recognised values
@@ -213,7 +213,7 @@ async def browser_network_requests(
 | `url_filter` | `str \| None` | `None`  | Python regular expression. Only requests whose URL matches are returned. Applied after the static filter. An invalid regex returns `invalid_params`. |
 | `static`     | `bool`        | `False` | When `False` (default), static asset requests (image, font, stylesheet, media, manifest) are filtered out. Pass `True` to include them.              |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
 ```json
 {
@@ -238,7 +238,7 @@ async def browser_network_requests(
 
 `status` is `null` until the response arrives or if it never does. `failure` is `null` on success or while a request is still pending.
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 - `invalid_params` — `url_filter` is not a valid regular expression

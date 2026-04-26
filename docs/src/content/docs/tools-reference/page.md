@@ -21,7 +21,7 @@ async def browser_close(instance: str) -> dict[str, Any]
 | ---------- | ----- | ------- | -------------- |
 | `instance` | `str` | —       | Instance name. |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
 ```json
 { "closed": true }
@@ -33,7 +33,7 @@ When there are no open pages, the shape is instead:
 { "closed": false, "reason": "no open pages" }
 ```
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 

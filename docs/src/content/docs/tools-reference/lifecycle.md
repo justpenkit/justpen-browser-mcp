@@ -34,7 +34,7 @@ async def browser_create_instance(
 | `humanize`    | `bool \| float`           | `True`  | Camoufox humanization level. `True` enables default humanization; `False` disables it; a float sets the delay factor directly.                                                                                   |
 | `window`      | `tuple[int, int] \| None` | `None`  | Initial viewport size as `(width, height)`. `None` uses Camoufox defaults.                                                                                                                                       |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
 ```json
 {
@@ -49,7 +49,7 @@ async def browser_create_instance(
 
 `mode` is `"ephemeral"` when `profile_dir` is `None`, `"persistent"` otherwise.
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_already_exists` — an instance with that name is already live.
 - `instance_limit_exceeded` — the `BROWSER_MCP_MAX_INSTANCES` cap has been reached; destroy an existing instance first.
@@ -80,7 +80,7 @@ Response:
 }
 ```
 
-**Notes** — No pages exist immediately after creation. The first tool that needs a page (e.g. `browser_navigate`) creates one implicitly. For persistent instances, BrowserForge rolls a fresh fingerprint on each launch even when reusing an existing `profile_dir` — stored cookies and localStorage are preserved, but the fingerprint signals change. See [Instances & isolation](../concepts/instances-isolation.md) for a full discussion of ephemeral vs. persistent modes.
+**Notes** — No pages exist immediately after creation. The first tool that needs a page (e.g. `browser_navigate`) creates one implicitly. For persistent instances, BrowserForge rolls a fresh fingerprint on each launch even when reusing an existing `profile_dir` — stored cookies and localStorage are preserved, but the fingerprint signals change. See [Instances & isolation](/concepts/instances-isolation/) for a full discussion of ephemeral vs. persistent modes.
 
 ## browser_destroy_instance
 
@@ -98,9 +98,9 @@ async def browser_destroy_instance(name: str) -> dict[str, Any]
 | ------ | ----- | ------- | -------------- |
 | `name` | `str` | —       | Instance name. |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` is an empty object (`{}`).
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` is an empty object (`{}`).
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found` — no instance with that name is currently live.
 
@@ -134,7 +134,7 @@ async def browser_list_instances() -> dict[str, Any]
 
 _No parameters._
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
 ```json
 {
@@ -162,7 +162,7 @@ Each entry in `instances` has:
 | `active_url`  | `str \| null` | URL of the currently active page, or `null` when no pages are open.        |
 | `created_at`  | `str`         | ISO 8601 timestamp (UTC) of when the instance was created.                 |
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `internal_error`
 

@@ -9,7 +9,7 @@ Wire `justpen-browser-mcp` into [GitHub Copilot CLI](https://github.com/github/g
 
 - Copilot CLI installed and authenticated with MCP support enabled
 - `justpen-browser-mcp` installed and on `PATH` (see
-  [Install](../getting-started/install.md))
+  [Install](/getting-started/install/))
 
 ## Registration
 

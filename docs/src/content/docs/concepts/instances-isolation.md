@@ -37,7 +37,7 @@ Each instance has its own:
 
 Instances are identified by a string name of your choice. Names are
 case-sensitive. Tools that operate on an instance accept a `name` parameter;
-see the [Lifecycle tools](../tools-reference/lifecycle.md) page for creation
+see the [Lifecycle tools](/tools-reference/lifecycle/) page for creation
 and teardown.
 
 ## Ephemeral vs. persistent
@@ -79,12 +79,12 @@ Process-level isolation means:
 
 Use these tools to manage instance lifetimes:
 
-- [`browser_create_instance`](../tools-reference/lifecycle.md#browser_create_instance) — launch a new instance.
-- [`browser_destroy_instance`](../tools-reference/lifecycle.md#browser_destroy_instance) — shut down an instance and release its resources.
-- [`browser_list_instances`](../tools-reference/lifecycle.md#browser_list_instances) — inspect all currently live instances.
+- [`browser_create_instance`](/tools-reference/lifecycle/#browser_create_instance) — launch a new instance.
+- [`browser_destroy_instance`](/tools-reference/lifecycle/#browser_destroy_instance) — shut down an instance and release its resources.
+- [`browser_list_instances`](/tools-reference/lifecycle/#browser_list_instances) — inspect all currently live instances.
 
 ## Single active page assumption
 
 Within an instance, the MCP surface currently operates on a single active page.
 Opening a second tab is supported, but most tools target the active page; see
-[Page tools](../tools-reference/page.md) for switching.
+[Page tools](/tools-reference/page/) for switching.

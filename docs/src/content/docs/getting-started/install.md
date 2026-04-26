@@ -33,4 +33,4 @@ justpen-browser-mcp --help 2>&1 | head -5
 Expected: non-empty output describing the MCP server. If the command is not
 found, either your shell `PATH` does not include the venv `bin/` or you need
 to invoke via `python -m justpen_browser_mcp` (see
-[Run the server](run-server.md)).
+[Run the server](/getting-started/run-server/)).

@@ -9,7 +9,7 @@ Wire `justpen-browser-mcp` into [Gemini CLI](https://github.com/google-gemini/ge
 
 - Gemini CLI installed and authenticated with MCP support enabled
 - `justpen-browser-mcp` installed and on `PATH` (see
-  [Install](../getting-started/install.md))
+  [Install](/getting-started/install/))
 
 ## Registration
 

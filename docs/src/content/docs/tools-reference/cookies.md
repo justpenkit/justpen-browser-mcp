@@ -23,7 +23,7 @@ async def browser_get_cookies(instance: str, urls: list[str] | None = None, name
 | `urls`     | `list[str] \| None` | `None`  | List of full URLs to filter cookies by domain/path rules. `None` returns all cookies. |
 | `name`     | `str \| None`       | `None`  | Exact cookie name to filter by (applied after URL filtering).                         |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
 ```json
 {
@@ -42,7 +42,7 @@ async def browser_get_cookies(instance: str, urls: list[str] | None = None, name
 }
 ```
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 
@@ -99,13 +99,13 @@ async def browser_set_cookies(instance: str, cookies: list[dict[str, Any]]) -> d
 | `instance` | `str`                  | —       | Instance name.                                                                                                                                                                                                                                                    |
 | `cookies`  | `list[dict[str, Any]]` | —       | List of cookie dicts. Each must have at minimum `name` and `value`. Must also include either (`domain` + `path`) or `url`. Optional fields: `path` (default `"/"`), `expires` (Unix timestamp), `httpOnly`, `secure`, `sameSite` (`"Strict"`, `"Lax"`, `"None"`). |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
 ```json
 { "set_count": 2 }
 ```
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 - `invalid_params` — cookie has neither `domain` nor `url` and no active page exists to default from
@@ -158,13 +158,13 @@ async def browser_clear_cookies(instance: str) -> dict[str, Any]
 | ---------- | ----- | ------- | -------------- |
 | `instance` | `str` | —       | Instance name. |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
 ```json
 { "cleared": true }
 ```
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 
@@ -202,7 +202,7 @@ async def browser_get_local_storage(instance: str, origin: str, key: str | None 
 | `origin`   | `str`         | —       | Fully-qualified URL including scheme (e.g. `"https://example.com"`). |
 | `key`      | `str \| None` | `None`  | Specific key to read. `None` returns all items.                      |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape when `key` is `None`:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape when `key` is `None`:
 
 ```json
 { "items": { "theme": "dark", "user_id": "42" }, "origin": "https://example.com" }
@@ -220,7 +220,7 @@ If the key does not exist, `value` is `null`:
 { "key": "nonexistent", "value": null, "origin": "https://example.com" }
 ```
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 - `internal_error` — navigation to origin failed (e.g. network error, redirect to different origin)
@@ -285,13 +285,13 @@ async def browser_set_local_storage(instance: str, origin: str, items: dict[str,
 | `origin`   | `str`            | —       | Fully-qualified URL including scheme (e.g. `"https://example.com"`). |
 | `items`    | `dict[str, str]` | —       | Key-value pairs to set. All values must be strings.                  |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
 ```json
 { "set_count": 2, "origin": "https://example.com" }
 ```
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 - `internal_error` — navigation to origin failed
@@ -340,13 +340,13 @@ async def browser_clear_local_storage(instance: str, origin: str | None = None) 
 | `instance` | `str`         | —       | Instance name.                                                                                                          |
 | `origin`   | `str \| None` | `None`  | Fully-qualified URL including scheme to clear. When omitted, clears localStorage on the currently active page directly. |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
 ```json
 { "cleared": true, "origin": "https://example.com" }
 ```
 
-**Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
 - `instance_not_found`
 - `internal_error` — navigation to origin failed
