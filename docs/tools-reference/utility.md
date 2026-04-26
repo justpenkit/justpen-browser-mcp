@@ -14,11 +14,11 @@ async def browser_resize(instance: str, width: int, height: int) -> dict[str, An
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `width` | `int` | — | Viewport width in pixels. |
-| `height` | `int` | — | Viewport height in pixels. |
+| Name       | Type  | Default | Description                |
+| ---------- | ----- | ------- | -------------------------- |
+| `instance` | `str` | —       | Instance name.             |
+| `width`    | `int` | —       | Viewport width in pixels.  |
+| `height`   | `int` | —       | Viewport height in pixels. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -65,13 +65,13 @@ async def browser_pdf_save(
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `file_path` | `str \| None` | `None` | Destination path. When omitted, defaults to `$JUSTPEN_WORKSPACE/output/evidence/page-{timestamp}.pdf`. |
-| `paper_format` | `str` | `"A4"` | Paper size string: `"A4"`, `"Letter"`, `"A3"`, etc. |
-| `landscape` | `bool` | `False` | Rotate to landscape orientation. |
-| `print_background` | `bool` | `False` | Include CSS backgrounds in output. |
+| Name               | Type          | Default | Description                                                                                            |
+| ------------------ | ------------- | ------- | ------------------------------------------------------------------------------------------------------ |
+| `instance`         | `str`         | —       | Instance name.                                                                                         |
+| `file_path`        | `str \| None` | `None`  | Destination path. When omitted, defaults to `$JUSTPEN_WORKSPACE/output/evidence/page-{timestamp}.pdf`. |
+| `paper_format`     | `str`         | `"A4"`  | Paper size string: `"A4"`, `"Letter"`, `"A3"`, etc.                                                    |
+| `landscape`        | `bool`        | `False` | Rotate to landscape orientation.                                                                       |
+| `print_background` | `bool`        | `False` | Include CSS backgrounds in output.                                                                     |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -125,12 +125,12 @@ async def browser_generate_locator(
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `ref` | `str \| None` | `None` | Ephemeral snapshot ref to resolve into a stable locator. Mutually exclusive with `selector`. |
-| `selector` | `str \| None` | `None` | Raw CSS selector to pass through verbatim. Mutually exclusive with `ref`. |
-| `element` | `str \| None` | `None` | Optional free-form human description (logged; not used by the implementation). |
+| Name       | Type          | Default | Description                                                                                  |
+| ---------- | ------------- | ------- | -------------------------------------------------------------------------------------------- |
+| `instance` | `str`         | —       | Instance name.                                                                               |
+| `ref`      | `str \| None` | `None`  | Ephemeral snapshot ref to resolve into a stable locator. Mutually exclusive with `selector`. |
+| `selector` | `str \| None` | `None`  | Raw CSS selector to pass through verbatim. Mutually exclusive with `ref`.                    |
+| `element`  | `str \| None` | `None`  | Optional free-form human description (logged; not used by the implementation).               |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -195,12 +195,12 @@ async def browser_tabs(
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `action` | `str` | — | One of `"list"`, `"new"`, `"close"`, `"select"`. |
-| `index` | `int \| None` | `None` | Tab index (required for `"close"` and `"select"`). |
-| `url` | `str \| None` | `None` | URL to navigate to when opening a new tab (only for `"new"`). |
+| Name       | Type          | Default | Description                                                   |
+| ---------- | ------------- | ------- | ------------------------------------------------------------- |
+| `instance` | `str`         | —       | Instance name.                                                |
+| `action`   | `str`         | —       | One of `"list"`, `"new"`, `"close"`, `"select"`.              |
+| `index`    | `int \| None` | `None`  | Tab index (required for `"close"` and `"select"`).            |
+| `url`      | `str \| None` | `None`  | URL to navigate to when opening a new tab (only for `"new"`). |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape depends on `action`:
 
@@ -228,7 +228,12 @@ Response:
 {
   "status": "success",
   "instance": "main",
-  "data": { "tabs": [{"index": 0, "url": "https://example.com"}, {"index": 1, "url": "https://example.com/page2"}] }
+  "data": {
+    "tabs": [
+      { "index": 0, "url": "https://example.com" },
+      { "index": 1, "url": "https://example.com/page2" }
+    ]
+  }
 }
 ```
 

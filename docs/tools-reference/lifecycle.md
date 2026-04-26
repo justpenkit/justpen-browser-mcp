@@ -22,14 +22,14 @@ async def browser_create_instance(
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `name` | `str` | — | Name for the new instance. Case-sensitive, must be unique across live instances. |
-| `profile_dir` | `str \| None` | `None` | Path to a persistent profile directory. `None` (default) creates an ephemeral instance with no on-disk trace. When a path is given and the directory already exists, Camoufox loads it; otherwise it is created. |
-| `headless` | `bool \| "virtual"` | `True` | `True` for headless mode (no visible window). `False` for a visible window. `"virtual"` uses a virtual framebuffer (Xvfb) on Linux. |
-| `proxy` | `dict[str, str] \| None` | `None` | Proxy configuration dict. Accepted keys: `server` (required, e.g. `"socks5://host:port"`), `username`, `password`, `bypass`. |
-| `humanize` | `bool \| float` | `True` | Camoufox humanization level. `True` enables default humanization; `False` disables it; a float sets the delay factor directly. |
-| `window` | `tuple[int, int] \| None` | `None` | Initial viewport size as `(width, height)`. `None` uses Camoufox defaults. |
+| Name          | Type                      | Default | Description                                                                                                                                                                                                      |
+| ------------- | ------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`        | `str`                     | —       | Name for the new instance. Case-sensitive, must be unique across live instances.                                                                                                                                 |
+| `profile_dir` | `str \| None`             | `None`  | Path to a persistent profile directory. `None` (default) creates an ephemeral instance with no on-disk trace. When a path is given and the directory already exists, Camoufox loads it; otherwise it is created. |
+| `headless`    | `bool \| "virtual"`       | `True`  | `True` for headless mode (no visible window). `False` for a visible window. `"virtual"` uses a virtual framebuffer (Xvfb) on Linux.                                                                              |
+| `proxy`       | `dict[str, str] \| None`  | `None`  | Proxy configuration dict. Accepted keys: `server` (required, e.g. `"socks5://host:port"`), `username`, `password`, `bypass`.                                                                                     |
+| `humanize`    | `bool \| float`           | `True`  | Camoufox humanization level. `True` enables default humanization; `False` disables it; a float sets the delay factor directly.                                                                                   |
+| `window`      | `tuple[int, int] \| None` | `None`  | Initial viewport size as `(width, height)`. `None` uses Camoufox defaults.                                                                                                                                       |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -91,9 +91,9 @@ async def browser_destroy_instance(name: str) -> dict[str, Any]
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `name` | `str` | — | Instance name. |
+| Name   | Type  | Default | Description    |
+| ------ | ----- | ------- | -------------- |
+| `name` | `str` | —       | Instance name. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` is an empty object (`{}`).
 
@@ -129,7 +129,7 @@ async def browser_list_instances() -> dict[str, Any]
 
 **Parameters**
 
-*No parameters.*
+_No parameters._
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -150,14 +150,14 @@ async def browser_list_instances() -> dict[str, Any]
 
 Each entry in `instances` has:
 
-| Field | Type | Description |
-|---|---|---|
-| `name` | `str` | Instance name. |
-| `mode` | `str` | `"ephemeral"` or `"persistent"`. |
+| Field         | Type          | Description                                                                |
+| ------------- | ------------- | -------------------------------------------------------------------------- |
+| `name`        | `str`         | Instance name.                                                             |
+| `mode`        | `str`         | `"ephemeral"` or `"persistent"`.                                           |
 | `profile_dir` | `str \| null` | Absolute path to the profile directory, or `null` for ephemeral instances. |
-| `page_count` | `int` | Number of open tabs in the instance. |
-| `active_url` | `str \| null` | URL of the currently active page, or `null` when no pages are open. |
-| `created_at` | `str` | ISO 8601 timestamp (UTC) of when the instance was created. |
+| `page_count`  | `int`         | Number of open tabs in the instance.                                       |
+| `active_url`  | `str \| null` | URL of the currently active page, or `null` when no pages are open.        |
+| `created_at`  | `str`         | ISO 8601 timestamp (UTC) of when the instance was created.                 |
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 

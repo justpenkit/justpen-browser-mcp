@@ -12,13 +12,13 @@ Add deps: `uv add <pkg>` (runtime), `uv add --group dev <pkg>` (dev). Never hand
 
 ### Lint & Type Check
 
-Ruff + pyright strict. **Fix the root cause, do not silence warnings.** Try `ruff check --fix` before manual edits. After every edit, run `ruff check` and `pyright` on changed files before moving on — a broken baseline compounds fast.
+Ruff + pyright strict for Python. Prettier for `*.md`/`*.yml`/`*.yaml`/`*.json`/`*.toml`. **Fix the root cause, do not silence warnings.** Try `ruff check --fix` before manual edits. After every edit, run `ruff check` and `pyright` on changed files before moving on — a broken baseline compounds fast.
 
 Suppressions (`# noqa`, `# type: ignore`, `# pyright: ignore[...]`, `# pragma: no cover`) require a strong, documented reason. Never modify `pyproject.toml` lint/type config unilaterally.
 
-`make setup` installs pre-commit hooks: ruff + lock-check on pre-commit, `make check` on pre-push (full gate), Conventional Commits on commit-msg. Never bypass with `--no-verify` — fix the cause.
+`make setup` installs pre-commit hooks: lint-fix + format (ruff + prettier) + lock-check on pre-commit, `make check` on pre-push (full gate), Conventional Commits on commit-msg. Never bypass with `--no-verify` — fix the cause.
 
-Full rules — banned forms, acceptable reasons, suppression format, escalation protocol, verification gate: [`docs/contributing/lint-typing.md`](../docs/contributing/lint-typing.md).
+Full rules — banned forms, acceptable reasons, suppression format, escalation protocol, verification gate: [`.claude/rules/lint-typing.md`](rules/lint-typing.md).
 
 ---
 
@@ -26,7 +26,7 @@ Full rules — banned forms, acceptable reasons, suppression format, escalation 
 
 Symbol name → LSP. Text pattern (comment, string, config) → Grep. Reading a whole file to learn its shape is almost always wrong — use `documentSymbol`. Before any rename or signature change, run `findReferences` first. Treat `<new-diagnostics>` reminders as blockers, not notes.
 
-Full reflex → LSP substitution table and rationale: [`docs/contributing/code-intelligence.md`](../docs/contributing/code-intelligence.md).
+Full reflex → LSP substitution table and rationale: [`.claude/rules/code-intelligence.md`](rules/code-intelligence.md).
 
 ---
 
@@ -45,7 +45,7 @@ Every change ships through a feature branch + PR. **Never commit or push directl
 
 Version bumps follow the same branch + PR rule. `make bump-{patch,minor,major}` edits `pyproject.toml`, commits, and creates a local tag — it does **not** push.
 
-Flow (full detail: [`docs/contributing/release-process.md`](../docs/contributing/release-process.md)):
+Flow (full detail: [`.claude/rules/release-process.md`](rules/release-process.md)):
 
 1. From clean `main`: `git switch -c chore/bump-v<new>`
 2. `make bump-<segment>` — creates bump commit + local tag

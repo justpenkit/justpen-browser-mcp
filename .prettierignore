@@ -1,0 +1,23 @@
+# Prettier never touches Python — ruff owns that.
+*.py
+
+# Lockfiles
+uv.lock
+package-lock.json
+
+# Build output / caches / vendored
+.venv/
+node_modules/
+dist/
+site/
+htmlcov/
+.pytest_cache/
+.ruff_cache/
+.superpowers/
+.worktrees/
+.claude/
+
+# Coverage / test artifacts
+coverage.xml
+.coverage
+.coverage.*

@@ -1,0 +1,12 @@
+{
+  "name": "justpen-browser-mcp",
+  "private": true,
+  "description": "Prettier toolchain for non-Python files (md/yml/yaml/json/toml). Not a Node project.",
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "prettier": "3.3.3",
+    "prettier-plugin-toml": "2.0.1"
+  }
+}

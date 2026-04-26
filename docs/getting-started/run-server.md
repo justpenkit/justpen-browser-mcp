@@ -19,9 +19,9 @@ Your client is responsible for spawning the process and piping its stdin/stdout.
 
 ## Server identity
 
-| Property | Value |
-|---|---|
-| FastMCP name | `camoufox-mcp` |
+| Property     | Value                                                                             |
+| ------------ | --------------------------------------------------------------------------------- |
+| FastMCP name | `camoufox-mcp`                                                                    |
 | Entry points | `justpen-browser-mcp` (console script) / `python -m justpen_browser_mcp` (module) |
 
 ## Running outside the install venv

@@ -14,9 +14,9 @@ async def browser_close(instance: str) -> dict[str, Any]
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
+| Name       | Type  | Default | Description    |
+| ---------- | ----- | ------- | -------------- |
+| `instance` | `str` | —       | Instance name. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 

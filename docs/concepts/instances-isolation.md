@@ -22,13 +22,13 @@ A single server process can drive:
 
 Each instance has its own:
 
-| Boundary | What it covers |
-|---|---|
-| **OS process** | Camoufox runs in a separate process; a crash in one instance does not affect others. |
-| **BrowserForge fingerprint** | Canvas, WebGL, font list, timezone, language, and dozens of other signals are independently generated per launch. |
-| **Cookies & storage** | Cookies, localStorage, sessionStorage, and cache are isolated from every other instance. |
-| **Optional proxy** | The `proxy` parameter scopes a SOCKS5/HTTP proxy to this instance only. |
-| **Optional persistent profile** | The `profile_dir` parameter pins a Firefox-style profile directory; omit it for an ephemeral instance. |
+| Boundary                        | What it covers                                                                                                    |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| **OS process**                  | Camoufox runs in a separate process; a crash in one instance does not affect others.                              |
+| **BrowserForge fingerprint**    | Canvas, WebGL, font list, timezone, language, and dozens of other signals are independently generated per launch. |
+| **Cookies & storage**           | Cookies, localStorage, sessionStorage, and cache are isolated from every other instance.                          |
+| **Optional proxy**              | The `proxy` parameter scopes a SOCKS5/HTTP proxy to this instance only.                                           |
+| **Optional persistent profile** | The `profile_dir` parameter pins a Firefox-style profile directory; omit it for an ephemeral instance.            |
 
 ## Naming
 
@@ -49,10 +49,10 @@ localStorage, saved passwords, and other profile data survive across
 persists on disk even after the instance is destroyed.
 
 !!! note "Fingerprint re-roll on restart"
-    BrowserForge generates a fresh fingerprint on every Camoufox launch, even
-    for persistent instances. This means the fingerprint will differ between
-    runs of the same `profile_dir`. The stored profile data (cookies, storage)
-    is still preserved; only the fingerprint signals change.
+BrowserForge generates a fresh fingerprint on every Camoufox launch, even
+for persistent instances. This means the fingerprint will differ between
+runs of the same `profile_dir`. The stored profile data (cookies, storage)
+is still preserved; only the fingerprint signals change.
 
 ## Instance cap
 

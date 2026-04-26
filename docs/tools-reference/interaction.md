@@ -21,13 +21,13 @@ async def browser_click(
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `ref` | `str` | — | Element ref from `browser_snapshot` (e.g. `"e5"`). See [Refs & snapshots](../concepts/refs-snapshots.md). |
-| `double_click` | `bool` | `False` | Perform a double-click instead of a single click. |
-| `button` | `str` | `"left"` | Mouse button: `"left"`, `"right"`, or `"middle"`. |
-| `modifiers` | `list[str] \| None` | `None` | Keyboard modifiers held during the click. Valid values: `"Alt"`, `"Control"`, `"ControlOrMeta"`, `"Meta"`, `"Shift"`. |
+| Name           | Type                | Default  | Description                                                                                                           |
+| -------------- | ------------------- | -------- | --------------------------------------------------------------------------------------------------------------------- |
+| `instance`     | `str`               | —        | Instance name.                                                                                                        |
+| `ref`          | `str`               | —        | Element ref from `browser_snapshot` (e.g. `"e5"`). See [Refs & snapshots](../concepts/refs-snapshots.md).             |
+| `double_click` | `bool`              | `False`  | Perform a double-click instead of a single click.                                                                     |
+| `button`       | `str`               | `"left"` | Mouse button: `"left"`, `"right"`, or `"middle"`.                                                                     |
+| `modifiers`    | `list[str] \| None` | `None`   | Keyboard modifiers held during the click. Valid values: `"Alt"`, `"Control"`, `"ControlOrMeta"`, `"Meta"`, `"Shift"`. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -46,11 +46,13 @@ async def browser_click(
 **Example**
 
 Request:
+
 ```json
 { "name": "browser_click", "arguments": { "instance": "main", "ref": "e5" } }
 ```
 
 Response:
+
 ```json
 { "status": "success", "instance": "main", "data": { "clicked": "e5" } }
 ```
@@ -76,13 +78,13 @@ async def browser_type(
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `ref` | `str` | — | Element ref from `browser_snapshot`. See [Refs & snapshots](../concepts/refs-snapshots.md). |
-| `text` | `str` | — | Text to type. |
-| `clear_first` | `bool` | `True` | Clear the existing value before typing (uses `fill`, which is instant). Set to `False` to append via simulated keystrokes. |
-| `submit` | `bool` | `False` | Press Enter after typing and wait up to 2 s for `domcontentloaded` (useful for forms that navigate on submit). |
+| Name          | Type   | Default | Description                                                                                                                |
+| ------------- | ------ | ------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `instance`    | `str`  | —       | Instance name.                                                                                                             |
+| `ref`         | `str`  | —       | Element ref from `browser_snapshot`. See [Refs & snapshots](../concepts/refs-snapshots.md).                                |
+| `text`        | `str`  | —       | Text to type.                                                                                                              |
+| `clear_first` | `bool` | `True`  | Clear the existing value before typing (uses `fill`, which is instant). Set to `False` to append via simulated keystrokes. |
+| `submit`      | `bool` | `False` | Press Enter after typing and wait up to 2 s for `domcontentloaded` (useful for forms that navigate on submit).             |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -100,11 +102,16 @@ async def browser_type(
 **Example**
 
 Request:
+
 ```json
-{ "name": "browser_type", "arguments": { "instance": "main", "ref": "e12", "text": "hello@example.com" } }
+{
+  "name": "browser_type",
+  "arguments": { "instance": "main", "ref": "e12", "text": "hello@example.com" }
+}
 ```
 
 Response:
+
 ```json
 { "status": "success", "instance": "main", "data": { "typed_into": "e12" } }
 ```
@@ -121,10 +128,10 @@ async def browser_fill_form(instance: str, fields: list[dict[str, Any]]) -> dict
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `fields` | `list[dict]` | — | Ordered list of field descriptors. Each dict must have `"ref"` (from `browser_snapshot`) and `"value"`, plus an optional `"type"`: `"textbox"` (default), `"checkbox"`, `"radio"`, or `"combobox"`. See [Refs & snapshots](../concepts/refs-snapshots.md). |
+| Name       | Type         | Default | Description                                                                                                                                                                                                                                                |
+| ---------- | ------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `instance` | `str`        | —       | Instance name.                                                                                                                                                                                                                                             |
+| `fields`   | `list[dict]` | —       | Ordered list of field descriptors. Each dict must have `"ref"` (from `browser_snapshot`) and `"value"`, plus an optional `"type"`: `"textbox"` (default), `"checkbox"`, `"radio"`, or `"combobox"`. See [Refs & snapshots](../concepts/refs-snapshots.md). |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -143,6 +150,7 @@ async def browser_fill_form(instance: str, fields: list[dict[str, Any]]) -> dict
 **Example**
 
 Request:
+
 ```json
 {
   "name": "browser_fill_form",
@@ -158,6 +166,7 @@ Request:
 ```
 
 Response:
+
 ```json
 { "status": "success", "instance": "main", "data": { "filled_count": 3 } }
 ```
@@ -176,11 +185,11 @@ async def browser_select_option(instance: str, ref: str, value: str | list[str])
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `ref` | `str` | — | Ref of the `<select>` element from `browser_snapshot`. See [Refs & snapshots](../concepts/refs-snapshots.md). |
-| `value` | `str \| list[str]` | — | HTML `value` attribute of the option to select (not the display label). Pass a list for multi-select elements. |
+| Name       | Type               | Default | Description                                                                                                    |
+| ---------- | ------------------ | ------- | -------------------------------------------------------------------------------------------------------------- |
+| `instance` | `str`              | —       | Instance name.                                                                                                 |
+| `ref`      | `str`              | —       | Ref of the `<select>` element from `browser_snapshot`. See [Refs & snapshots](../concepts/refs-snapshots.md).  |
+| `value`    | `str \| list[str]` | —       | HTML `value` attribute of the option to select (not the display label). Pass a list for multi-select elements. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -198,11 +207,16 @@ async def browser_select_option(instance: str, ref: str, value: str | list[str])
 **Example**
 
 Request:
+
 ```json
-{ "name": "browser_select_option", "arguments": { "instance": "main", "ref": "e20", "value": "us" } }
+{
+  "name": "browser_select_option",
+  "arguments": { "instance": "main", "ref": "e20", "value": "us" }
+}
 ```
 
 Response:
+
 ```json
 { "status": "success", "instance": "main", "data": { "selected": "us" } }
 ```
@@ -221,10 +235,10 @@ async def browser_hover(instance: str, ref: str) -> dict[str, Any]
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `ref` | `str` | — | Element ref from `browser_snapshot`. See [Refs & snapshots](../concepts/refs-snapshots.md). |
+| Name       | Type  | Default | Description                                                                                 |
+| ---------- | ----- | ------- | ------------------------------------------------------------------------------------------- |
+| `instance` | `str` | —       | Instance name.                                                                              |
+| `ref`      | `str` | —       | Element ref from `browser_snapshot`. See [Refs & snapshots](../concepts/refs-snapshots.md). |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -241,11 +255,13 @@ async def browser_hover(instance: str, ref: str) -> dict[str, Any]
 **Example**
 
 Request:
+
 ```json
 { "name": "browser_hover", "arguments": { "instance": "main", "ref": "e8" } }
 ```
 
 Response:
+
 ```json
 { "status": "success", "instance": "main", "data": { "hovered": "e8" } }
 ```
@@ -264,11 +280,11 @@ async def browser_drag(instance: str, source_ref: str, target_ref: str) -> dict[
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `source_ref` | `str` | — | Ref of the element to drag (from `browser_snapshot`). See [Refs & snapshots](../concepts/refs-snapshots.md). |
-| `target_ref` | `str` | — | Ref of the drop target (from `browser_snapshot`). |
+| Name         | Type  | Default | Description                                                                                                  |
+| ------------ | ----- | ------- | ------------------------------------------------------------------------------------------------------------ |
+| `instance`   | `str` | —       | Instance name.                                                                                               |
+| `source_ref` | `str` | —       | Ref of the element to drag (from `browser_snapshot`). See [Refs & snapshots](../concepts/refs-snapshots.md). |
+| `target_ref` | `str` | —       | Ref of the drop target (from `browser_snapshot`).                                                            |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -286,11 +302,16 @@ async def browser_drag(instance: str, source_ref: str, target_ref: str) -> dict[
 **Example**
 
 Request:
+
 ```json
-{ "name": "browser_drag", "arguments": { "instance": "main", "source_ref": "e3", "target_ref": "e7" } }
+{
+  "name": "browser_drag",
+  "arguments": { "instance": "main", "source_ref": "e3", "target_ref": "e7" }
+}
 ```
 
 Response:
+
 ```json
 { "status": "success", "instance": "main", "data": { "dragged": "e3", "to": "e7" } }
 ```
@@ -309,10 +330,10 @@ async def browser_press_key(instance: str, key: str) -> dict[str, Any]
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `key` | `str` | — | Playwright key name, e.g. `"Enter"`, `"Tab"`, `"Escape"`, `"ArrowDown"`, `"Control+A"`, `"Shift+Tab"`. |
+| Name       | Type  | Default | Description                                                                                            |
+| ---------- | ----- | ------- | ------------------------------------------------------------------------------------------------------ |
+| `instance` | `str` | —       | Instance name.                                                                                         |
+| `key`      | `str` | —       | Playwright key name, e.g. `"Enter"`, `"Tab"`, `"Escape"`, `"ArrowDown"`, `"Control+A"`, `"Shift+Tab"`. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -329,11 +350,13 @@ async def browser_press_key(instance: str, key: str) -> dict[str, Any]
 **Example**
 
 Request:
+
 ```json
 { "name": "browser_press_key", "arguments": { "instance": "main", "key": "Tab" } }
 ```
 
 Response:
+
 ```json
 { "status": "success", "instance": "main", "data": { "pressed": "Tab" } }
 ```
@@ -352,10 +375,10 @@ async def browser_file_upload(instance: str, paths: list[str] | None = None) -> 
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `paths` | `list[str] \| None` | `None` | Absolute paths of the files to attach. `None` or an empty list cancels the file chooser without attaching any files. |
+| Name       | Type                | Default | Description                                                                                                          |
+| ---------- | ------------------- | ------- | -------------------------------------------------------------------------------------------------------------------- |
+| `instance` | `str`               | —       | Instance name.                                                                                                       |
+| `paths`    | `list[str] \| None` | `None`  | Absolute paths of the files to attach. `None` or an empty list cancels the file chooser without attaching any files. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape (mutually exclusive):
 
@@ -376,11 +399,13 @@ async def browser_file_upload(instance: str, paths: list[str] | None = None) -> 
 **Example**
 
 Request:
+
 ```json
 { "name": "browser_file_upload", "arguments": { "instance": "main", "paths": ["/tmp/report.pdf"] } }
 ```
 
 Response:
+
 ```json
 { "status": "success", "instance": "main", "data": { "uploaded_count": 1 } }
 ```
@@ -399,11 +424,11 @@ async def browser_handle_dialog(instance: str, *, accept: bool, prompt_text: str
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `accept` | `bool` | — | `True` to accept the dialog (calls `dialog.accept`); `False` to dismiss it. |
-| `prompt_text` | `str \| None` | `None` | Text to submit with a `prompt` dialog. Ignored for `alert` and `confirm` dialogs. |
+| Name          | Type          | Default | Description                                                                       |
+| ------------- | ------------- | ------- | --------------------------------------------------------------------------------- |
+| `instance`    | `str`         | —       | Instance name.                                                                    |
+| `accept`      | `bool`        | —       | `True` to accept the dialog (calls `dialog.accept`); `False` to dismiss it.       |
+| `prompt_text` | `str \| None` | `None`  | Text to submit with a `prompt` dialog. Ignored for `alert` and `confirm` dialogs. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -419,13 +444,19 @@ async def browser_handle_dialog(instance: str, *, accept: bool, prompt_text: str
 **Example**
 
 Request:
+
 ```json
 { "name": "browser_handle_dialog", "arguments": { "instance": "main", "accept": true } }
 ```
 
 Response:
+
 ```json
-{ "status": "success", "instance": "main", "data": { "action": "accepted", "dialog_type": "alert", "message": "Upload complete." } }
+{
+  "status": "success",
+  "instance": "main",
+  "data": { "action": "accepted", "dialog_type": "alert", "message": "Upload complete." }
+}
 ```
 
 **Notes** — The dialog must already be open before calling this tool; it was triggered by a prior tool call and captured automatically by the modal-state listener. This tool does not pre-register a handler for future dialogs. See [Modal state](../concepts/modal-state.md) for the broader dialog lifecycle.
