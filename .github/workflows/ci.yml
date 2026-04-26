@@ -32,11 +32,16 @@ jobs:
           cache: "npm"
       - name: Install Python
         run: uv python install ${{ matrix.python-version }}
-      - name: Sync dev + docs groups
-        run: uv sync --locked --group dev --group docs
+      - name: Sync dev group
+        run: uv sync --locked --group dev
       - name: npm install (prettier toolchain)
         run: npm ci --no-audit --no-fund
       - name: make check
         run: make check
       - name: make docs-build
         run: make docs-build
+      - name: Link check (lychee)
+        uses: lycheeverse/lychee-action@v2.8.0
+        with:
+          args: --no-progress --verbose --offline --root-dir "${{ github.workspace }}/docs/dist" 'docs/dist/**/*.html'
+          fail: true
