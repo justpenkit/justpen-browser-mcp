@@ -3,7 +3,10 @@ import { readFileSync } from "node:fs";
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 
-const pyproject = readFileSync(new URL("../pyproject.toml", import.meta.url), "utf-8");
+const pyproject = readFileSync(
+  new URL("../pyproject.toml", import.meta.url),
+  "utf-8",
+);
 const VERSION = pyproject.match(/^version = "(.+)"/m)?.[1] ?? "0.0.0";
 
 export default defineConfig({
@@ -40,7 +43,10 @@ export default defineConfig({
           label: "Concepts",
           items: [
             { label: "Response envelope", slug: "concepts/response-envelope" },
-            { label: "Instances & isolation", slug: "concepts/instances-isolation" },
+            {
+              label: "Instances & isolation",
+              slug: "concepts/instances-isolation",
+            },
             { label: "Refs & snapshots", slug: "concepts/refs-snapshots" },
             { label: "Modal state", slug: "concepts/modal-state" },
           ],

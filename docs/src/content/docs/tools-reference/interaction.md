@@ -27,7 +27,7 @@ async def browser_click(
 | Name           | Type                | Default  | Description                                                                                                           |
 | -------------- | ------------------- | -------- | --------------------------------------------------------------------------------------------------------------------- |
 | `instance`     | `str`               | —        | Instance name.                                                                                                        |
-| `ref`          | `str`               | —        | Element ref from `browser_snapshot` (e.g. `"e5"`). See [Refs & snapshots](/concepts/refs-snapshots/).             |
+| `ref`          | `str`               | —        | Element ref from `browser_snapshot` (e.g. `"e5"`). See [Refs & snapshots](/concepts/refs-snapshots/).                 |
 | `double_click` | `bool`              | `False`  | Perform a double-click instead of a single click.                                                                     |
 | `button`       | `str`               | `"left"` | Mouse button: `"left"`, `"right"`, or `"middle"`.                                                                     |
 | `modifiers`    | `list[str] \| None` | `None`   | Keyboard modifiers held during the click. Valid values: `"Alt"`, `"Control"`, `"ControlOrMeta"`, `"Meta"`, `"Shift"`. |
@@ -84,7 +84,7 @@ async def browser_type(
 | Name          | Type   | Default | Description                                                                                                                |
 | ------------- | ------ | ------- | -------------------------------------------------------------------------------------------------------------------------- |
 | `instance`    | `str`  | —       | Instance name.                                                                                                             |
-| `ref`         | `str`  | —       | Element ref from `browser_snapshot`. See [Refs & snapshots](/concepts/refs-snapshots/).                                |
+| `ref`         | `str`  | —       | Element ref from `browser_snapshot`. See [Refs & snapshots](/concepts/refs-snapshots/).                                    |
 | `text`        | `str`  | —       | Text to type.                                                                                                              |
 | `clear_first` | `bool` | `True`  | Clear the existing value before typing (uses `fill`, which is instant). Set to `False` to append via simulated keystrokes. |
 | `submit`      | `bool` | `False` | Press Enter after typing and wait up to 2 s for `domcontentloaded` (useful for forms that navigate on submit).             |
@@ -131,9 +131,9 @@ async def browser_fill_form(instance: str, fields: list[dict[str, Any]]) -> dict
 
 **Parameters**
 
-| Name       | Type         | Default | Description                                                                                                                                                                                                                                                |
-| ---------- | ------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `instance` | `str`        | —       | Instance name.                                                                                                                                                                                                                                             |
+| Name       | Type         | Default | Description                                                                                                                                                                                                                                            |
+| ---------- | ------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `instance` | `str`        | —       | Instance name.                                                                                                                                                                                                                                         |
 | `fields`   | `list[dict]` | —       | Ordered list of field descriptors. Each dict must have `"ref"` (from `browser_snapshot`) and `"value"`, plus an optional `"type"`: `"textbox"` (default), `"checkbox"`, `"radio"`, or `"combobox"`. See [Refs & snapshots](/concepts/refs-snapshots/). |
 
 **Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
@@ -191,7 +191,7 @@ async def browser_select_option(instance: str, ref: str, value: str | list[str])
 | Name       | Type               | Default | Description                                                                                                    |
 | ---------- | ------------------ | ------- | -------------------------------------------------------------------------------------------------------------- |
 | `instance` | `str`              | —       | Instance name.                                                                                                 |
-| `ref`      | `str`              | —       | Ref of the `<select>` element from `browser_snapshot`. See [Refs & snapshots](/concepts/refs-snapshots/).  |
+| `ref`      | `str`              | —       | Ref of the `<select>` element from `browser_snapshot`. See [Refs & snapshots](/concepts/refs-snapshots/).      |
 | `value`    | `str \| list[str]` | —       | HTML `value` attribute of the option to select (not the display label). Pass a list for multi-select elements. |
 
 **Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
@@ -238,9 +238,9 @@ async def browser_hover(instance: str, ref: str) -> dict[str, Any]
 
 **Parameters**
 
-| Name       | Type  | Default | Description                                                                                 |
-| ---------- | ----- | ------- | ------------------------------------------------------------------------------------------- |
-| `instance` | `str` | —       | Instance name.                                                                              |
+| Name       | Type  | Default | Description                                                                             |
+| ---------- | ----- | ------- | --------------------------------------------------------------------------------------- |
+| `instance` | `str` | —       | Instance name.                                                                          |
 | `ref`      | `str` | —       | Element ref from `browser_snapshot`. See [Refs & snapshots](/concepts/refs-snapshots/). |
 
 **Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
@@ -283,11 +283,11 @@ async def browser_drag(instance: str, source_ref: str, target_ref: str) -> dict[
 
 **Parameters**
 
-| Name         | Type  | Default | Description                                                                                                  |
-| ------------ | ----- | ------- | ------------------------------------------------------------------------------------------------------------ |
-| `instance`   | `str` | —       | Instance name.                                                                                               |
+| Name         | Type  | Default | Description                                                                                              |
+| ------------ | ----- | ------- | -------------------------------------------------------------------------------------------------------- |
+| `instance`   | `str` | —       | Instance name.                                                                                           |
 | `source_ref` | `str` | —       | Ref of the element to drag (from `browser_snapshot`). See [Refs & snapshots](/concepts/refs-snapshots/). |
-| `target_ref` | `str` | —       | Ref of the drop target (from `browser_snapshot`).                                                            |
+| `target_ref` | `str` | —       | Ref of the drop target (from `browser_snapshot`).                                                        |
 
 **Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
