@@ -1,0 +1,75 @@
+---
+title: justpen-browser-mcp
+description: Camoufox-based MCP server with multi-instance browser session isolation.
+template: splash
+hero:
+  title: justpen-browser-mcp
+  tagline: Stealth-patched Firefox via Camoufox, exposed as MCP browser tools with per-instance session isolation.
+  actions:
+    - text: Quick start
+      link: /getting-started/install/
+      icon: right-arrow
+    - text: Tools reference
+      link: /tools-reference/lifecycle/
+      variant: minimal
+---
+
+import { Code, CardGrid, LinkCard } from "@astrojs/starlight/components";
+
+`justpen-browser-mcp` exposes a stealth-patched Firefox (via [Camoufox](https://github.com/daijro/camoufox)) to MCP-aware clients as a set of browser automation tools. Every named instance runs its own Camoufox process with its own BrowserForge fingerprint — cookies, storage, and cache do not leak between instances — so a single server process can drive parallel logged-in flows for different users or tenants.
+
+## 60-second quickstart
+
+Install (requires [uv](https://docs.astral.sh/uv/)):
+
+<Code
+  lang="bash"
+  code={`uv add "justpen-browser-mcp @ git+https://github.com/justpenkit/justpen-browser-mcp@v${import.meta.env.PUBLIC_VERSION}"
+uv run python -m camoufox fetch`}
+/>
+
+Run the server (stdio transport):
+
+```bash
+justpen-browser-mcp
+```
+
+Register with an MCP client (generic form):
+
+```json
+{
+  "mcpServers": {
+    "justpen-browser": { "command": "justpen-browser-mcp" }
+  }
+}
+```
+
+## Where to go next
+
+<CardGrid>
+  <LinkCard
+    title="Install the server"
+    href="/getting-started/install/"
+    description="uv add + camoufox fetch + first run."
+  />
+  <LinkCard
+    title="Wire up a client"
+    href="/client-setup/claude-code/"
+    description="Claude Code, Copilot CLI, Gemini CLI."
+  />
+  <LinkCard
+    title="Browse the tools"
+    href="/tools-reference/lifecycle/"
+    description="All browser automation tools, organized by purpose."
+  />
+  <LinkCard
+    title="Understand the model"
+    href="/concepts/instances-isolation/"
+    description="Per-instance fingerprint, cookies, storage isolation."
+  />
+  <LinkCard
+    title="Contribute"
+    href="/contributing/pr-checklist/"
+    description="Pre-PR checklist + lint/typing rules."
+  />
+</CardGrid>
