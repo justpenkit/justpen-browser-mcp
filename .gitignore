@@ -18,8 +18,9 @@ dist/
 coverage.xml
 htmlcov/
 
-# MkDocs build output
-site/
+# Docs build output (Astro Starlight)
+docs/dist/
+docs/.astro/
 
 # Secrets
 .env
