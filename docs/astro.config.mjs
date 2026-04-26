@@ -77,6 +77,7 @@ export default defineConfig({
         {
           label: "Contributing",
           items: [
+            { label: "Getting started", slug: "contributing/getting-started" },
             { label: "PR checklist", slug: "contributing/pr-checklist" },
             { label: "Lint & typing", slug: "contributing/lint-typing" },
           ],
