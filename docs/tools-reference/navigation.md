@@ -14,10 +14,10 @@ async def browser_navigate(instance: str, url: str) -> dict[str, Any]
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `url` | `str` | — | Destination URL. |
+| Name       | Type  | Default | Description      |
+| ---------- | ----- | ------- | ---------------- |
+| `instance` | `str` | —       | Instance name.   |
+| `url`      | `str` | —       | Destination URL. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -43,7 +43,11 @@ Request:
 Response:
 
 ```json
-{ "status": "success", "instance": "main", "data": { "url": "https://example.com/", "title": "Example Domain" } }
+{
+  "status": "success",
+  "instance": "main",
+  "data": { "url": "https://example.com/", "title": "Example Domain" }
+}
 ```
 
 **Notes** — URL normalisation: `localhost[:PORT]` and bare IPv4 addresses receive an `http://` scheme; schemeless hostnames containing a dot receive `https://`. When a download is triggered instead of a page load, the response data includes an extra `"download": true` field alongside `url` and `title`. After any successful navigation, refs obtained from `browser_snapshot` are invalidated — take a fresh snapshot before referencing page elements.
@@ -60,9 +64,9 @@ async def browser_navigate_back(instance: str) -> dict[str, Any]
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
+| Name       | Type  | Default | Description    |
+| ---------- | ----- | ------- | -------------- |
+| `instance` | `str` | —       | Instance name. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -110,12 +114,12 @@ async def browser_wait_for(
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `text` | `str \| None` | `None` | Wait until this string is visible on the page. |
-| `text_gone` | `str \| None` | `None` | Wait until this string is hidden on the page. |
-| `time` | `float \| None` | `None` | Seconds to wait unconditionally (capped at 30). |
+| Name        | Type            | Default | Description                                     |
+| ----------- | --------------- | ------- | ----------------------------------------------- |
+| `instance`  | `str`           | —       | Instance name.                                  |
+| `text`      | `str \| None`   | `None`  | Wait until this string is visible on the page.  |
+| `text_gone` | `str \| None`   | `None`  | Wait until this string is hidden on the page.   |
+| `time`      | `float \| None` | `None`  | Seconds to wait unconditionally (capped at 30). |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 

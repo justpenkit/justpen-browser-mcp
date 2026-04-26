@@ -5,10 +5,10 @@ file. Variables are read at server startup.
 
 ## Environment variables
 
-| Variable | Default | Description |
-|---|---|---|
-| `BROWSER_MCP_MAX_INSTANCES` | `10` | Maximum number of concurrently live Camoufox instances. Must be a positive integer; invalid values (non-integer, zero, or negative) fall back to `10` with a warning logged to stderr. |
-| `BROWSER_MCP_LOG_LEVEL` | `INFO` | Python log level name for server-side logging to stderr. |
+| Variable                    | Default | Description                                                                                                                                                                            |
+| --------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BROWSER_MCP_MAX_INSTANCES` | `10`    | Maximum number of concurrently live Camoufox instances. Must be a positive integer; invalid values (non-integer, zero, or negative) fall back to `10` with a warning logged to stderr. |
+| `BROWSER_MCP_LOG_LEVEL`     | `INFO`  | Python log level name for server-side logging to stderr.                                                                                                                               |
 
 ## Instance cap
 

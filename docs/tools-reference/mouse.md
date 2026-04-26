@@ -21,14 +21,14 @@ async def browser_mouse_click_xy(
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `x` | `int` | — | Page-relative horizontal pixel coordinate (0 = left edge). |
-| `y` | `int` | — | Page-relative vertical pixel coordinate (0 = top edge). |
-| `button` | `str` | `"left"` | One of `"left"`, `"right"`, `"middle"`. |
-| `click_count` | `int` | `1` | Number of clicks to deliver; use `2` for a double-click. |
-| `delay_ms` | `int` | `0` | Delay in milliseconds between mousedown and mouseup. |
+| Name          | Type  | Default  | Description                                                |
+| ------------- | ----- | -------- | ---------------------------------------------------------- |
+| `instance`    | `str` | —        | Instance name.                                             |
+| `x`           | `int` | —        | Page-relative horizontal pixel coordinate (0 = left edge). |
+| `y`           | `int` | —        | Page-relative vertical pixel coordinate (0 = top edge).    |
+| `button`      | `str` | `"left"` | One of `"left"`, `"right"`, `"middle"`.                    |
+| `click_count` | `int` | `1`      | Number of clicks to deliver; use `2` for a double-click.   |
+| `delay_ms`    | `int` | `0`      | Delay in milliseconds between mousedown and mouseup.       |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -70,11 +70,11 @@ async def browser_mouse_move_xy(instance: str, x: int, y: int) -> dict[str, Any]
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `x` | `int` | — | Target horizontal pixel coordinate. |
-| `y` | `int` | — | Target vertical pixel coordinate. |
+| Name       | Type  | Default | Description                         |
+| ---------- | ----- | ------- | ----------------------------------- |
+| `instance` | `str` | —       | Instance name.                      |
+| `x`        | `int` | —       | Target horizontal pixel coordinate. |
+| `y`        | `int` | —       | Target vertical pixel coordinate.   |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -116,10 +116,10 @@ async def browser_mouse_down(instance: str, button: str = "left") -> dict[str, A
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `button` | `str` | `"left"` | One of `"left"`, `"right"`, `"middle"`. |
+| Name       | Type  | Default  | Description                             |
+| ---------- | ----- | -------- | --------------------------------------- |
+| `instance` | `str` | —        | Instance name.                          |
+| `button`   | `str` | `"left"` | One of `"left"`, `"right"`, `"middle"`. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -161,10 +161,10 @@ async def browser_mouse_up(instance: str, button: str = "left") -> dict[str, Any
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `button` | `str` | `"left"` | Must match the button passed to `browser_mouse_down`. |
+| Name       | Type  | Default  | Description                                           |
+| ---------- | ----- | -------- | ----------------------------------------------------- |
+| `instance` | `str` | —        | Instance name.                                        |
+| `button`   | `str` | `"left"` | Must match the button passed to `browser_mouse_down`. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -204,13 +204,13 @@ async def browser_mouse_drag_xy(instance: str, from_x: int, from_y: int, to_x: i
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `from_x` | `int` | — | Starting horizontal pixel coordinate. |
-| `from_y` | `int` | — | Starting vertical pixel coordinate. |
-| `to_x` | `int` | — | Ending horizontal pixel coordinate. |
-| `to_y` | `int` | — | Ending vertical pixel coordinate. |
+| Name       | Type  | Default | Description                           |
+| ---------- | ----- | ------- | ------------------------------------- |
+| `instance` | `str` | —       | Instance name.                        |
+| `from_x`   | `int` | —       | Starting horizontal pixel coordinate. |
+| `from_y`   | `int` | —       | Starting vertical pixel coordinate.   |
+| `to_x`     | `int` | —       | Ending horizontal pixel coordinate.   |
+| `to_y`     | `int` | —       | Ending vertical pixel coordinate.     |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -229,7 +229,10 @@ async def browser_mouse_drag_xy(instance: str, from_x: int, from_y: int, to_x: i
 Request:
 
 ```json
-{ "name": "browser_mouse_drag_xy", "arguments": { "instance": "main", "from_x": 50, "from_y": 100, "to_x": 300, "to_y": 100 } }
+{
+  "name": "browser_mouse_drag_xy",
+  "arguments": { "instance": "main", "from_x": 50, "from_y": 100, "to_x": 300, "to_y": 100 }
+}
 ```
 
 Response:
@@ -252,11 +255,11 @@ async def browser_mouse_wheel(instance: str, delta_x: int = 0, delta_y: int = 0)
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `delta_x` | `int` | `0` | Horizontal scroll in CSS pixels (positive = right). |
-| `delta_y` | `int` | `0` | Vertical scroll in CSS pixels (positive = down). |
+| Name       | Type  | Default | Description                                         |
+| ---------- | ----- | ------- | --------------------------------------------------- |
+| `instance` | `str` | —       | Instance name.                                      |
+| `delta_x`  | `int` | `0`     | Horizontal scroll in CSS pixels (positive = right). |
+| `delta_y`  | `int` | `0`     | Vertical scroll in CSS pixels (positive = down).    |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 

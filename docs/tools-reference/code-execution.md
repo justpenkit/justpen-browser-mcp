@@ -14,12 +14,12 @@ async def browser_evaluate(instance: str, expression: str, ref: str | None = Non
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `expression` | `str` | — | JavaScript expression (not a statement) to evaluate. Arrow functions are supported. |
-| `ref` | `str \| None` | `None` | Optional accessibility ref from `browser_snapshot`; runs the expression via `locator.evaluate()` with the element as the first argument. Mutually exclusive with `selector`. |
-| `selector` | `str \| None` | `None` | Optional CSS/aria selector; same semantics as `ref`. Mutually exclusive with `ref`. |
+| Name         | Type          | Default | Description                                                                                                                                                                  |
+| ------------ | ------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `instance`   | `str`         | —       | Instance name.                                                                                                                                                               |
+| `expression` | `str`         | —       | JavaScript expression (not a statement) to evaluate. Arrow functions are supported.                                                                                          |
+| `ref`        | `str \| None` | `None`  | Optional accessibility ref from `browser_snapshot`; runs the expression via `locator.evaluate()` with the element as the first argument. Mutually exclusive with `selector`. |
+| `selector`   | `str \| None` | `None`  | Optional CSS/aria selector; same semantics as `ref`. Mutually exclusive with `ref`.                                                                                          |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -63,10 +63,10 @@ async def browser_run_code(instance: str, code: str) -> dict[str, Any]
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `code` | `str` | — | Python code body. Runs as the body of an async function with `page`, `context` (Playwright BrowserContext), and `ctx_mgr` in scope. Use `return` to send a value back. |
+| Name       | Type  | Default | Description                                                                                                                                                            |
+| ---------- | ----- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `instance` | `str` | —       | Instance name.                                                                                                                                                         |
+| `code`     | `str` | —       | Python code body. Runs as the body of an async function with `page`, `context` (Playwright BrowserContext), and `ctx_mgr` in scope. Use `return` to send a value back. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 

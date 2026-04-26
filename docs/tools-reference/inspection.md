@@ -14,10 +14,10 @@ async def browser_snapshot(instance: str, selector: str | None = None) -> dict[s
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `selector` | `str \| None` | `None` | Optional CSS or aria selector to scope the snapshot to a subtree. When provided, refs are **not** included in the output. |
+| Name       | Type          | Default | Description                                                                                                               |
+| ---------- | ------------- | ------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `instance` | `str`         | —       | Instance name.                                                                                                            |
+| `selector` | `str \| None` | `None`  | Optional CSS or aria selector to scope the snapshot to a subtree. When provided, refs are **not** included in the output. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -71,11 +71,11 @@ async def browser_screenshot(
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `image_format` | `str` | `"png"` | `"png"` (lossless) or `"jpeg"` (lossy, smaller). |
-| `full_page` | `bool` | `False` | Capture the entire scrollable page instead of just the current viewport. |
+| Name           | Type   | Default | Description                                                              |
+| -------------- | ------ | ------- | ------------------------------------------------------------------------ |
+| `instance`     | `str`  | —       | Instance name.                                                           |
+| `image_format` | `str`  | `"png"` | `"png"` (lossless) or `"jpeg"` (lossy, smaller).                         |
+| `full_page`    | `bool` | `False` | Capture the entire scrollable page instead of just the current viewport. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -134,17 +134,21 @@ async def browser_console_messages(instance: str, level: str | None = None) -> d
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `level` | `str \| None` | `None` | Filter by message type. Valid values: `"log"`, `"info"`, `"warning"`, `"error"`, `"debug"`. `None` returns all messages. |
+| Name       | Type          | Default | Description                                                                                                              |
+| ---------- | ------------- | ------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `instance` | `str`         | —       | Instance name.                                                                                                           |
+| `level`    | `str \| None` | `None`  | Filter by message type. Valid values: `"log"`, `"info"`, `"warning"`, `"error"`, `"debug"`. `None` returns all messages. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
 ```json
 {
   "messages": [
-    { "type": "error", "text": "Uncaught ReferenceError: foo is not defined", "location": "https://example.com/app.js:42:8" },
+    {
+      "type": "error",
+      "text": "Uncaught ReferenceError: foo is not defined",
+      "location": "https://example.com/app.js:42:8"
+    },
     { "type": "log", "text": "page ready", "location": null }
   ]
 }
@@ -171,7 +175,11 @@ Response:
   "instance": "main",
   "data": {
     "messages": [
-      { "type": "error", "text": "Uncaught ReferenceError: foo is not defined", "location": "https://example.com/app.js:42:8" }
+      {
+        "type": "error",
+        "text": "Uncaught ReferenceError: foo is not defined",
+        "location": "https://example.com/app.js:42:8"
+      }
     ]
   }
 }
@@ -196,19 +204,31 @@ async def browser_network_requests(
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `url_filter` | `str \| None` | `None` | Python regular expression. Only requests whose URL matches are returned. Applied after the static filter. An invalid regex returns `invalid_params`. |
-| `static` | `bool` | `False` | When `False` (default), static asset requests (image, font, stylesheet, media, manifest) are filtered out. Pass `True` to include them. |
+| Name         | Type          | Default | Description                                                                                                                                          |
+| ------------ | ------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `instance`   | `str`         | —       | Instance name.                                                                                                                                       |
+| `url_filter` | `str \| None` | `None`  | Python regular expression. Only requests whose URL matches are returned. Applied after the static filter. An invalid regex returns `invalid_params`. |
+| `static`     | `bool`        | `False` | When `False` (default), static asset requests (image, font, stylesheet, media, manifest) are filtered out. Pass `True` to include them.              |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
 ```json
 {
   "requests": [
-    { "url": "https://api.example.com/data", "method": "GET", "status": 200, "resource_type": "fetch", "failure": null },
-    { "url": "https://api.example.com/submit", "method": "POST", "status": null, "resource_type": "fetch", "failure": "net::ERR_CONNECTION_REFUSED" }
+    {
+      "url": "https://api.example.com/data",
+      "method": "GET",
+      "status": 200,
+      "resource_type": "fetch",
+      "failure": null
+    },
+    {
+      "url": "https://api.example.com/submit",
+      "method": "POST",
+      "status": null,
+      "resource_type": "fetch",
+      "failure": "net::ERR_CONNECTION_REFUSED"
+    }
   ]
 }
 ```
@@ -236,7 +256,13 @@ Response:
   "instance": "main",
   "data": {
     "requests": [
-      { "url": "https://example.com/api/users", "method": "GET", "status": 200, "resource_type": "fetch", "failure": null }
+      {
+        "url": "https://example.com/api/users",
+        "method": "GET",
+        "status": 200,
+        "resource_type": "fetch",
+        "failure": null
+      }
     ]
   }
 }

@@ -14,10 +14,10 @@ async def browser_verify_element_visible(instance: str, ref: str) -> dict[str, A
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `ref` | `str` | — | Element ref (`[ref=eN]`) from `browser_snapshot`. |
+| Name       | Type  | Default | Description                                       |
+| ---------- | ----- | ------- | ------------------------------------------------- |
+| `instance` | `str` | —       | Instance name.                                    |
+| `ref`      | `str` | —       | Element ref (`[ref=eN]`) from `browser_snapshot`. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -65,12 +65,12 @@ async def browser_verify_list_visible(
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `refs` | `list[str] \| None` | `None` | **Refs mode**: list of element refs that must all be visible. Mutually exclusive with `container_ref`/`items`. |
-| `container_ref` | `str \| None` | `None` | **Container mode**: ref of the parent element. Required when using `items`. |
-| `items` | `list[str] \| None` | `None` | **Container mode**: list of text strings that must be visible as descendants of `container_ref`. |
+| Name            | Type                | Default | Description                                                                                                    |
+| --------------- | ------------------- | ------- | -------------------------------------------------------------------------------------------------------------- |
+| `instance`      | `str`               | —       | Instance name.                                                                                                 |
+| `refs`          | `list[str] \| None` | `None`  | **Refs mode**: list of element refs that must all be visible. Mutually exclusive with `container_ref`/`items`. |
+| `container_ref` | `str \| None`       | `None`  | **Container mode**: ref of the parent element. Required when using `items`.                                    |
+| `items`         | `list[str] \| None` | `None`  | **Container mode**: list of text strings that must be visible as descendants of `container_ref`.               |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape depends on mode:
 
@@ -120,7 +120,11 @@ Request (container mode):
 Response:
 
 ```json
-{ "status": "success", "instance": "main", "data": { "container_ref": "e5", "verified_items": ["Apple", "Banana"] } }
+{
+  "status": "success",
+  "instance": "main",
+  "data": { "container_ref": "e5", "verified_items": ["Apple", "Banana"] }
+}
 ```
 
 **Notes** — The two modes are mutually exclusive: pass either `refs` or `container_ref`+`items`, never both. Container mode matches by text substring (`get_by_text`) and uses `.first` to avoid strict-mode violations when text appears multiple times. Useful for post-action assertions such as verifying all rows of a rendered list.
@@ -137,10 +141,10 @@ async def browser_verify_text_visible(instance: str, text: str) -> dict[str, Any
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `text` | `str` | — | Text to look for (case-insensitive substring match). |
+| Name       | Type  | Default | Description                                          |
+| ---------- | ----- | ------- | ---------------------------------------------------- |
+| `instance` | `str` | —       | Instance name.                                       |
+| `text`     | `str` | —       | Text to look for (case-insensitive substring match). |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -187,12 +191,12 @@ async def browser_verify_value(
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `ref` | `str` | — | Element ref (`[ref=eN]`) from `browser_snapshot`. |
-| `expected_value` | `str` | — | Expected value. String for `"text"` mode; coerced to bool for `"checkbox"`/`"radio"` (accepts `"true"`, `"false"`, `"1"`, `"0"`, `"checked"`, `"unchecked"`). |
-| `element_type` | `str` | `"text"` | Comparison mode: `"text"` (reads via `input_value()`), `"checkbox"`, or `"radio"` (reads via `is_checked()`). |
+| Name             | Type  | Default  | Description                                                                                                                                                   |
+| ---------------- | ----- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `instance`       | `str` | —        | Instance name.                                                                                                                                                |
+| `ref`            | `str` | —        | Element ref (`[ref=eN]`) from `browser_snapshot`.                                                                                                             |
+| `expected_value` | `str` | —        | Expected value. String for `"text"` mode; coerced to bool for `"checkbox"`/`"radio"` (accepts `"true"`, `"false"`, `"1"`, `"0"`, `"checked"`, `"unchecked"`). |
+| `element_type`   | `str` | `"text"` | Comparison mode: `"text"` (reads via `input_value()`), `"checkbox"`, or `"radio"` (reads via `is_checked()`).                                                 |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 

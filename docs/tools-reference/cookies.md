@@ -14,16 +14,29 @@ async def browser_get_cookies(instance: str, urls: list[str] | None = None, name
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `urls` | `list[str] \| None` | `None` | List of full URLs to filter cookies by domain/path rules. `None` returns all cookies. |
-| `name` | `str \| None` | `None` | Exact cookie name to filter by (applied after URL filtering). |
+| Name       | Type                | Default | Description                                                                           |
+| ---------- | ------------------- | ------- | ------------------------------------------------------------------------------------- |
+| `instance` | `str`               | —       | Instance name.                                                                        |
+| `urls`     | `list[str] \| None` | `None`  | List of full URLs to filter cookies by domain/path rules. `None` returns all cookies. |
+| `name`     | `str \| None`       | `None`  | Exact cookie name to filter by (applied after URL filtering).                         |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
 ```json
-{ "cookies": [{"name": "sessionid", "value": "abc123", "domain": ".example.com", "path": "/", "expires": 1735689600, "httpOnly": true, "secure": true, "sameSite": "Strict"}] }
+{
+  "cookies": [
+    {
+      "name": "sessionid",
+      "value": "abc123",
+      "domain": ".example.com",
+      "path": "/",
+      "expires": 1735689600,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Strict"
+    }
+  ]
+}
 ```
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
@@ -35,7 +48,10 @@ async def browser_get_cookies(instance: str, urls: list[str] | None = None, name
 Request:
 
 ```json
-{ "name": "browser_get_cookies", "arguments": { "instance": "main", "urls": ["https://example.com"] } }
+{
+  "name": "browser_get_cookies",
+  "arguments": { "instance": "main", "urls": ["https://example.com"] }
+}
 ```
 
 Response:
@@ -75,10 +91,10 @@ async def browser_set_cookies(instance: str, cookies: list[dict[str, Any]]) -> d
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `cookies` | `list[dict[str, Any]]` | — | List of cookie dicts. Each must have at minimum `name` and `value`. Must also include either (`domain` + `path`) or `url`. Optional fields: `path` (default `"/"`), `expires` (Unix timestamp), `httpOnly`, `secure`, `sameSite` (`"Strict"`, `"Lax"`, `"None"`). |
+| Name       | Type                   | Default | Description                                                                                                                                                                                                                                                       |
+| ---------- | ---------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `instance` | `str`                  | —       | Instance name.                                                                                                                                                                                                                                                    |
+| `cookies`  | `list[dict[str, Any]]` | —       | List of cookie dicts. Each must have at minimum `name` and `value`. Must also include either (`domain` + `path`) or `url`. Optional fields: `path` (default `"/"`), `expires` (Unix timestamp), `httpOnly`, `secure`, `sameSite` (`"Strict"`, `"Lax"`, `"None"`). |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -135,9 +151,9 @@ async def browser_clear_cookies(instance: str) -> dict[str, Any]
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
+| Name       | Type  | Default | Description    |
+| ---------- | ----- | ------- | -------------- |
+| `instance` | `str` | —       | Instance name. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -177,11 +193,11 @@ async def browser_get_local_storage(instance: str, origin: str, key: str | None 
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `origin` | `str` | — | Fully-qualified URL including scheme (e.g. `"https://example.com"`). |
-| `key` | `str \| None` | `None` | Specific key to read. `None` returns all items. |
+| Name       | Type          | Default | Description                                                          |
+| ---------- | ------------- | ------- | -------------------------------------------------------------------- |
+| `instance` | `str`         | —       | Instance name.                                                       |
+| `origin`   | `str`         | —       | Fully-qualified URL including scheme (e.g. `"https://example.com"`). |
+| `key`      | `str \| None` | `None`  | Specific key to read. `None` returns all items.                      |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape when `key` is `None`:
 
@@ -211,7 +227,10 @@ If the key does not exist, `value` is `null`:
 Request (all items):
 
 ```json
-{ "name": "browser_get_local_storage", "arguments": { "instance": "main", "origin": "https://example.com" } }
+{
+  "name": "browser_get_local_storage",
+  "arguments": { "instance": "main", "origin": "https://example.com" }
+}
 ```
 
 Response:
@@ -227,13 +246,20 @@ Response:
 Request (specific key):
 
 ```json
-{ "name": "browser_get_local_storage", "arguments": { "instance": "main", "origin": "https://example.com", "key": "theme" } }
+{
+  "name": "browser_get_local_storage",
+  "arguments": { "instance": "main", "origin": "https://example.com", "key": "theme" }
+}
 ```
 
 Response:
 
 ```json
-{ "status": "success", "instance": "main", "data": { "key": "theme", "value": "dark", "origin": "https://example.com" } }
+{
+  "status": "success",
+  "instance": "main",
+  "data": { "key": "theme", "value": "dark", "origin": "https://example.com" }
+}
 ```
 
 **Notes** — Opens a temporary page that navigates to the origin, reads localStorage, then closes the page — the instance's active page is not disturbed. `origin` must be a fully-qualified URL including scheme; partial URLs or paths are not accepted.
@@ -250,11 +276,11 @@ async def browser_set_local_storage(instance: str, origin: str, items: dict[str,
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `origin` | `str` | — | Fully-qualified URL including scheme (e.g. `"https://example.com"`). |
-| `items` | `dict[str, str]` | — | Key-value pairs to set. All values must be strings. |
+| Name       | Type             | Default | Description                                                          |
+| ---------- | ---------------- | ------- | -------------------------------------------------------------------- |
+| `instance` | `str`            | —       | Instance name.                                                       |
+| `origin`   | `str`            | —       | Fully-qualified URL including scheme (e.g. `"https://example.com"`). |
+| `items`    | `dict[str, str]` | —       | Key-value pairs to set. All values must be strings.                  |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -285,7 +311,11 @@ Request:
 Response:
 
 ```json
-{ "status": "success", "instance": "main", "data": { "set_count": 2, "origin": "https://example.com" } }
+{
+  "status": "success",
+  "instance": "main",
+  "data": { "set_count": 2, "origin": "https://example.com" }
+}
 ```
 
 **Notes** — Opens a temporary page that navigates to the origin, sets each item via `localStorage.setItem`, then closes the page — the instance's active page is not disturbed. All values must be strings because localStorage only stores strings.
@@ -302,10 +332,10 @@ async def browser_clear_local_storage(instance: str, origin: str | None = None) 
 
 **Parameters**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `instance` | `str` | — | Instance name. |
-| `origin` | `str \| None` | `None` | Fully-qualified URL including scheme to clear. When omitted, clears localStorage on the currently active page directly. |
+| Name       | Type          | Default | Description                                                                                                             |
+| ---------- | ------------- | ------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `instance` | `str`         | —       | Instance name.                                                                                                          |
+| `origin`   | `str \| None` | `None`  | Fully-qualified URL including scheme to clear. When omitted, clears localStorage on the currently active page directly. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -323,13 +353,20 @@ async def browser_clear_local_storage(instance: str, origin: str | None = None) 
 Request (with origin):
 
 ```json
-{ "name": "browser_clear_local_storage", "arguments": { "instance": "main", "origin": "https://example.com" } }
+{
+  "name": "browser_clear_local_storage",
+  "arguments": { "instance": "main", "origin": "https://example.com" }
+}
 ```
 
 Response:
 
 ```json
-{ "status": "success", "instance": "main", "data": { "cleared": true, "origin": "https://example.com" } }
+{
+  "status": "success",
+  "instance": "main",
+  "data": { "cleared": true, "origin": "https://example.com" }
+}
 ```
 
 Request (active page shortcut):
@@ -341,7 +378,11 @@ Request (active page shortcut):
 Response:
 
 ```json
-{ "status": "success", "instance": "main", "data": { "cleared": true, "origin": "https://example.com/page" } }
+{
+  "status": "success",
+  "instance": "main",
+  "data": { "cleared": true, "origin": "https://example.com/page" }
+}
 ```
 
 **Notes** — When `origin` is provided, a temporary page navigates to that origin, clears localStorage, then closes — the instance's active page is not disturbed. When `origin` is omitted, localStorage is cleared on the active page directly with no navigation (a shortcut for when you are already on the origin whose storage you want to clear). The `origin` field in the response always reflects which origin's storage was actually cleared.
