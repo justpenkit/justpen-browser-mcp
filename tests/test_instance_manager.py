@@ -1,6 +1,7 @@
 """Unit tests for InstanceManager registry + lifecycle."""
 
 import asyncio
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
@@ -524,4 +525,45 @@ async def test_lock_for_toctou_crash_raises_and_evicts(manager):
     # Teardown of the evicted record was scheduled.
     await asyncio.sleep(0)
     await asyncio.gather(*list(manager._closing_tasks), return_exceptions=True)
+    rec.stack.aclose.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_reap_once_evicts_idle(manager):
+    manager._config = manager._config.__class__(**{**manager._config.__dict__, "idle_ttl_seconds": 100})
+    rec = await manager.create("a")
+    rec.state.last_used_at = datetime.now(tz=UTC) - timedelta(seconds=200)
+    evicted = await manager.reap_once(datetime.now(tz=UTC))
+    assert "a" in evicted
+
+    with pytest.raises(InstanceNotFoundError):
+        manager.get("a")
+
+
+@pytest.mark.asyncio
+async def test_reap_once_keeps_fresh(manager):
+    manager._config = manager._config.__class__(**{**manager._config.__dict__, "idle_ttl_seconds": 100})
+    await manager.create("a")
+    evicted = await manager.reap_once(datetime.now(tz=UTC))
+    assert evicted == []
+
+
+@pytest.mark.asyncio
+async def test_reap_once_noop_when_ttl_zero(manager):
+    rec = await manager.create("a")
+    rec.state.last_used_at = datetime.now(tz=UTC) - timedelta(days=1)
+    evicted = await manager.reap_once(datetime.now(tz=UTC))
+    assert evicted == []  # ttl=0 disables reaping
+
+
+@pytest.mark.asyncio
+async def test_reap_once_evicts_crashed_regardless_of_ttl(manager):
+    """Crashed instances are a reaper backstop even when idle_ttl_seconds is disabled."""
+    rec = await manager.create("a")
+    rec.stack.aclose = AsyncMock()
+    rec.state.status = "crashed"
+    evicted = await manager.reap_once(datetime.now(tz=UTC))
+    assert "a" in evicted
+    with pytest.raises(InstanceNotFoundError):
+        manager.get("a")
     rec.stack.aclose.assert_awaited_once()

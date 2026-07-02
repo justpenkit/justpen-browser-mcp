@@ -10,6 +10,7 @@ per-instance lock so different instances run in parallel.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Literal
@@ -143,6 +144,7 @@ class InstanceManager:
         self._config = config
         self._max = config.max_instances
         self._closing_tasks: set[asyncio.Task[None]] = set()
+        self._reaper_task: asyncio.Task[None] | None = None
 
     async def create(
         self,
@@ -402,6 +404,60 @@ class InstanceManager:
         rec = self._instances[name]
         async with rec.lock:
             await rec.stack.aclose()
+
+    async def reap_once(self, now: datetime) -> list[str]:
+        """Close instances idle beyond idle_ttl_seconds (and crashed ones). Returns evicted names.
+
+        Crashed records are a backstop: get() usually evicts them immediately,
+        but a record never touched via get() (e.g. idle with no callers) would
+        otherwise linger. idle_ttl_seconds == 0 disables idle reaping but the
+        crashed backstop still applies. now is injected so the core logic stays
+        clock-free for tests; only _reaper_loop reads the real clock.
+        """
+        ttl = self._config.idle_ttl_seconds
+        async with self._registry_lock:
+            victims: list[str] = []
+            for name, rec in self._instances.items():
+                is_crashed = rec.state.status == "crashed"
+                is_stale = ttl > 0 and (now - rec.state.last_used_at).total_seconds() > ttl
+                if is_crashed or is_stale:
+                    victims.append(name)
+            for name in victims:
+                rec = self._instances[name]
+                try:
+                    async with rec.lock:
+                        await rec.stack.aclose()
+                except Exception as e:  # noqa: BLE001 — reaper must survive one bad close
+                    logger.warning("Error closing idle/crashed instance %r: %s", name, e)
+                self._instances.pop(name, None)
+                logger.info("Reaped instance %r (status=%s)", name, rec.state.status)
+            return victims
+
+    async def _reaper_loop(self) -> None:
+        """Background loop: reap idle/crashed instances every reaper_interval_seconds.
+
+        Wrapped so a single failed iteration never kills the long-lived task.
+        """
+        interval = self._config.reaper_interval_seconds
+        while True:
+            await asyncio.sleep(interval)
+            try:
+                await self.reap_once(datetime.now(tz=UTC))
+            except Exception:  # never let the reaper loop die; logger.exception exempts BLE001
+                logger.exception("Reaper iteration failed")
+
+    def start_reaper(self) -> None:
+        """Start the background idle reaper if idle_ttl_seconds enables it."""
+        if self._config.idle_ttl_seconds > 0 and self._reaper_task is None:
+            self._reaper_task = asyncio.create_task(self._reaper_loop(), name="idle-reaper")
+
+    async def stop_reaper(self) -> None:
+        """Cancel and await the background reaper task, if running."""
+        if self._reaper_task is not None:
+            self._reaper_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._reaper_task
+            self._reaper_task = None
 
     def _wire_event_listeners(self, ctx: BrowserContext, state: InstanceState) -> None:
         def _on_request(req: Request) -> None:

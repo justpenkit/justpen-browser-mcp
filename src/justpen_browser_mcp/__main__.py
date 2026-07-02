@@ -74,6 +74,7 @@ async def main() -> None:
 
     mgr = InstanceManager(config)
     register_all(mcp, mgr)
+    mgr.start_reaper()
 
     stop_event = asyncio.Event()
     loop = asyncio.get_running_loop()
@@ -94,6 +95,7 @@ async def main() -> None:
             with contextlib.suppress(asyncio.CancelledError):
                 await server_task
     finally:
+        await mgr.stop_reaper()
         await mgr.shutdown_all()
 
 
