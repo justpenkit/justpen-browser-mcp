@@ -158,6 +158,27 @@ async def test_create_instance_omitted_headless_humanize_stay_none(mcp):
 
 
 @pytest.mark.asyncio
+async def test_browser_health_returns_snapshot(mcp_client, mock_mgr):
+    mock_mgr.health_snapshot = lambda: {
+        "instance_count": 1,
+        "max_instances": 10,
+        "instances": [{"name": "a", "status": "live"}],
+        "config": {
+            "idle_ttl_seconds": 0,
+            "transport": "stdio",
+            "host": "127.0.0.1",
+            "port": 8931,
+            "max_instances": 10,
+        },
+    }
+    res = await mcp_client.call_tool("browser_health", {})
+    data = res.data if hasattr(res, "data") else res
+    assert data["status"] == "success"
+    assert data["data"]["instance_count"] == 1
+    assert data["data"]["config"]["transport"] == "stdio"
+
+
+@pytest.mark.asyncio
 async def test_register_all_registers_every_tool_module(mcp, manager):
     """register_all wires up all 10 tool modules on a FastMCP instance."""
     register_all(mcp, manager)

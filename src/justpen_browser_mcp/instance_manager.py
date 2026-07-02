@@ -337,6 +337,22 @@ class InstanceManager:
         snapshot = list(self._instances.items())
         return [summarize_instance(rec) for _, rec in snapshot]
 
+    def health_snapshot(self) -> dict[str, Any]:
+        """Report server status without launching any browser. Never raises."""
+        instances = [summarize_instance(rec) for rec in self._instances.values()]
+        return {
+            "instance_count": len(self._instances),
+            "max_instances": self._max,
+            "instances": instances,
+            "config": {
+                "idle_ttl_seconds": self._config.idle_ttl_seconds,
+                "transport": self._config.transport,
+                "host": self._config.host,
+                "port": self._config.port,
+                "max_instances": self._max,
+            },
+        }
+
     async def active_page(self, name: str) -> Page:
         """Return the active page for an instance, creating one if none exist."""
         rec = self.get(name)

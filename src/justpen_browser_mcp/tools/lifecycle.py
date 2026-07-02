@@ -1,4 +1,4 @@
-"""Instance lifecycle tools: create, destroy, list."""
+"""Instance lifecycle tools: create, destroy, list, health."""
 
 from __future__ import annotations
 
@@ -17,8 +17,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def register(mcp: FastMCP, mgr: InstanceManager) -> None:
-    """Register instance-lifecycle tools on the MCP server."""
+def _register_browser_create_instance(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
     async def browser_create_instance(
@@ -76,6 +75,9 @@ def register(mcp: FastMCP, mgr: InstanceManager) -> None:
             return error_response(name, "internal_error", str(e))
         return success_response(instance=name, data=summarize_instance(record))
 
+
+def _register_browser_destroy_instance(mcp: FastMCP, mgr: InstanceManager) -> None:
+
     @mcp.tool
     async def browser_destroy_instance(name: str) -> dict[str, Any]:
         """Destroy an instance and free its resources. Persistent profile dir survives on disk."""
@@ -88,6 +90,9 @@ def register(mcp: FastMCP, mgr: InstanceManager) -> None:
             return error_response(name, "internal_error", str(e))
         return success_response(instance=name)
 
+
+def _register_browser_list_instances(mcp: FastMCP, mgr: InstanceManager) -> None:
+
     @mcp.tool
     async def browser_list_instances() -> dict[str, Any]:
         """Return summaries of all live instances."""
@@ -97,3 +102,28 @@ def register(mcp: FastMCP, mgr: InstanceManager) -> None:
             logger.exception("browser_list_instances failed")
             return error_response(None, "internal_error", str(e))
         return success_response(instance=None, data={"instances": summaries})
+
+
+def _register_browser_health(mcp: FastMCP, mgr: InstanceManager) -> None:
+
+    @mcp.tool
+    async def browser_health() -> dict[str, Any]:
+        """Report server health without launching a browser.
+
+        Returns instance counts, per-instance status/idle time, and the active
+        server config (idle TTL, transport, host/port, max instances).
+        """
+        try:
+            snapshot = mgr.health_snapshot()
+        except Exception as e:
+            logger.exception("browser_health failed")
+            return error_response(None, "internal_error", str(e))
+        return success_response(instance=None, data=snapshot)
+
+
+def register(mcp: FastMCP, mgr: InstanceManager) -> None:
+    """Register instance-lifecycle tools on the MCP server."""
+    _register_browser_create_instance(mcp, mgr)
+    _register_browser_destroy_instance(mcp, mgr)
+    _register_browser_list_instances(mcp, mgr)
+    _register_browser_health(mcp, mgr)
