@@ -3,7 +3,7 @@ title: Lifecycle tools
 description: Create, list, and destroy browser instances.
 ---
 
-Lifecycle tools manage the full lifespan of browser instances — creating isolated sessions, querying what is alive, and tearing sessions down cleanly. Reach for these tools at the boundaries of a workflow: `browser_create_instance` to open a session, `browser_list_instances` to inspect what is currently active, and `browser_destroy_instance` to shut everything down when the work is done.
+Lifecycle tools manage the full lifespan of browser instances — creating isolated sessions, querying what is alive, and tearing sessions down cleanly. Reach for these tools at the boundaries of a workflow: `browser_create_instance` to open a session, `browser_list_instances` to inspect what is currently active, `browser_health` to check server status without launching a browser, and `browser_destroy_instance` to shut everything down when the work is done.
 
 ## browser_create_instance
 
@@ -227,3 +227,121 @@ Response:
 ```
 
 **Notes** — Never raises a domain error — if no instances exist the list is empty. `instance` in the envelope is `null` because this is a server-level tool that does not target a specific instance.
+
+## browser_health
+
+Report server health **without launching a browser**.
+
+**Signature**
+
+```python
+async def browser_health() -> dict[str, Any]
+```
+
+**Parameters**
+
+_No parameters._
+
+**Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
+
+```json
+{
+  "instance_count": 1,
+  "max_instances": 10,
+  "instances": [
+    {
+      "name": "main",
+      "status": "ready",
+      "mode": "ephemeral",
+      "profile_dir": null,
+      "page_count": 1,
+      "active_url": "https://example.com",
+      "idle_seconds": 12.3,
+      "created_at": "2026-04-22T10:00:00+00:00"
+    }
+  ],
+  "config": {
+    "idle_ttl_seconds": 0,
+    "transport": "stdio",
+    "host": "127.0.0.1",
+    "port": 8000,
+    "max_instances": 10
+  }
+}
+```
+
+| Field            | Type     | Description                                                                              |
+| ---------------- | -------- | ---------------------------------------------------------------------------------------- |
+| `instance_count` | `int`    | Number of instances currently registered (including any not yet evicted as `"crashed"`). |
+| `max_instances`  | `int`    | Effective `BROWSER_MCP_MAX_INSTANCES` cap.                                               |
+| `instances`      | `array`  | Per-instance summaries — see below.                                                      |
+| `config`         | `object` | A snapshot of the server-level config relevant to instance lifecycle.                    |
+
+Each entry in `instances` has:
+
+| Field          | Type          | Description                                                                                                             |
+| -------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `name`         | `str`         | Instance name.                                                                                                          |
+| `status`       | `str`         | Instance status, e.g. `"ready"` or `"crashed"` — see [crash detection](/concepts/instances-isolation/#crash-detection). |
+| `mode`         | `str`         | `"ephemeral"` or `"persistent"`.                                                                                        |
+| `profile_dir`  | `str \| null` | Absolute path to the profile directory, or `null` for ephemeral instances.                                              |
+| `page_count`   | `int`         | Number of open tabs in the instance.                                                                                    |
+| `active_url`   | `str \| null` | URL of the currently active page, or `null` when no pages are open.                                                     |
+| `idle_seconds` | `float`       | Seconds since the last tool operation on this instance.                                                                 |
+| `created_at`   | `str`         | ISO 8601 timestamp (UTC) of when the instance was created.                                                              |
+
+`config` fields:
+
+| Field              | Type  | Description                                                                           |
+| ------------------ | ----- | ------------------------------------------------------------------------------------- |
+| `idle_ttl_seconds` | `int` | `BROWSER_MCP_IDLE_TTL_SECONDS` / `--idle-ttl`. `0` means the idle reaper is disabled. |
+| `transport`        | `str` | Active MCP transport (e.g. `"stdio"`, `"http"`).                                      |
+| `host`             | `str` | Bind host, relevant for network transports.                                           |
+| `port`             | `int` | Bind port, relevant for network transports.                                           |
+| `max_instances`    | `int` | Same value as the top-level `max_instances` field.                                    |
+
+**Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
+
+- `internal_error`
+
+**Example**
+
+Request:
+
+```json
+{ "name": "browser_health", "arguments": {} }
+```
+
+Response:
+
+```json
+{
+  "status": "success",
+  "instance": null,
+  "data": {
+    "instance_count": 1,
+    "max_instances": 10,
+    "instances": [
+      {
+        "name": "main",
+        "status": "ready",
+        "mode": "ephemeral",
+        "profile_dir": null,
+        "page_count": 1,
+        "active_url": "https://example.com",
+        "idle_seconds": 12.3,
+        "created_at": "2026-04-22T10:00:00+00:00"
+      }
+    ],
+    "config": {
+      "idle_ttl_seconds": 0,
+      "transport": "stdio",
+      "host": "127.0.0.1",
+      "port": 8000,
+      "max_instances": 10
+    }
+  }
+}
+```
+
+**Notes** — Never launches or otherwise touches a browser process, so it is safe to poll frequently (e.g. from monitoring). `instance` in the envelope is `null` because this is a server-level tool. Instances that have crashed but have not yet been evicted (see [crash detection](/concepts/instances-isolation/#crash-detection)) still appear here with `status: "crashed"` until the next call that resolves them, or until the [idle reaper](/concepts/instances-isolation/#idle-reaper) sweeps them up as a backstop.
