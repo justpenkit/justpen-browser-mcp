@@ -172,6 +172,7 @@ _No parameters._
   "instances": [
     {
       "name": "main",
+      "status": "live",
       "mode": "ephemeral",
       "profile_dir": null,
       "page_count": 1,
@@ -184,14 +185,15 @@ _No parameters._
 
 Each entry in `instances` has:
 
-| Field         | Type          | Description                                                                |
-| ------------- | ------------- | -------------------------------------------------------------------------- |
-| `name`        | `str`         | Instance name.                                                             |
-| `mode`        | `str`         | `"ephemeral"` or `"persistent"`.                                           |
-| `profile_dir` | `str \| null` | Absolute path to the profile directory, or `null` for ephemeral instances. |
-| `page_count`  | `int`         | Number of open tabs in the instance.                                       |
-| `active_url`  | `str \| null` | URL of the currently active page, or `null` when no pages are open.        |
-| `created_at`  | `str`         | ISO 8601 timestamp (UTC) of when the instance was created.                 |
+| Field         | Type          | Description                                                                                                       |
+| ------------- | ------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `name`        | `str`         | Instance name.                                                                                                    |
+| `status`      | `str`         | Instance status, `"live"` or `"crashed"` — see [crash detection](/concepts/instances-isolation/#crash-detection). |
+| `mode`        | `str`         | `"ephemeral"` or `"persistent"`.                                                                                  |
+| `profile_dir` | `str \| null` | Absolute path to the profile directory, or `null` for ephemeral instances.                                        |
+| `page_count`  | `int`         | Number of open tabs in the instance.                                                                              |
+| `active_url`  | `str \| null` | URL of the currently active page, or `null` when no pages are open.                                               |
+| `created_at`  | `str`         | ISO 8601 timestamp (UTC) of when the instance was created.                                                        |
 
 **Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
@@ -215,6 +217,7 @@ Response:
     "instances": [
       {
         "name": "main",
+        "status": "live",
         "mode": "ephemeral",
         "profile_dir": null,
         "page_count": 2,
@@ -251,7 +254,7 @@ _No parameters._
   "instances": [
     {
       "name": "main",
-      "status": "ready",
+      "status": "live",
       "mode": "ephemeral",
       "profile_dir": null,
       "page_count": 1,
@@ -264,7 +267,7 @@ _No parameters._
     "idle_ttl_seconds": 0,
     "transport": "stdio",
     "host": "127.0.0.1",
-    "port": 8000,
+    "port": 8931,
     "max_instances": 10
   }
 }
@@ -279,16 +282,16 @@ _No parameters._
 
 Each entry in `instances` has:
 
-| Field          | Type          | Description                                                                                                             |
-| -------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `name`         | `str`         | Instance name.                                                                                                          |
-| `status`       | `str`         | Instance status, e.g. `"ready"` or `"crashed"` — see [crash detection](/concepts/instances-isolation/#crash-detection). |
-| `mode`         | `str`         | `"ephemeral"` or `"persistent"`.                                                                                        |
-| `profile_dir`  | `str \| null` | Absolute path to the profile directory, or `null` for ephemeral instances.                                              |
-| `page_count`   | `int`         | Number of open tabs in the instance.                                                                                    |
-| `active_url`   | `str \| null` | URL of the currently active page, or `null` when no pages are open.                                                     |
-| `idle_seconds` | `float`       | Seconds since the last tool operation on this instance.                                                                 |
-| `created_at`   | `str`         | ISO 8601 timestamp (UTC) of when the instance was created.                                                              |
+| Field          | Type          | Description                                                                                                            |
+| -------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `name`         | `str`         | Instance name.                                                                                                         |
+| `status`       | `str`         | Instance status, e.g. `"live"` or `"crashed"` — see [crash detection](/concepts/instances-isolation/#crash-detection). |
+| `mode`         | `str`         | `"ephemeral"` or `"persistent"`.                                                                                       |
+| `profile_dir`  | `str \| null` | Absolute path to the profile directory, or `null` for ephemeral instances.                                             |
+| `page_count`   | `int`         | Number of open tabs in the instance.                                                                                   |
+| `active_url`   | `str \| null` | URL of the currently active page, or `null` when no pages are open.                                                    |
+| `idle_seconds` | `float`       | Seconds since the last tool operation on this instance.                                                                |
+| `created_at`   | `str`         | ISO 8601 timestamp (UTC) of when the instance was created.                                                             |
 
 `config` fields:
 
@@ -324,7 +327,7 @@ Response:
     "instances": [
       {
         "name": "main",
-        "status": "ready",
+        "status": "live",
         "mode": "ephemeral",
         "profile_dir": null,
         "page_count": 1,
@@ -337,7 +340,7 @@ Response:
       "idle_ttl_seconds": 0,
       "transport": "stdio",
       "host": "127.0.0.1",
-      "port": 8000,
+      "port": 8931,
       "max_instances": 10
     }
   }
