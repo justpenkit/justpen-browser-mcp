@@ -567,3 +567,31 @@ async def test_reap_once_evicts_crashed_regardless_of_ttl(manager):
     with pytest.raises(InstanceNotFoundError):
         manager.get("a")
     rec.stack.aclose.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_start_reaper_noop_when_ttl_zero(manager):
+    """idle_ttl_seconds == 0 (the default) must not spawn a background task."""
+    assert manager._config.idle_ttl_seconds == 0
+    manager.start_reaper()
+    assert manager._reaper_task is None
+    # Safe no-op: stopping a reaper that never started must not raise.
+    await manager.stop_reaper()
+
+
+@pytest.mark.asyncio
+async def test_start_reaper_starts_task_and_is_idempotent(manager):
+    manager._config = manager._config.__class__(
+        **{**manager._config.__dict__, "idle_ttl_seconds": 60, "reaper_interval_seconds": 1}
+    )
+    manager.start_reaper()
+    assert manager._reaper_task is not None
+    task = manager._reaper_task
+
+    # Calling start_reaper again must not spawn a second task.
+    manager.start_reaper()
+    assert manager._reaper_task is task
+
+    await manager.stop_reaper()
+    assert manager._reaper_task is None
+    assert task.cancelled() or task.done()
