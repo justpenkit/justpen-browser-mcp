@@ -4,10 +4,12 @@ from justpen_browser_mcp.errors import (
     VALID_ERROR_TYPES,
     BrowserMcpError,
     InstanceAlreadyExistsError,
+    InstanceCrashedError,
     InstanceLimitExceededError,
     InstanceNotFoundError,
     ProfileDirInUseError,
 )
+from justpen_browser_mcp.responses import error_response
 
 
 def test_valid_error_types_contains_new_instance_types():
@@ -47,5 +49,15 @@ def test_profile_dir_in_use_mapping():
 
 
 def test_valid_error_types_has_expected_count():
-    # 15 active + 1 new profile_dir_in_use = 16
-    assert len(VALID_ERROR_TYPES) == 16
+    # 15 active + 1 profile_dir_in_use + 1 new instance_crashed = 17
+    assert len(VALID_ERROR_TYPES) == 17
+
+
+def test_instance_crashed_error_type():
+    assert InstanceCrashedError.error_type == "instance_crashed"
+    assert "instance_crashed" in VALID_ERROR_TYPES
+
+
+def test_error_response_accepts_instance_crashed():
+    env = error_response("a", "instance_crashed", "boom")
+    assert env["error_type"] == "instance_crashed"

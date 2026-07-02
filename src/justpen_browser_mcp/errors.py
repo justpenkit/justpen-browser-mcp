@@ -37,6 +37,12 @@ class ProfileDirInUseError(BrowserMcpError):
     error_type = "profile_dir_in_use"
 
 
+class InstanceCrashedError(BrowserMcpError):
+    """Raised when an instance's browser process has disconnected/crashed."""
+
+    error_type = "instance_crashed"
+
+
 class BinaryNotFoundError(BrowserMcpError):
     """Raised when the Camoufox binary cannot be located or fetched."""
 
@@ -115,6 +121,7 @@ VALID_ERROR_TYPES = frozenset(
         "instance_already_exists",
         "instance_limit_exceeded",
         "profile_dir_in_use",
+        "instance_crashed",
         "binary_not_found",
         "element_not_found",
         "stale_ref",
