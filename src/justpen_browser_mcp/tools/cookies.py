@@ -197,7 +197,7 @@ def _register_browser_get_local_storage(mcp: FastMCP, mgr: InstanceManager) -> N
             async with mgr.lock_for(instance):
                 page = await ctx.new_page()
                 try:
-                    await page.goto(origin)
+                    await page.goto(origin, wait_until="domcontentloaded")
                     _verify_origin(page.url, origin)
                     if key is not None:
                         value = await page.evaluate("(k) => localStorage.getItem(k)", key)
@@ -244,7 +244,7 @@ def _register_browser_set_local_storage(mcp: FastMCP, mgr: InstanceManager) -> N
             async with mgr.lock_for(instance):
                 page = await ctx.new_page()
                 try:
-                    await page.goto(origin)
+                    await page.goto(origin, wait_until="domcontentloaded")
                     _verify_origin(page.url, origin)
                     await page.evaluate(
                         "(items) => { Object.entries(items).forEach(([k, v]) => localStorage.setItem(k, v)); }",
@@ -298,7 +298,7 @@ def _register_browser_clear_local_storage(mcp: FastMCP, mgr: InstanceManager) ->
                     return success_response(instance, data={"cleared": True, "origin": page.url})
                 page = await ctx.new_page()
                 try:
-                    await page.goto(origin)
+                    await page.goto(origin, wait_until="domcontentloaded")
                     _verify_origin(page.url, origin)
                     await page.evaluate("() => localStorage.clear()")
                 finally:

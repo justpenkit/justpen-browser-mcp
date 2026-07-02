@@ -10,6 +10,7 @@ per-instance lock so different instances run in parallel.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Literal
@@ -18,6 +19,7 @@ from anyio import Path as AsyncPath
 
 from .errors import (
     InstanceAlreadyExistsError,
+    InstanceCrashedError,
     InstanceLimitExceededError,
     InstanceNotFoundError,
     InvalidParamsError,
@@ -27,7 +29,10 @@ from .errors import (
 from .instance import InstanceRecord, InstanceState, launch_instance
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from playwright.async_api import (
+        Browser,
         BrowserContext,
         Dialog,
         FileChooser,
@@ -48,20 +53,27 @@ def summarize_instance(rec: InstanceRecord) -> dict[str, Any]:
     Shared between InstanceManager.list() and tool-layer wrappers so the
     summary shape stays in one place.
     """
-    pages = rec.context.pages
-    if pages:
-        idx = rec.state.active_page_index
-        if idx < 0 or idx >= len(pages):
-            idx = 0
-        active_url = pages[idx].url
-    else:
+    active_url: str | None = None
+    page_count = 0
+    try:
+        pages = rec.context.pages
+        page_count = len(pages)
+        if pages:
+            idx = rec.state.active_page_index
+            if idx < 0 or idx >= len(pages):
+                idx = 0
+            active_url = pages[idx].url
+    except Exception:  # noqa: BLE001 — a dead context must never break summaries
         active_url = None
+    idle_seconds = (datetime.now(tz=UTC) - rec.state.last_used_at).total_seconds()
     return {
         "name": rec.name,
+        "status": rec.state.status,
         "mode": "persistent" if rec.profile_dir is not None else "ephemeral",
         "profile_dir": rec.profile_dir,
-        "page_count": len(pages),
+        "page_count": page_count,
         "active_url": active_url,
+        "idle_seconds": round(idle_seconds, 1),
         "created_at": rec.created_at.isoformat(),
     }
 
@@ -77,6 +89,51 @@ def _format_console_location(loc: SourceLocation | None) -> str | None:
     return f"{url}:{line}:{col}"
 
 
+class _InstanceLock:
+    """Async CM that acquires an instance's lock and stamps last_used_at on entry.
+
+    Used by InstanceManager.lock_for() so every serialized tool operation
+    counts as activity for idle tracking. destroy()/_close_one()/shutdown_all()
+    intentionally use rec.lock directly (not this wrapper) so teardown still
+    works on crashed instances without touching last_used_at.
+
+    TOCTOU note: the crash callback can flip state.status to "crashed" while a
+    caller is suspended awaiting lock.acquire(). __aenter__ re-checks status
+    after acquiring and evicts+raises rather than handing the caller a dead
+    record.
+    """
+
+    def __init__(self, rec: InstanceRecord, evict_crashed: Callable[[InstanceRecord], None]) -> None:
+        """Wrap the given instance record's lock.
+
+        evict_crashed is InstanceManager._evict_crashed, bound and passed in by
+        lock_for() (an InstanceManager method) rather than accessed here via a
+        stored manager reference, so this class never reaches across into
+        another instance's private members.
+        """
+        self._rec = rec
+        self._evict_crashed = evict_crashed
+
+    async def __aenter__(self) -> None:
+        """Acquire the instance lock and stamp last_used_at.
+
+        Raises InstanceCrashedError if the instance crashed while this caller
+        was awaiting the lock; the record is evicted in that case.
+        """
+        await self._rec.lock.acquire()
+        if self._rec.state.status == "crashed":
+            self._rec.lock.release()
+            self._evict_crashed(self._rec)
+            raise InstanceCrashedError(
+                f"Instance {self._rec.name!r} crashed while awaiting its lock; it has been removed."
+            )
+        self._rec.state.last_used_at = datetime.now(tz=UTC)
+
+    async def __aexit__(self, *exc: object) -> None:
+        """Release the instance lock."""
+        self._rec.lock.release()
+
+
 class InstanceManager:
     """Named registry of isolated Camoufox instances."""
 
@@ -84,24 +141,57 @@ class InstanceManager:
         """Initialize an empty registry bound to the given server configuration."""
         self._instances: dict[str, InstanceRecord] = {}
         self._registry_lock = asyncio.Lock()
+        self._config = config
         self._max = config.max_instances
+        self._closing_tasks: set[asyncio.Task[None]] = set()
+        self._reaper_task: asyncio.Task[None] | None = None
 
     async def create(
         self,
         name: str,
         *,
         profile_dir: str | None = None,
-        headless: bool | Literal["virtual"] = True,
+        headless: bool | Literal["virtual"] | None = None,
         proxy: dict[str, str] | None = None,
-        humanize: bool | float = True,
+        humanize: bool | float | None = None,
         window: tuple[int, int] | None = None,
+        block_images: bool | None = None,
+        block_webrtc: bool | None = None,
+        block_webgl: bool | None = None,
+        camoufox_os: tuple[str, ...] | None = None,
+        locale: str | None = None,
+        geoip: bool | None = None,
+        firefox_user_prefs: dict[str, Any] | None = None,
+        camoufox_args: tuple[str, ...] | None = None,
+        enable_cache: bool | None = None,
+        ff_version: int | None = None,
     ) -> InstanceRecord:
         """Create and register a new named Camoufox instance.
+
+        Each camoufox-related parameter defaults to ``None``, meaning "use the
+        server-level default from config"; a non-None value here overrides the
+        server default for this instance only.
 
         Preflight order: name-collision → limit → profile_dir-collision → launch.
         Raises InstanceAlreadyExistsError, InstanceLimitExceededError, or
         ProfileDirInUseError before touching Playwright if a preflight fails.
         """
+        cfg = self._config
+        eff_headless = headless if headless is not None else cfg.headless
+        eff_proxy = proxy if proxy is not None else cfg.proxy
+        eff_humanize = humanize if humanize is not None else cfg.humanize
+        eff_window = window if window is not None else cfg.window
+        eff_block_images = block_images if block_images is not None else cfg.block_images
+        eff_block_webrtc = block_webrtc if block_webrtc is not None else cfg.block_webrtc
+        eff_block_webgl = block_webgl if block_webgl is not None else cfg.block_webgl
+        eff_camoufox_os = camoufox_os if camoufox_os is not None else cfg.camoufox_os
+        eff_locale = locale if locale is not None else cfg.locale
+        eff_geoip = geoip if geoip is not None else cfg.geoip
+        eff_firefox_user_prefs = firefox_user_prefs if firefox_user_prefs is not None else cfg.firefox_user_prefs
+        eff_camoufox_args = camoufox_args if camoufox_args is not None else cfg.camoufox_args
+        eff_enable_cache = enable_cache if enable_cache is not None else cfg.enable_cache
+        eff_ff_version = ff_version if ff_version is not None else cfg.ff_version
+
         async with self._registry_lock:
             if name in self._instances:
                 raise InstanceAlreadyExistsError(f"Instance {name!r} already exists.")
@@ -121,17 +211,28 @@ class InstanceManager:
                             f"a different profile_dir."
                         )
 
-            stack, ctx = await launch_instance(
+            stack, ctx, browser = await launch_instance(
                 profile_dir=resolved_profile_dir,
-                headless=headless,
-                proxy=proxy,
-                humanize=humanize,
-                window=window,
+                headless=eff_headless,
+                proxy=eff_proxy,
+                humanize=eff_humanize,
+                window=eff_window,
+                block_images=eff_block_images,
+                block_webrtc=eff_block_webrtc,
+                block_webgl=eff_block_webgl,
+                camoufox_os=eff_camoufox_os,
+                locale=eff_locale,
+                geoip=eff_geoip,
+                firefox_user_prefs=eff_firefox_user_prefs,
+                camoufox_args=eff_camoufox_args,
+                enable_cache=eff_enable_cache,
+                ff_version=eff_ff_version,
             )
 
             state = InstanceState()
             self._wire_event_listeners(ctx, state)
             self._wire_modal_listeners(ctx, state)
+            self._wire_crash_listeners(ctx, browser, state)
 
             record = InstanceRecord(
                 name=name,
@@ -141,21 +242,67 @@ class InstanceManager:
                 state=state,
                 profile_dir=resolved_profile_dir,
                 created_at=datetime.now(tz=UTC),
+                browser=browser,
             )
             self._instances[name] = record
             logger.info("Created instance %r (mode=%s)", name, "persistent" if resolved_profile_dir else "ephemeral")
             return record
 
     def get(self, name: str) -> InstanceRecord:
-        """Look up an instance by name. Raises InstanceNotFoundError if missing."""
+        """Look up an instance by name.
+
+        Raises InstanceNotFoundError if missing. If the instance's browser
+        process has crashed/disconnected, it is evicted from the registry and
+        InstanceCrashedError is raised instead of returning a dead record.
+        """
         rec = self._instances.get(name)
         if rec is None:
             raise InstanceNotFoundError(f"Instance {name!r} does not exist.")
+        if rec.state.status == "crashed":
+            self._evict_crashed(rec)
+            raise InstanceCrashedError(
+                f"Instance {name!r} crashed (browser process disconnected). It has been "
+                f"removed; create a new instance to continue."
+            )
         return rec
 
-    def lock_for(self, name: str) -> asyncio.Lock:
-        """Return the per-instance lock for serializing tool operations."""
-        return self.get(name).lock
+    def _get_raw(self, name: str) -> InstanceRecord | None:
+        """Look up an instance by name without the crash check or eviction.
+
+        For internal callers (summaries, reaper) that need to see crashed
+        records rather than have them silently evicted.
+        """
+        return self._instances.get(name)
+
+    def _evict_crashed(self, rec: InstanceRecord) -> None:
+        """Remove a crashed record from the registry and schedule async teardown of its resources.
+
+        Fire-and-forget: runs independently of the reaper so evicted records
+        don't leak their Playwright driver/browser process even if the reaper
+        never runs (idle TTL defaults to 0, i.e. disabled).
+        """
+        self._instances.pop(rec.name, None)
+        task = asyncio.create_task(self._safe_close(rec), name=f"close-{rec.name}")
+        self._closing_tasks.add(task)
+        task.add_done_callback(self._closing_tasks.discard)
+
+    async def _safe_close(self, rec: InstanceRecord) -> None:
+        """Tear down an evicted record's resources, swallowing any error.
+
+        A dead instance can raise arbitrary Playwright errors on close; this
+        runs as a fire-and-forget task, so an unhandled exception here would
+        only surface as an unretrieved-exception log, never reach a caller.
+        """
+        try:
+            async with rec.lock:
+                await rec.stack.aclose()
+        except Exception as e:  # noqa: BLE001 — teardown of a dead instance must never raise
+            logger.warning("Error closing evicted instance %r: %s", rec.name, e)
+
+    def lock_for(self, name: str) -> _InstanceLock:
+        """Return an async CM that acquires the per-instance lock and stamps last_used_at."""
+        rec = self.get(name)
+        return _InstanceLock(rec, self._evict_crashed)
 
     def state(self, name: str) -> InstanceState:
         """Return the InstanceState for a named instance."""
@@ -170,12 +317,19 @@ class InstanceManager:
 
         Acquires both the registry lock and the per-instance lock so that any
         in-flight tool operation on this instance completes before teardown.
+        Works whether the instance is live or crashed — destroy must always
+        succeed for a known name; only a genuinely-absent name raises
+        InstanceNotFoundError. Deliberately bypasses the raising get() so a
+        crashed instance is torn down here instead of via _evict_crashed's
+        fire-and-forget path.
         """
         async with self._registry_lock:
-            rec = self.get(name)
+            rec = self._instances.get(name)
+            if rec is None:
+                raise InstanceNotFoundError(f"Instance {name!r} does not exist.")
             async with rec.lock:
                 await rec.stack.aclose()
-                del self._instances[name]
+                self._instances.pop(name, None)
             logger.info("Destroyed instance %r", name)
 
     async def list(self) -> list[dict[str, Any]]:
@@ -183,9 +337,26 @@ class InstanceManager:
         snapshot = list(self._instances.items())
         return [summarize_instance(rec) for _, rec in snapshot]
 
+    def health_snapshot(self) -> dict[str, Any]:
+        """Report server status without launching any browser. Never raises."""
+        instances = [summarize_instance(rec) for rec in self._instances.values()]
+        return {
+            "instance_count": len(self._instances),
+            "max_instances": self._max,
+            "instances": instances,
+            "config": {
+                "idle_ttl_seconds": self._config.idle_ttl_seconds,
+                "transport": self._config.transport,
+                "host": self._config.host,
+                "port": self._config.port,
+                "max_instances": self._max,
+            },
+        }
+
     async def active_page(self, name: str) -> Page:
         """Return the active page for an instance, creating one if none exist."""
         rec = self.get(name)
+        rec.state.last_used_at = datetime.now(tz=UTC)
         if not rec.context.pages:
             page = await rec.context.new_page()
             rec.state.active_page_index = 0
@@ -239,11 +410,72 @@ class InstanceManager:
                 if isinstance(r, BaseException):
                     logger.warning("Error closing instance %r on shutdown: %s", n, r)
             self._instances.clear()
+            # Drain any in-flight crash-eviction closes (C1) so they don't leak
+            # past shutdown. Safe here: these tasks acquire per-record locks,
+            # not the registry lock we're holding.
+            if self._closing_tasks:
+                await asyncio.gather(*list(self._closing_tasks), return_exceptions=True)
 
     async def _close_one(self, name: str) -> None:
         rec = self._instances[name]
         async with rec.lock:
             await rec.stack.aclose()
+
+    async def reap_once(self, now: datetime) -> list[str]:
+        """Close instances idle beyond idle_ttl_seconds (and crashed ones). Returns evicted names.
+
+        Crashed records are a backstop: get() usually evicts them immediately,
+        but a record never touched via get() (e.g. idle with no callers) would
+        otherwise linger. idle_ttl_seconds == 0 disables idle reaping but the
+        crashed backstop still applies. now is injected so the core logic stays
+        clock-free for tests; only _reaper_loop reads the real clock.
+        """
+        ttl = self._config.idle_ttl_seconds
+        async with self._registry_lock:
+            victims: list[str] = []
+            for name, rec in self._instances.items():
+                is_crashed = rec.state.status == "crashed"
+                is_stale = ttl > 0 and (now - rec.state.last_used_at).total_seconds() > ttl
+                if is_crashed or is_stale:
+                    victims.append(name)
+            for name in victims:
+                rec = self._instances.get(name)
+                if rec is None:
+                    continue  # already evicted by a concurrent get()/_evict_crashed — its resources are already being freed
+                try:
+                    async with rec.lock:
+                        await rec.stack.aclose()
+                except Exception as e:  # noqa: BLE001 — reaper must survive one bad close
+                    logger.warning("Error closing idle/crashed instance %r: %s", name, e)
+                self._instances.pop(name, None)
+                logger.info("Reaped instance %r (status=%s)", name, rec.state.status)
+            return victims
+
+    async def _reaper_loop(self) -> None:
+        """Background loop: reap idle/crashed instances every reaper_interval_seconds.
+
+        Wrapped so a single failed iteration never kills the long-lived task.
+        """
+        interval = self._config.reaper_interval_seconds
+        while True:
+            await asyncio.sleep(interval)
+            try:
+                await self.reap_once(datetime.now(tz=UTC))
+            except Exception:  # never let the reaper loop die; logger.exception exempts BLE001
+                logger.exception("Reaper iteration failed")
+
+    def start_reaper(self) -> None:
+        """Start the background idle reaper if idle_ttl_seconds enables it."""
+        if self._config.idle_ttl_seconds > 0 and self._reaper_task is None:
+            self._reaper_task = asyncio.create_task(self._reaper_loop(), name="idle-reaper")
+
+    async def stop_reaper(self) -> None:
+        """Cancel and await the background reaper task, if running."""
+        if self._reaper_task is not None:
+            self._reaper_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._reaper_task
+            self._reaper_task = None
 
     def _wire_event_listeners(self, ctx: BrowserContext, state: InstanceState) -> None:
         def _on_request(req: Request) -> None:
@@ -305,6 +537,14 @@ class InstanceManager:
         ctx.on("page", _attach)
         for existing_page in ctx.pages:
             _attach(existing_page)
+
+    def _wire_crash_listeners(self, ctx: BrowserContext, browser: Browser | None, state: InstanceState) -> None:
+        def _mark_crashed(_obj: object = None) -> None:
+            state.status = "crashed"
+
+        ctx.on("close", _mark_crashed)
+        if browser is not None:
+            browser.on("disconnected", _mark_crashed)
 
 
 def assert_no_modal(mgr: InstanceManager, instance: str) -> None:

@@ -12,10 +12,12 @@ import logging
 import os
 import signal
 import sys
+from typing import Any
 
 from camoufox.pkgman import installed_verstr
 
 from .app import mcp
+from .cli import build_config
 from .config import BrowserServerConfig
 from .errors import BinaryNotFoundError
 from .instance_manager import InstanceManager
@@ -56,22 +58,30 @@ async def _ensure_camoufox_binary() -> None:
     logger.info("Camoufox binary fetched successfully")
 
 
+def _run_kwargs(config: BrowserServerConfig) -> dict[str, Any]:
+    """Build run_async kwargs from config: empty for stdio, host/port for http."""
+    if config.transport == "http":
+        return {"transport": "http", "host": config.host, "port": config.port}
+    return {}
+
+
 async def main() -> None:
     """Launch the browser MCP server and keep it running on stdio."""
-    config = BrowserServerConfig.from_env(os.environ)
+    config = build_config(sys.argv[1:], os.environ)
     _setup_logging(config.log_level)
 
     await _ensure_camoufox_binary()
 
     mgr = InstanceManager(config)
     register_all(mcp, mgr)
+    mgr.start_reaper()
 
     stop_event = asyncio.Event()
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGTERM, signal.SIGINT):
         loop.add_signal_handler(sig, stop_event.set)
 
-    server_task = asyncio.create_task(mcp.run_async(), name="mcp-server")
+    server_task = asyncio.create_task(mcp.run_async(**_run_kwargs(config)), name="mcp-server")
     stop_task = asyncio.create_task(stop_event.wait(), name="stop-signal")
 
     try:
@@ -85,6 +95,7 @@ async def main() -> None:
             with contextlib.suppress(asyncio.CancelledError):
                 await server_task
     finally:
+        await mgr.stop_reaper()
         await mgr.shutdown_all()
 
 
