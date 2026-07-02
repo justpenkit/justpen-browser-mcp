@@ -278,6 +278,19 @@ async def test_dialog_accept_prompt_with_text(e2e_client, test_site):
     assert dialog_r["status"] == "success"
     assert dialog_r["data"] == {"action": "accepted", "dialog_type": "prompt", "message": "name?"}
 
+    # The dict above only proves the dialog's QUESTION was "name?" — it says
+    # nothing about whether "Bob" actually landed as the entered value.
+    # window._r is invisible to browser_evaluate (isolated JS world), but
+    # DOM-backed state crosses that boundary, so dialog.html's prompt button
+    # mirrors the result into #promptResult for verification here.
+    ev = await call(
+        e2e_client,
+        "browser_evaluate",
+        {"instance": "i8", "expression": "document.getElementById('promptResult').textContent"},
+    )
+    assert ev["status"] == "success"
+    assert ev["data"]["result"] == "Bob"
+
 
 async def test_file_upload_attaches_selected_file(e2e_client, test_site, tmp_path):
     await call(e2e_client, "browser_create_instance", {"name": "i9"})
