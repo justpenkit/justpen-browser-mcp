@@ -37,6 +37,21 @@ def _parse_int(raw: str, *, default: int, name: str, minimum: int | None = None)
     return val
 
 
+def _parse_optional_int(raw: str, *, name: str, minimum: int | None = None) -> int | None:
+    txt = raw.strip()
+    if not txt:
+        return None
+    try:
+        val = int(txt)
+    except ValueError:
+        logger.warning("%s=%r is not an int, defaulting to None", name, raw)
+        return None
+    if minimum is not None and val < minimum:
+        logger.warning("%s=%d is below minimum %d, defaulting to None", name, val, minimum)
+        return None
+    return val
+
+
 def _parse_window(raw: str) -> tuple[int, int] | None:
     txt = raw.strip().lower().replace(" ", "")
     if not txt:
@@ -152,7 +167,11 @@ class BrowserServerConfig:
             logger.warning("BROWSER_MCP_TRANSPORT=%r invalid, defaulting to stdio", transport_raw)
             transport_raw = "stdio"
         transport: Literal["stdio", "http"] = "http" if transport_raw == "http" else "stdio"
-        host = env.get("BROWSER_MCP_HOST", "127.0.0.1").strip() or "127.0.0.1"
+        host_raw = env.get("BROWSER_MCP_HOST", "127.0.0.1")
+        host = host_raw.strip()
+        if not host:
+            logger.warning("BROWSER_MCP_HOST=%r is empty, defaulting to 127.0.0.1", host_raw)
+            host = "127.0.0.1"
         port = _parse_int(env.get("BROWSER_MCP_PORT", "8931"), default=8931, name="BROWSER_MCP_PORT", minimum=1)
 
         headless_raw = env.get("BROWSER_MCP_HEADLESS", "true").strip().lower()
@@ -181,8 +200,9 @@ class BrowserServerConfig:
         prefs = _parse_prefs(env.get("BROWSER_MCP_FIREFOX_PREFS", ""))
         args_raw = env.get("BROWSER_MCP_CAMOUFOX_ARGS", "").strip()
         camoufox_args = tuple(p for p in args_raw.split() if p)
-        ff_version_raw = env.get("BROWSER_MCP_FF_VERSION", "").strip()
-        ff_version = int(ff_version_raw) if ff_version_raw.isdigit() else None
+        ff_version = _parse_optional_int(
+            env.get("BROWSER_MCP_FF_VERSION", ""), name="BROWSER_MCP_FF_VERSION", minimum=1
+        )
 
         return cls(
             log_level=log_level,

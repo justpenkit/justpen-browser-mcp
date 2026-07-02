@@ -85,3 +85,30 @@ def test_defaults_are_conservative():
     assert cfg.headless is True
     assert cfg.proxy is None
     assert cfg.firefox_user_prefs == {}
+
+
+def test_ff_version_invalid_falls_back_to_none_with_warning(caplog):
+    with caplog.at_level("WARNING"):
+        cfg = BrowserServerConfig.from_env({"BROWSER_MCP_FF_VERSION": "abc"})
+    assert cfg.ff_version is None
+    assert "BROWSER_MCP_FF_VERSION" in caplog.text
+    assert "abc" in caplog.text
+
+
+def test_ff_version_valid_parsed():
+    cfg = BrowserServerConfig.from_env({"BROWSER_MCP_FF_VERSION": "135"})
+    assert cfg.ff_version == 135
+
+
+def test_ff_version_unset_defaults_to_none_without_warning(caplog):
+    with caplog.at_level("WARNING"):
+        cfg = BrowserServerConfig.from_env({})
+    assert cfg.ff_version is None
+    assert "BROWSER_MCP_FF_VERSION" not in caplog.text
+
+
+def test_host_empty_but_set_falls_back_with_warning(caplog):
+    with caplog.at_level("WARNING"):
+        cfg = BrowserServerConfig.from_env({"BROWSER_MCP_HOST": "   "})
+    assert cfg.host == "127.0.0.1"
+    assert "BROWSER_MCP_HOST" in caplog.text
