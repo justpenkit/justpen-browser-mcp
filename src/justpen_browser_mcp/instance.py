@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from contextlib import AsyncExitStack
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from camoufox.async_api import AsyncCamoufox
@@ -21,9 +22,13 @@ from camoufox.async_api import AsyncCamoufox
 if TYPE_CHECKING:
     import asyncio
     from collections.abc import Callable
-    from datetime import datetime
 
     from playwright.async_api import Browser, BrowserContext
+
+
+def _utcnow() -> datetime:
+    """Zero-arg factory for dataclass default_factory (datetime.now needs tz kwarg)."""
+    return datetime.now(tz=UTC)
 
 
 @dataclass
@@ -35,6 +40,8 @@ class InstanceState:
     network_request_index: dict[int, dict[str, Any]] = field(default_factory=dict[int, dict[str, Any]])
     active_page_index: int = 0
     modal_states: list[dict[str, Any]] = field(default_factory=list[dict[str, Any]])
+    status: Literal["live", "crashed"] = "live"
+    last_used_at: datetime = field(default_factory=_utcnow)
 
 
 @dataclass
@@ -48,6 +55,7 @@ class InstanceRecord:
     state: InstanceState
     profile_dir: str | None
     created_at: datetime
+    browser: Browser | None
 
 
 def _set_optional[T](
@@ -88,12 +96,15 @@ async def launch_instance(
     camoufox_args: tuple[str, ...] | None = None,
     enable_cache: bool | None = None,
     ff_version: int | None = None,
-) -> tuple[AsyncExitStack, BrowserContext]:
+) -> tuple[AsyncExitStack, BrowserContext, Browser | None]:
     """Launch a Camoufox instance and return its exit stack + normalized BrowserContext.
 
     The caller owns the returned stack and is responsible for calling aclose()
     when the instance is no longer needed. On exception during launch, the stack
-    is closed internally before re-raising so no resources leak.
+    is closed internally before re-raising so no resources leak. The third
+    element is the Browser handle for ephemeral mode (used to wire up
+    "disconnected" crash detection) or None for persistent mode, where Camoufox
+    hands back a BrowserContext directly with no separate Browser object.
     """
     kwargs: dict[str, Any] = {
         "headless": headless,
@@ -123,14 +134,15 @@ async def launch_instance(
 
     stack = AsyncExitStack()
     await stack.__aenter__()
+    browser_handle: Browser | None = None
     try:
         obj = await stack.enter_async_context(AsyncCamoufox(**kwargs))
         if profile_dir is not None:
             ctx = cast("BrowserContext", obj)
         else:
-            browser = cast("Browser", obj)
-            ctx = await browser.new_context()
+            browser_handle = cast("Browser", obj)
+            ctx = await browser_handle.new_context()
     except BaseException:
         await stack.aclose()
         raise
-    return stack, ctx
+    return stack, ctx, browser_handle

@@ -152,7 +152,7 @@ class InstanceManager:
                             f"a different profile_dir."
                         )
 
-            stack, ctx = await launch_instance(
+            stack, ctx, browser = await launch_instance(
                 profile_dir=resolved_profile_dir,
                 headless=eff_headless,
                 proxy=eff_proxy,
@@ -182,6 +182,7 @@ class InstanceManager:
                 state=state,
                 profile_dir=resolved_profile_dir,
                 created_at=datetime.now(tz=UTC),
+                browser=browser,
             )
             self._instances[name] = record
             logger.info("Created instance %r (mode=%s)", name, "persistent" if resolved_profile_dir else "ephemeral")

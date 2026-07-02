@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from justpen_browser_mcp.instance import launch_instance
+from justpen_browser_mcp.instance import InstanceState, launch_instance
 
 
 @pytest.fixture
@@ -33,7 +33,7 @@ def mock_camoufox(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_launch_persistent_sets_user_data_dir(mock_camoufox, tmp_path):
-    stack, ctx = await launch_instance(
+    stack, ctx, browser = await launch_instance(
         profile_dir=str(tmp_path),
         headless=True,
         proxy=None,
@@ -43,12 +43,13 @@ async def test_launch_persistent_sets_user_data_dir(mock_camoufox, tmp_path):
     assert mock_camoufox["captured"]["kwargs"]["persistent_context"] is True
     assert mock_camoufox["captured"]["kwargs"]["user_data_dir"] == str(tmp_path)
     assert ctx is mock_camoufox["ctx"]
+    assert browser is None
     await stack.aclose()
 
 
 @pytest.mark.asyncio
 async def test_launch_ephemeral_calls_new_context(mock_camoufox):
-    stack, ctx = await launch_instance(
+    stack, ctx, browser = await launch_instance(
         profile_dir=None,
         headless=True,
         proxy=None,
@@ -58,12 +59,13 @@ async def test_launch_ephemeral_calls_new_context(mock_camoufox):
     assert "persistent_context" not in mock_camoufox["captured"]["kwargs"]
     mock_camoufox["browser"].new_context.assert_awaited_once()
     assert ctx is mock_camoufox["ctx"]
+    assert browser is mock_camoufox["browser"]
     await stack.aclose()
 
 
 @pytest.mark.asyncio
 async def test_launch_proxy_enables_geoip(mock_camoufox):
-    stack, _ = await launch_instance(
+    stack, _, _ = await launch_instance(
         profile_dir=None,
         headless=True,
         proxy={"server": "http://proxy:3128"},
@@ -78,7 +80,7 @@ async def test_launch_proxy_enables_geoip(mock_camoufox):
 
 @pytest.mark.asyncio
 async def test_launch_no_proxy_no_geoip(mock_camoufox):
-    stack, _ = await launch_instance(
+    stack, _, _ = await launch_instance(
         profile_dir=None,
         headless=True,
         proxy=None,
@@ -93,7 +95,7 @@ async def test_launch_no_proxy_no_geoip(mock_camoufox):
 
 @pytest.mark.asyncio
 async def test_launch_hardcoded_defaults(mock_camoufox):
-    stack, _ = await launch_instance(
+    stack, _, _ = await launch_instance(
         profile_dir=None,
         headless=True,
         proxy=None,
@@ -109,7 +111,7 @@ async def test_launch_hardcoded_defaults(mock_camoufox):
 
 @pytest.mark.asyncio
 async def test_launch_window_passthrough(mock_camoufox):
-    stack, _ = await launch_instance(
+    stack, _, _ = await launch_instance(
         profile_dir=None,
         headless=True,
         proxy=None,
@@ -122,7 +124,7 @@ async def test_launch_window_passthrough(mock_camoufox):
 
 @pytest.mark.asyncio
 async def test_launch_window_none_omitted(mock_camoufox):
-    stack, _ = await launch_instance(
+    stack, _, _ = await launch_instance(
         profile_dir=None,
         headless=True,
         proxy=None,
@@ -157,3 +159,9 @@ async def test_launch_rolls_back_stack_on_failure(monkeypatch):
             humanize=True,
             window=None,
         )
+
+
+def test_instance_state_defaults_status_live():
+    st = InstanceState()
+    assert st.status == "live"
+    assert st.last_used_at is not None

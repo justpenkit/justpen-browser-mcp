@@ -30,7 +30,7 @@ def mock_launch(monkeypatch):
         ctx.close = AsyncMock()
         ctx.new_page = AsyncMock()
         launched.append({"kwargs": kwargs, "ctx": ctx})
-        return stack, ctx
+        return stack, ctx, None
 
     monkeypatch.setattr("justpen_browser_mcp.instance_manager.launch_instance", _fake_launch)
     return launched
