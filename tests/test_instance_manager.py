@@ -430,3 +430,98 @@ async def test_disconnect_marks_crashed(manager, mock_launch):
     rec = manager._get_raw("a")
     assert rec is not None
     assert rec.state.status == "crashed"
+
+
+@pytest.mark.asyncio
+async def test_browser_disconnected_marks_crashed(manager):
+    """I2: the ephemeral browser.on('disconnected', ...) path must also mark crashed.
+
+    mock_launch always returns browser=None, so this path is never exercised via
+    create(); wire the listeners directly with a MagicMock browser to cover it.
+    """
+    ctx = MagicMock()
+    ctx.pages = []
+    ctx.on = MagicMock()
+    browser = MagicMock()
+    browser.on = MagicMock()
+    state = InstanceState()
+
+    manager._wire_crash_listeners(ctx, browser, state)
+
+    disconnected_cbs = [c.args[1] for c in browser.on.call_args_list if c.args[0] == "disconnected"]
+    assert disconnected_cbs
+    disconnected_cbs[0]()
+    assert state.status == "crashed"
+
+
+@pytest.mark.asyncio
+async def test_get_evicted_crashed_instance_closes_stack(manager):
+    """C1: get()'s crash-eviction must schedule teardown of the record's stack."""
+    rec = await manager.create("a")
+    rec.stack.aclose = AsyncMock()
+    rec.state.status = "crashed"
+    with pytest.raises(InstanceCrashedError):
+        manager.get("a")
+    assert manager._closing_tasks
+    await asyncio.sleep(0)
+    await asyncio.gather(*list(manager._closing_tasks), return_exceptions=True)
+    rec.stack.aclose.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_destroy_crashed_instance_succeeds(manager):
+    """C2: destroy() must tear down a crashed instance instead of raising."""
+    rec = await manager.create("a")
+    rec.stack.aclose = AsyncMock()
+    rec.state.status = "crashed"
+    await manager.destroy("a")
+    assert await manager.list() == []
+    rec.stack.aclose.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_destroy_missing_still_raises(manager):
+    with pytest.raises(InstanceNotFoundError):
+        await manager.destroy("nope")
+
+
+@pytest.mark.asyncio
+async def test_lock_for_toctou_crash_raises_and_evicts(manager):
+    """I1: if status flips to crashed while a caller awaits the instance lock,
+    the waiter must raise InstanceCrashedError (not proceed on a dead record),
+    and the record must be evicted from the registry.
+    """
+    rec = await manager.create("a")
+    rec.stack.aclose = AsyncMock()
+
+    # Hold the lock so lock_for("a") blocks on acquire.
+    await rec.lock.acquire()
+
+    waiter_started = asyncio.Event()
+
+    async def waiter():
+        waiter_started.set()
+        async with manager.lock_for("a"):
+            pass  # pragma: no cover - should never get here
+
+    task = asyncio.create_task(waiter())
+    await waiter_started.wait()
+    # Let the waiter actually block on rec.lock.acquire().
+    for _ in range(5):
+        await asyncio.sleep(0)
+
+    # Simulate a crash callback firing while the waiter is queued for the lock.
+    rec.state.status = "crashed"
+    rec.lock.release()
+
+    with pytest.raises(InstanceCrashedError):
+        await task
+
+    # Evicted from the registry.
+    with pytest.raises(InstanceNotFoundError):
+        manager.get("a")
+
+    # Teardown of the evicted record was scheduled.
+    await asyncio.sleep(0)
+    await asyncio.gather(*list(manager._closing_tasks), return_exceptions=True)
+    rec.stack.aclose.assert_awaited_once()

@@ -28,6 +28,8 @@ from .errors import (
 from .instance import InstanceRecord, InstanceState, launch_instance
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from playwright.async_api import (
         Browser,
         BrowserContext,
@@ -93,15 +95,37 @@ class _InstanceLock:
     counts as activity for idle tracking. destroy()/_close_one()/shutdown_all()
     intentionally use rec.lock directly (not this wrapper) so teardown still
     works on crashed instances without touching last_used_at.
+
+    TOCTOU note: the crash callback can flip state.status to "crashed" while a
+    caller is suspended awaiting lock.acquire(). __aenter__ re-checks status
+    after acquiring and evicts+raises rather than handing the caller a dead
+    record.
     """
 
-    def __init__(self, rec: InstanceRecord) -> None:
-        """Wrap the given instance record's lock."""
+    def __init__(self, rec: InstanceRecord, evict_crashed: Callable[[InstanceRecord], None]) -> None:
+        """Wrap the given instance record's lock.
+
+        evict_crashed is InstanceManager._evict_crashed, bound and passed in by
+        lock_for() (an InstanceManager method) rather than accessed here via a
+        stored manager reference, so this class never reaches across into
+        another instance's private members.
+        """
         self._rec = rec
+        self._evict_crashed = evict_crashed
 
     async def __aenter__(self) -> None:
-        """Acquire the instance lock and stamp last_used_at."""
+        """Acquire the instance lock and stamp last_used_at.
+
+        Raises InstanceCrashedError if the instance crashed while this caller
+        was awaiting the lock; the record is evicted in that case.
+        """
         await self._rec.lock.acquire()
+        if self._rec.state.status == "crashed":
+            self._rec.lock.release()
+            self._evict_crashed(self._rec)
+            raise InstanceCrashedError(
+                f"Instance {self._rec.name!r} crashed while awaiting its lock; it has been removed."
+            )
         self._rec.state.last_used_at = datetime.now(tz=UTC)
 
     async def __aexit__(self, *exc: object) -> None:
@@ -118,6 +142,7 @@ class InstanceManager:
         self._registry_lock = asyncio.Lock()
         self._config = config
         self._max = config.max_instances
+        self._closing_tasks: set[asyncio.Task[None]] = set()
 
     async def create(
         self,
@@ -232,7 +257,7 @@ class InstanceManager:
         if rec is None:
             raise InstanceNotFoundError(f"Instance {name!r} does not exist.")
         if rec.state.status == "crashed":
-            self._instances.pop(name, None)
+            self._evict_crashed(rec)
             raise InstanceCrashedError(
                 f"Instance {name!r} crashed (browser process disconnected). It has been "
                 f"removed; create a new instance to continue."
@@ -247,10 +272,35 @@ class InstanceManager:
         """
         return self._instances.get(name)
 
+    def _evict_crashed(self, rec: InstanceRecord) -> None:
+        """Remove a crashed record from the registry and schedule async teardown of its resources.
+
+        Fire-and-forget: runs independently of the reaper so evicted records
+        don't leak their Playwright driver/browser process even if the reaper
+        never runs (idle TTL defaults to 0, i.e. disabled).
+        """
+        self._instances.pop(rec.name, None)
+        task = asyncio.create_task(self._safe_close(rec), name=f"close-{rec.name}")
+        self._closing_tasks.add(task)
+        task.add_done_callback(self._closing_tasks.discard)
+
+    async def _safe_close(self, rec: InstanceRecord) -> None:
+        """Tear down an evicted record's resources, swallowing any error.
+
+        A dead instance can raise arbitrary Playwright errors on close; this
+        runs as a fire-and-forget task, so an unhandled exception here would
+        only surface as an unretrieved-exception log, never reach a caller.
+        """
+        try:
+            async with rec.lock:
+                await rec.stack.aclose()
+        except Exception as e:  # noqa: BLE001 — teardown of a dead instance must never raise
+            logger.warning("Error closing evicted instance %r: %s", rec.name, e)
+
     def lock_for(self, name: str) -> _InstanceLock:
         """Return an async CM that acquires the per-instance lock and stamps last_used_at."""
         rec = self.get(name)
-        return _InstanceLock(rec)
+        return _InstanceLock(rec, self._evict_crashed)
 
     def state(self, name: str) -> InstanceState:
         """Return the InstanceState for a named instance."""
@@ -265,12 +315,19 @@ class InstanceManager:
 
         Acquires both the registry lock and the per-instance lock so that any
         in-flight tool operation on this instance completes before teardown.
+        Works whether the instance is live or crashed — destroy must always
+        succeed for a known name; only a genuinely-absent name raises
+        InstanceNotFoundError. Deliberately bypasses the raising get() so a
+        crashed instance is torn down here instead of via _evict_crashed's
+        fire-and-forget path.
         """
         async with self._registry_lock:
-            rec = self.get(name)
+            rec = self._instances.get(name)
+            if rec is None:
+                raise InstanceNotFoundError(f"Instance {name!r} does not exist.")
             async with rec.lock:
                 await rec.stack.aclose()
-                del self._instances[name]
+                self._instances.pop(name, None)
             logger.info("Destroyed instance %r", name)
 
     async def list(self) -> list[dict[str, Any]]:
@@ -335,6 +392,11 @@ class InstanceManager:
                 if isinstance(r, BaseException):
                     logger.warning("Error closing instance %r on shutdown: %s", n, r)
             self._instances.clear()
+            # Drain any in-flight crash-eviction closes (C1) so they don't leak
+            # past shutdown. Safe here: these tasks acquire per-record locks,
+            # not the registry lock we're holding.
+            if self._closing_tasks:
+                await asyncio.gather(*list(self._closing_tasks), return_exceptions=True)
 
     async def _close_one(self, name: str) -> None:
         rec = self._instances[name]
