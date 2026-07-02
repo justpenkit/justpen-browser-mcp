@@ -16,23 +16,54 @@ async def browser_create_instance(
     name: str,
     *,
     profile_dir: str | None = None,
-    headless: bool | Literal["virtual"] = True,
+    headless: bool | Literal["virtual"] | None = None,
     proxy: dict[str, str] | None = None,
-    humanize: bool | float = True,
+    humanize: bool | float | None = None,
     window: tuple[int, int] | None = None,
+    block_images: bool | None = None,
+    block_webrtc: bool | None = None,
+    block_webgl: bool | None = None,
+    camoufox_os: tuple[str, ...] | None = None,
+    locale: str | None = None,
+    geoip: bool | None = None,
+    firefox_user_prefs: dict[str, Any] | None = None,
+    camoufox_args: tuple[str, ...] | None = None,
+    enable_cache: bool | None = None,
+    ff_version: int | None = None,
 ) -> dict[str, Any]
 ```
 
 **Parameters**
 
-| Name          | Type                      | Default | Description                                                                                                                                                                                                      |
-| ------------- | ------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `name`        | `str`                     | —       | Name for the new instance. Case-sensitive, must be unique across live instances.                                                                                                                                 |
-| `profile_dir` | `str \| None`             | `None`  | Path to a persistent profile directory. `None` (default) creates an ephemeral instance with no on-disk trace. When a path is given and the directory already exists, Camoufox loads it; otherwise it is created. |
-| `headless`    | `bool \| "virtual"`       | `True`  | `True` for headless mode (no visible window). `False` for a visible window. `"virtual"` uses a virtual framebuffer (Xvfb) on Linux.                                                                              |
-| `proxy`       | `dict[str, str] \| None`  | `None`  | Proxy configuration dict. Accepted keys: `server` (required, e.g. `"socks5://host:port"`), `username`, `password`, `bypass`.                                                                                     |
-| `humanize`    | `bool \| float`           | `True`  | Camoufox humanization level. `True` enables default humanization; `False` disables it; a float sets the delay factor directly.                                                                                   |
-| `window`      | `tuple[int, int] \| None` | `None`  | Initial viewport size as `(width, height)`. `None` uses Camoufox defaults.                                                                                                                                       |
+| Name          | Type          | Default | Description                                                                                                                                                                                                      |
+| ------------- | ------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`        | `str`         | —       | Name for the new instance. Case-sensitive, must be unique across live instances.                                                                                                                                 |
+| `profile_dir` | `str \| None` | `None`  | Path to a persistent profile directory. `None` (default) creates an ephemeral instance with no on-disk trace. When a path is given and the directory already exists, Camoufox loads it; otherwise it is created. |
+
+Every parameter below is a **per-instance camoufox override**. Each defaults
+to `None`, meaning "use the server-level config default" (set via
+`BROWSER_MCP_*` env vars or CLI flags — see [Configuration](/getting-started/configuration/)).
+Passing a non-`None` value overrides that default for this instance only,
+leaving every other instance and the server default untouched. The full
+precedence order is: this parameter > CLI flag > `BROWSER_MCP_*` env var >
+built-in default.
+
+| Name                 | Type                        | Server default it overrides | Description                                                                                                                         |
+| -------------------- | --------------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `headless`           | `bool \| "virtual" \| None` | `True`                      | `True` for headless mode (no visible window). `False` for a visible window. `"virtual"` uses a virtual framebuffer (Xvfb) on Linux. |
+| `proxy`              | `dict[str, str] \| None`    | `None` (no proxy)           | Proxy configuration dict. Accepted keys: `server` (required, e.g. `"socks5://host:port"`), `username`, `password`, `bypass`.        |
+| `humanize`           | `bool \| float \| None`     | `True`                      | Camoufox humanization level. `True` enables default humanization; `False` disables it; a float sets the delay factor directly.      |
+| `window`             | `tuple[int, int] \| None`   | `None` (Camoufox default)   | Initial viewport size as `(width, height)`.                                                                                         |
+| `block_images`       | `bool \| None`              | `False`                     | Block image loads.                                                                                                                  |
+| `block_webrtc`       | `bool \| None`              | `True`                      | Block WebRTC (prevents IP leaks through STUN/TURN).                                                                                 |
+| `block_webgl`        | `bool \| None`              | `False`                     | Block WebGL.                                                                                                                        |
+| `camoufox_os`        | `tuple[str, ...] \| None`   | `None` (Camoufox default)   | OS fingerprint pool to sample from, e.g. `("windows", "macos")`.                                                                    |
+| `locale`             | `str \| None`               | `None` (Camoufox default)   | Locale string, e.g. `"en-US"`.                                                                                                      |
+| `geoip`              | `bool \| None`              | `False`                     | Derive geolocation/timezone/locale from the proxy's IP.                                                                             |
+| `firefox_user_prefs` | `dict[str, Any] \| None`    | `{}` (none)                 | Extra `about:config` Firefox preferences to set, e.g. `{"privacy.trackingprotection.enabled": True}`.                               |
+| `camoufox_args`      | `tuple[str, ...] \| None`   | `()` (none)                 | Extra CLI args passed through to the underlying Firefox process.                                                                    |
+| `enable_cache`       | `bool \| None`              | `True`                      | Enable Camoufox's disk cache.                                                                                                       |
+| `ff_version`         | `int \| None`               | `None` (Camoufox default)   | Pin a specific Firefox major version for the fingerprint.                                                                           |
 
 **Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 

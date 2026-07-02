@@ -11,7 +11,7 @@ identities.
 
 ## Install
 
-Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/):
+Requires Python 3.13+ and [uv](https://docs.astral.sh/uv/):
 
 ```bash
 uv add "justpen-browser-mcp @ git+https://github.com/justpenkit/justpen-browser-mcp@v0.1.0"
