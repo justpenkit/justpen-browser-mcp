@@ -439,7 +439,9 @@ class InstanceManager:
                 if is_crashed or is_stale:
                     victims.append(name)
             for name in victims:
-                rec = self._instances[name]
+                rec = self._instances.get(name)
+                if rec is None:
+                    continue  # already evicted by a concurrent get()/_evict_crashed — its resources are already being freed
                 try:
                     async with rec.lock:
                         await rec.stack.aclose()

@@ -11,7 +11,7 @@ def make_ctx_with_page(mock_ctx_mgr, cookies=None, eval_result=None):
     page.url = "about:blank"
     page.evaluate = AsyncMock(return_value=eval_result if eval_result is not None else {})
 
-    async def _goto_side_effect(url):
+    async def _goto_side_effect(url, **_kwargs):
         page.url = url
 
     page.goto = AsyncMock(side_effect=_goto_side_effect)
@@ -171,7 +171,7 @@ class TestBrowserGetLocalStorage:
         )
         assert result.data["status"] == "success"
         assert result.data["data"]["items"] == {"auth_token": "xyz", "theme": "dark"}
-        page.goto.assert_awaited_once_with("https://app.example.com")
+        page.goto.assert_awaited_once_with("https://app.example.com", wait_until="domcontentloaded")
 
     async def test_get_local_storage_key(self, mcp_client, mock_ctx_mgr):
         _ctx, page = make_ctx_with_page(mock_ctx_mgr, eval_result="dark")
@@ -235,7 +235,7 @@ class TestBrowserClearLocalStorage:
             {"instance": "admin", "origin": "https://app.example.com"},
         )
         assert result.data["status"] == "success"
-        page.goto.assert_awaited_once_with("https://app.example.com")
+        page.goto.assert_awaited_once_with("https://app.example.com", wait_until="domcontentloaded")
         page.evaluate.assert_awaited_once()
         eval_arg = page.evaluate.call_args[0][0]
         assert "localStorage.clear" in eval_arg

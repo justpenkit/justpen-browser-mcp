@@ -570,6 +570,42 @@ async def test_reap_once_evicts_crashed_regardless_of_ttl(manager):
 
 
 @pytest.mark.asyncio
+async def test_reap_once_tolerates_concurrent_eviction_mid_pass(manager):
+    """Reaper must not KeyError when a victim is evicted out from under it mid-pass.
+
+    reap_once used to do `rec = self._instances[name]` (bare subscript) in the
+    close loop. get()/_evict_crashed don't take the registry lock, so a
+    concurrent caller resolving a different crashed instance could pop a later
+    victim from the registry while an earlier victim's close was still in
+    flight, and the bare subscript on the already-evicted victim raised
+    KeyError, aborting the whole reaper pass. Simulate that race by having the
+    first victim's stack.aclose() pop the second victim out of the registry as
+    a side effect, then assert reap_once tolerates it instead of raising.
+    """
+    rec_a = await manager.create("a")
+    rec_b = await manager.create("b")
+    rec_a.state.status = "crashed"
+    rec_b.state.status = "crashed"
+
+    async def _evict_b_concurrently() -> None:
+        # Simulate a concurrent get()/_evict_crashed racing in and removing
+        # "b" from the registry while the reaper is closing "a".
+        manager._instances.pop("b", None)
+
+    rec_a.stack.aclose = AsyncMock(side_effect=_evict_b_concurrently)
+    rec_b.stack.aclose = AsyncMock()
+
+    evicted = await manager.reap_once(datetime.now(tz=UTC))
+
+    assert evicted == ["a", "b"]  # victim list is built up front, before either close runs
+    assert manager._instances == {}
+    rec_a.stack.aclose.assert_awaited_once()
+    # "b" was already gone from the registry by the time the loop reached it,
+    # so the reaper must skip it rather than close it a second time.
+    rec_b.stack.aclose.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_start_reaper_noop_when_ttl_zero(manager):
     """idle_ttl_seconds == 0 (the default) must not spawn a background task."""
     assert manager._config.idle_ttl_seconds == 0
