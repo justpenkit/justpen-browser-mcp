@@ -359,3 +359,35 @@ async def test_assert_no_modal_raises_on_filechooser(manager):
     rec.state.modal_states.append({"kind": "filechooser", "object": fc, "page": page})
     with pytest.raises(ModalStateBlockedError, match="file-chooser"):
         assert_no_modal(manager, "alice")
+
+
+@pytest.mark.asyncio
+async def test_create_applies_server_defaults(mock_launch):
+    cfg = BrowserServerConfig(
+        max_instances=5,
+        proxy={"server": "http://p:8080"},
+        camoufox_os=("windows",),
+        locale="en-US",
+        block_images=True,
+    )
+    mgr = InstanceManager(cfg)
+    try:
+        await mgr.create("a")
+        kwargs = mock_launch[0]["kwargs"]
+        assert kwargs["proxy"] == {"server": "http://p:8080"}
+        assert kwargs["camoufox_os"] == ("windows",)
+        assert kwargs["locale"] == "en-US"
+        assert kwargs["block_images"] is True
+    finally:
+        await mgr.shutdown_all()
+
+
+@pytest.mark.asyncio
+async def test_create_param_overrides_server_default(mock_launch):
+    cfg = BrowserServerConfig(max_instances=5, proxy={"server": "http://default:8080"})
+    mgr = InstanceManager(cfg)
+    try:
+        await mgr.create("a", proxy={"server": "http://override:9090"})
+        assert mock_launch[0]["kwargs"]["proxy"] == {"server": "http://override:9090"}
+    finally:
+        await mgr.shutdown_all()

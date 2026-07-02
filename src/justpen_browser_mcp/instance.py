@@ -20,6 +20,7 @@ from camoufox.async_api import AsyncCamoufox
 
 if TYPE_CHECKING:
     import asyncio
+    from collections.abc import Callable
     from datetime import datetime
 
     from playwright.async_api import Browser, BrowserContext
@@ -49,6 +50,27 @@ class InstanceRecord:
     created_at: datetime
 
 
+def _set_optional[T](
+    kwargs: dict[str, Any],
+    key: str,
+    value: T | None,
+    *,
+    transform: Callable[[T], object] | None = None,
+    require_truthy: bool = False,
+) -> None:
+    """Set kwargs[key] = value (optionally transformed) when value is present.
+
+    "Present" means non-None by default, or truthy when require_truthy is set
+    (used for values, like empty dicts/tuples, whose falsy state should also
+    be treated as "not overridden").
+    """
+    if value is None:
+        return
+    if require_truthy and not value:
+        return
+    kwargs[key] = transform(value) if transform is not None else value
+
+
 async def launch_instance(
     *,
     profile_dir: str | None,
@@ -56,6 +78,16 @@ async def launch_instance(
     proxy: dict[str, str] | None,
     humanize: bool | float,
     window: tuple[int, int] | None,
+    block_images: bool | None = None,
+    block_webrtc: bool | None = None,
+    block_webgl: bool | None = None,
+    camoufox_os: tuple[str, ...] | None = None,
+    locale: str | None = None,
+    geoip: bool | None = None,
+    firefox_user_prefs: dict[str, Any] | None = None,
+    camoufox_args: tuple[str, ...] | None = None,
+    enable_cache: bool | None = None,
+    ff_version: int | None = None,
 ) -> tuple[AsyncExitStack, BrowserContext]:
     """Launch a Camoufox instance and return its exit stack + normalized BrowserContext.
 
@@ -78,6 +110,16 @@ async def launch_instance(
     if profile_dir is not None:
         kwargs["persistent_context"] = True
         kwargs["user_data_dir"] = profile_dir
+    _set_optional(kwargs, "block_images", block_images)
+    _set_optional(kwargs, "block_webrtc", block_webrtc)
+    _set_optional(kwargs, "block_webgl", block_webgl)
+    _set_optional(kwargs, "os", camoufox_os, transform=list)
+    _set_optional(kwargs, "locale", locale)
+    _set_optional(kwargs, "geoip", geoip, require_truthy=True)
+    _set_optional(kwargs, "firefox_user_prefs", firefox_user_prefs, transform=dict, require_truthy=True)
+    _set_optional(kwargs, "args", camoufox_args, transform=list, require_truthy=True)
+    _set_optional(kwargs, "enable_cache", enable_cache)
+    _set_optional(kwargs, "ff_version", ff_version)
 
     stack = AsyncExitStack()
     await stack.__aenter__()

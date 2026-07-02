@@ -84,6 +84,7 @@ class InstanceManager:
         """Initialize an empty registry bound to the given server configuration."""
         self._instances: dict[str, InstanceRecord] = {}
         self._registry_lock = asyncio.Lock()
+        self._config = config
         self._max = config.max_instances
 
     async def create(
@@ -91,17 +92,47 @@ class InstanceManager:
         name: str,
         *,
         profile_dir: str | None = None,
-        headless: bool | Literal["virtual"] = True,
+        headless: bool | Literal["virtual"] | None = None,
         proxy: dict[str, str] | None = None,
-        humanize: bool | float = True,
+        humanize: bool | float | None = None,
         window: tuple[int, int] | None = None,
+        block_images: bool | None = None,
+        block_webrtc: bool | None = None,
+        block_webgl: bool | None = None,
+        camoufox_os: tuple[str, ...] | None = None,
+        locale: str | None = None,
+        geoip: bool | None = None,
+        firefox_user_prefs: dict[str, Any] | None = None,
+        camoufox_args: tuple[str, ...] | None = None,
+        enable_cache: bool | None = None,
+        ff_version: int | None = None,
     ) -> InstanceRecord:
         """Create and register a new named Camoufox instance.
+
+        Each camoufox-related parameter defaults to ``None``, meaning "use the
+        server-level default from config"; a non-None value here overrides the
+        server default for this instance only.
 
         Preflight order: name-collision → limit → profile_dir-collision → launch.
         Raises InstanceAlreadyExistsError, InstanceLimitExceededError, or
         ProfileDirInUseError before touching Playwright if a preflight fails.
         """
+        cfg = self._config
+        eff_headless = headless if headless is not None else cfg.headless
+        eff_proxy = proxy if proxy is not None else cfg.proxy
+        eff_humanize = humanize if humanize is not None else cfg.humanize
+        eff_window = window if window is not None else cfg.window
+        eff_block_images = block_images if block_images is not None else cfg.block_images
+        eff_block_webrtc = block_webrtc if block_webrtc is not None else cfg.block_webrtc
+        eff_block_webgl = block_webgl if block_webgl is not None else cfg.block_webgl
+        eff_camoufox_os = camoufox_os if camoufox_os is not None else cfg.camoufox_os
+        eff_locale = locale if locale is not None else cfg.locale
+        eff_geoip = geoip if geoip is not None else cfg.geoip
+        eff_firefox_user_prefs = firefox_user_prefs if firefox_user_prefs is not None else cfg.firefox_user_prefs
+        eff_camoufox_args = camoufox_args if camoufox_args is not None else cfg.camoufox_args
+        eff_enable_cache = enable_cache if enable_cache is not None else cfg.enable_cache
+        eff_ff_version = ff_version if ff_version is not None else cfg.ff_version
+
         async with self._registry_lock:
             if name in self._instances:
                 raise InstanceAlreadyExistsError(f"Instance {name!r} already exists.")
@@ -123,10 +154,20 @@ class InstanceManager:
 
             stack, ctx = await launch_instance(
                 profile_dir=resolved_profile_dir,
-                headless=headless,
-                proxy=proxy,
-                humanize=humanize,
-                window=window,
+                headless=eff_headless,
+                proxy=eff_proxy,
+                humanize=eff_humanize,
+                window=eff_window,
+                block_images=eff_block_images,
+                block_webrtc=eff_block_webrtc,
+                block_webgl=eff_block_webgl,
+                camoufox_os=eff_camoufox_os,
+                locale=eff_locale,
+                geoip=eff_geoip,
+                firefox_user_prefs=eff_firefox_user_prefs,
+                camoufox_args=eff_camoufox_args,
+                enable_cache=eff_enable_cache,
+                ff_version=eff_ff_version,
             )
 
             state = InstanceState()
