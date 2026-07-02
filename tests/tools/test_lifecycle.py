@@ -1,5 +1,8 @@
 """Tests for browser_create_instance / browser_destroy_instance / browser_list_instances."""
 
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 from fastmcp import FastMCP
 
@@ -18,6 +21,16 @@ async def _call(mcp_instance, tool_name, **kwargs):
     """Resolve and invoke a fastmcp tool by name from within tests."""
     tool = await mcp_instance.get_tool(tool_name)
     return await tool.fn(**kwargs)
+
+
+def _fake_record(name: str = "alice"):
+    """Build a MagicMock shaped enough like InstanceRecord for summarize_instance."""
+    rec = MagicMock()
+    rec.name = name
+    rec.profile_dir = None
+    rec.created_at = datetime.now(UTC)
+    rec.context.pages = []
+    return rec
 
 
 @pytest.mark.asyncio
@@ -104,6 +117,44 @@ async def test_create_instance_limit_exceeded_returns_error(mcp, mock_launch):
         assert result["error_type"] == "instance_limit_exceeded"
     finally:
         await local_mgr.shutdown_all()
+
+
+@pytest.mark.asyncio
+async def test_create_instance_forwards_camoufox_overrides(mcp):
+    """New per-instance camoufox override params are forwarded to mgr.create by keyword."""
+    mock_mgr = MagicMock()
+    mock_mgr.create = AsyncMock(return_value=_fake_record())
+    lifecycle.register(mcp, mock_mgr)
+
+    await _call(
+        mcp,
+        "browser_create_instance",
+        name="alice",
+        locale="fr-FR",
+        geoip=True,
+        camoufox_os=["windows"],
+        block_images=True,
+    )
+
+    kwargs = mock_mgr.create.await_args.kwargs
+    assert kwargs["locale"] == "fr-FR"
+    assert kwargs["geoip"] is True
+    assert kwargs["camoufox_os"] == ["windows"]
+    assert kwargs["block_images"] is True
+
+
+@pytest.mark.asyncio
+async def test_create_instance_omitted_headless_humanize_stay_none(mcp):
+    """Omitting headless/humanize must forward None, not True, so server defaults apply."""
+    mock_mgr = MagicMock()
+    mock_mgr.create = AsyncMock(return_value=_fake_record())
+    lifecycle.register(mcp, mock_mgr)
+
+    await _call(mcp, "browser_create_instance", name="alice")
+
+    kwargs = mock_mgr.create.await_args.kwargs
+    assert kwargs["headless"] is None
+    assert kwargs["humanize"] is None
 
 
 @pytest.mark.asyncio
