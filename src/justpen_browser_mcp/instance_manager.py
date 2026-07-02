@@ -18,6 +18,7 @@ from anyio import Path as AsyncPath
 
 from .errors import (
     InstanceAlreadyExistsError,
+    InstanceCrashedError,
     InstanceLimitExceededError,
     InstanceNotFoundError,
     InvalidParamsError,
@@ -28,6 +29,7 @@ from .instance import InstanceRecord, InstanceState, launch_instance
 
 if TYPE_CHECKING:
     from playwright.async_api import (
+        Browser,
         BrowserContext,
         Dialog,
         FileChooser,
@@ -48,20 +50,27 @@ def summarize_instance(rec: InstanceRecord) -> dict[str, Any]:
     Shared between InstanceManager.list() and tool-layer wrappers so the
     summary shape stays in one place.
     """
-    pages = rec.context.pages
-    if pages:
-        idx = rec.state.active_page_index
-        if idx < 0 or idx >= len(pages):
-            idx = 0
-        active_url = pages[idx].url
-    else:
+    active_url: str | None = None
+    page_count = 0
+    try:
+        pages = rec.context.pages
+        page_count = len(pages)
+        if pages:
+            idx = rec.state.active_page_index
+            if idx < 0 or idx >= len(pages):
+                idx = 0
+            active_url = pages[idx].url
+    except Exception:  # noqa: BLE001 — a dead context must never break summaries
         active_url = None
+    idle_seconds = (datetime.now(tz=UTC) - rec.state.last_used_at).total_seconds()
     return {
         "name": rec.name,
+        "status": rec.state.status,
         "mode": "persistent" if rec.profile_dir is not None else "ephemeral",
         "profile_dir": rec.profile_dir,
-        "page_count": len(pages),
+        "page_count": page_count,
         "active_url": active_url,
+        "idle_seconds": round(idle_seconds, 1),
         "created_at": rec.created_at.isoformat(),
     }
 
@@ -75,6 +84,29 @@ def _format_console_location(loc: SourceLocation | None) -> str | None:
     line = loc.get("lineNumber", 0)
     col = loc.get("columnNumber", 0)
     return f"{url}:{line}:{col}"
+
+
+class _InstanceLock:
+    """Async CM that acquires an instance's lock and stamps last_used_at on entry.
+
+    Used by InstanceManager.lock_for() so every serialized tool operation
+    counts as activity for idle tracking. destroy()/_close_one()/shutdown_all()
+    intentionally use rec.lock directly (not this wrapper) so teardown still
+    works on crashed instances without touching last_used_at.
+    """
+
+    def __init__(self, rec: InstanceRecord) -> None:
+        """Wrap the given instance record's lock."""
+        self._rec = rec
+
+    async def __aenter__(self) -> None:
+        """Acquire the instance lock and stamp last_used_at."""
+        await self._rec.lock.acquire()
+        self._rec.state.last_used_at = datetime.now(tz=UTC)
+
+    async def __aexit__(self, *exc: object) -> None:
+        """Release the instance lock."""
+        self._rec.lock.release()
 
 
 class InstanceManager:
@@ -173,6 +205,7 @@ class InstanceManager:
             state = InstanceState()
             self._wire_event_listeners(ctx, state)
             self._wire_modal_listeners(ctx, state)
+            self._wire_crash_listeners(ctx, browser, state)
 
             record = InstanceRecord(
                 name=name,
@@ -189,15 +222,35 @@ class InstanceManager:
             return record
 
     def get(self, name: str) -> InstanceRecord:
-        """Look up an instance by name. Raises InstanceNotFoundError if missing."""
+        """Look up an instance by name.
+
+        Raises InstanceNotFoundError if missing. If the instance's browser
+        process has crashed/disconnected, it is evicted from the registry and
+        InstanceCrashedError is raised instead of returning a dead record.
+        """
         rec = self._instances.get(name)
         if rec is None:
             raise InstanceNotFoundError(f"Instance {name!r} does not exist.")
+        if rec.state.status == "crashed":
+            self._instances.pop(name, None)
+            raise InstanceCrashedError(
+                f"Instance {name!r} crashed (browser process disconnected). It has been "
+                f"removed; create a new instance to continue."
+            )
         return rec
 
-    def lock_for(self, name: str) -> asyncio.Lock:
-        """Return the per-instance lock for serializing tool operations."""
-        return self.get(name).lock
+    def _get_raw(self, name: str) -> InstanceRecord | None:
+        """Look up an instance by name without the crash check or eviction.
+
+        For internal callers (summaries, reaper) that need to see crashed
+        records rather than have them silently evicted.
+        """
+        return self._instances.get(name)
+
+    def lock_for(self, name: str) -> _InstanceLock:
+        """Return an async CM that acquires the per-instance lock and stamps last_used_at."""
+        rec = self.get(name)
+        return _InstanceLock(rec)
 
     def state(self, name: str) -> InstanceState:
         """Return the InstanceState for a named instance."""
@@ -228,6 +281,7 @@ class InstanceManager:
     async def active_page(self, name: str) -> Page:
         """Return the active page for an instance, creating one if none exist."""
         rec = self.get(name)
+        rec.state.last_used_at = datetime.now(tz=UTC)
         if not rec.context.pages:
             page = await rec.context.new_page()
             rec.state.active_page_index = 0
@@ -347,6 +401,14 @@ class InstanceManager:
         ctx.on("page", _attach)
         for existing_page in ctx.pages:
             _attach(existing_page)
+
+    def _wire_crash_listeners(self, ctx: BrowserContext, browser: Browser | None, state: InstanceState) -> None:
+        def _mark_crashed(_obj: object = None) -> None:
+            state.status = "crashed"
+
+        ctx.on("close", _mark_crashed)
+        if browser is not None:
+            browser.on("disconnected", _mark_crashed)
 
 
 def assert_no_modal(mgr: InstanceManager, instance: str) -> None:

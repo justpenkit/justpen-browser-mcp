@@ -9,6 +9,7 @@ import pytest
 from justpen_browser_mcp.config import BrowserServerConfig
 from justpen_browser_mcp.errors import (
     InstanceAlreadyExistsError,
+    InstanceCrashedError,
     InstanceLimitExceededError,
     InstanceNotFoundError,
     InvalidParamsError,
@@ -185,8 +186,9 @@ async def test_get_raises_on_missing(manager):
 @pytest.mark.asyncio
 async def test_lock_for_returns_lock(manager):
     await manager.create("alice")
-    lock = manager.lock_for("alice")
-    assert isinstance(lock, asyncio.Lock)
+    cm = manager.lock_for("alice")
+    async with cm:
+        pass
 
 
 @pytest.mark.asyncio
@@ -391,3 +393,40 @@ async def test_create_param_overrides_server_default(mock_launch):
         assert mock_launch[0]["kwargs"]["proxy"] == {"server": "http://override:9090"}
     finally:
         await mgr.shutdown_all()
+
+
+# --- Crash detection / lazy eviction / touch-on-lock ---
+
+
+@pytest.mark.asyncio
+async def test_get_raises_and_evicts_crashed_instance(manager):
+    rec = await manager.create("a")
+    rec.state.status = "crashed"
+    with pytest.raises(InstanceCrashedError):
+        manager.get("a")
+    # evicted → now not found
+    with pytest.raises(InstanceNotFoundError):
+        manager.get("a")
+
+
+@pytest.mark.asyncio
+async def test_lock_for_stamps_last_used(manager):
+    rec = await manager.create("a")
+    old = rec.state.last_used_at
+    async with manager.lock_for("a"):
+        pass
+    assert rec.state.last_used_at >= old
+
+
+@pytest.mark.asyncio
+async def test_disconnect_marks_crashed(manager, mock_launch):
+    # mock_launch ctx.on records handlers; simulate the disconnected callback
+    await manager.create("a")
+    ctx = mock_launch[0]["ctx"]
+    # find the "close" handler registered on ctx and invoke it
+    close_cbs = [c.args[1] for c in ctx.on.call_args_list if c.args[0] == "close"]
+    assert close_cbs
+    close_cbs[0]()
+    rec = manager._get_raw("a")
+    assert rec is not None
+    assert rec.state.status == "crashed"
