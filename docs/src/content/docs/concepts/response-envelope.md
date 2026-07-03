@@ -26,7 +26,7 @@ Every tool returns one of two envelope shapes.
 }
 ```
 
-`instance` is `null` for server-level tools (`browser_list_instances`) that are not scoped to a specific instance.
+`instance` is `null` for server-level tools (`browser_list_instances`, `browser_health`) that are not scoped to a specific instance.
 
 ### error_type values
 
@@ -37,7 +37,6 @@ Every tool returns one of two envelope shapes.
 | `instance_limit_exceeded` | The `BROWSER_MCP_MAX_INSTANCES` cap has been reached; destroy an existing instance first.                       |
 | `instance_crashed`        | The instance's browser process disconnected or crashed; it has been evicted, create a new instance to continue. |
 | `profile_dir_in_use`      | The requested `profile_dir` is already locked by another live instance.                                         |
-| `browser_not_running`     | Camoufox is not running; no page operation is possible.                                                         |
 | `binary_not_found`        | The Camoufox binary could not be located on the host.                                                           |
 | `element_not_found`       | The element could not be found in the page's accessibility tree.                                                |
 | `stale_ref`               | The `ref` was valid in a previous snapshot but is no longer in the current accessibility tree.                  |

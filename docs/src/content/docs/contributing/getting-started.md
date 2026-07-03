@@ -37,6 +37,25 @@ make docs-build  # astro static build (CI also runs lychee for broken-link detec
 
 `make check` is also enforced on `git push` via the pre-push hook, so a broken push is impossible.
 
+### End-to-end tests
+
+`make check` (and the plain `make test` target) run `pytest -m "not e2e"` —
+they deliberately **exclude** the Camoufox-backed end-to-end suite, and CI
+does not run e2e either (`.github/workflows/ci.yml` only runs `make check`).
+The e2e suite lives under `tests/e2e/` (13 test files, gated by the `e2e`
+pytest marker declared in `pyproject.toml`) and needs a real, fetched
+Camoufox binary (`uv run python -m camoufox fetch`, already done by
+`make setup`). Run it explicitly:
+
+```bash
+make test-e2e
+```
+
+If your change touches browser behavior (navigation, interaction, modal
+handling, code execution against the page, etc.), run `make test-e2e`
+locally before opening the PR — a green `make check` alone does not exercise
+a real browser.
+
 ## Make a change
 
 1. Open a feature branch: `git switch -c type/short-description` (e.g. `feat/foo-bar`).

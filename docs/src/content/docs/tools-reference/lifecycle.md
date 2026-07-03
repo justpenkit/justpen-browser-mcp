@@ -70,15 +70,17 @@ built-in default.
 ```json
 {
   "name": "main",
+  "status": "live",
   "mode": "ephemeral",
   "profile_dir": null,
   "page_count": 0,
   "active_url": null,
+  "idle_seconds": 0.0,
   "created_at": "2026-04-22T10:00:00+00:00"
 }
 ```
 
-`mode` is `"ephemeral"` when `profile_dir` is `None`, `"persistent"` otherwise.
+`mode` is `"ephemeral"` when `profile_dir` is `None`, `"persistent"` otherwise. This is the same `InstanceSummary` shape returned by `browser_list_instances` and `browser_health` — see the field table under [`browser_list_instances`](#browser_list_instances) below.
 
 **Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
@@ -102,10 +104,12 @@ Response:
   "instance": "main",
   "data": {
     "name": "main",
+    "status": "live",
     "mode": "ephemeral",
     "profile_dir": null,
     "page_count": 0,
     "active_url": null,
+    "idle_seconds": 0.0,
     "created_at": "2026-04-22T10:00:00+00:00"
   }
 }
@@ -177,6 +181,7 @@ _No parameters._
       "profile_dir": null,
       "page_count": 1,
       "active_url": "https://example.com",
+      "idle_seconds": 12.3,
       "created_at": "2026-04-22T10:00:00+00:00"
     }
   ]
@@ -185,15 +190,16 @@ _No parameters._
 
 Each entry in `instances` has:
 
-| Field         | Type          | Description                                                                                                       |
-| ------------- | ------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `name`        | `str`         | Instance name.                                                                                                    |
-| `status`      | `str`         | Instance status, `"live"` or `"crashed"` — see [crash detection](/concepts/instances-isolation/#crash-detection). |
-| `mode`        | `str`         | `"ephemeral"` or `"persistent"`.                                                                                  |
-| `profile_dir` | `str \| null` | Absolute path to the profile directory, or `null` for ephemeral instances.                                        |
-| `page_count`  | `int`         | Number of open tabs in the instance.                                                                              |
-| `active_url`  | `str \| null` | URL of the currently active page, or `null` when no pages are open.                                               |
-| `created_at`  | `str`         | ISO 8601 timestamp (UTC) of when the instance was created.                                                        |
+| Field          | Type          | Description                                                                                                       |
+| -------------- | ------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `name`         | `str`         | Instance name.                                                                                                    |
+| `status`       | `str`         | Instance status, `"live"` or `"crashed"` — see [crash detection](/concepts/instances-isolation/#crash-detection). |
+| `mode`         | `str`         | `"ephemeral"` or `"persistent"`.                                                                                  |
+| `profile_dir`  | `str \| null` | Absolute path to the profile directory, or `null` for ephemeral instances.                                        |
+| `page_count`   | `int`         | Number of open tabs in the instance.                                                                              |
+| `active_url`   | `str \| null` | URL of the currently active page, or `null` when no pages are open.                                               |
+| `idle_seconds` | `float`       | Seconds since the last tool operation on this instance.                                                           |
+| `created_at`   | `str`         | ISO 8601 timestamp (UTC) of when the instance was created.                                                        |
 
 **Errors** — emits `error_type` codes (see [envelope error codes](/concepts/response-envelope/#error_type-values)):
 
@@ -222,6 +228,7 @@ Response:
         "profile_dir": null,
         "page_count": 2,
         "active_url": "https://example.com",
+        "idle_seconds": 12.3,
         "created_at": "2026-04-22T10:00:00+00:00"
       }
     ]

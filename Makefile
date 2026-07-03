@@ -119,7 +119,8 @@ bump-patch bump-minor bump-major:
 	@segment=$$(echo $@ | sed 's/^bump-//'); \
 	uv version --bump $$segment; \
 	new=$$(uv version --short); \
-	git add pyproject.toml uv.lock; \
+	sed -i.bak -E 's|(justpen-browser-mcp@v)[0-9]+\.[0-9]+\.[0-9]+|\1'"$$new"'|' README.md && rm -f README.md.bak; \
+	git add pyproject.toml uv.lock README.md; \
 	git commit -m "chore: bump version to v$$new"; \
 	git tag "v$$new"; \
 	branch=$$(git rev-parse --abbrev-ref HEAD); \
