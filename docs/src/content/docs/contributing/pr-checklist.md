@@ -34,6 +34,9 @@ also run `make docs-build`. Broken internal links are caught by CI's
 - New behaviour is covered by a test.
 - Bugs come with a regression test that fails on the old code and passes
   on the new code.
+- If the change touches browser behaviour, `make test-e2e` was run locally —
+  `make check` excludes e2e (`-m "not e2e"`) and CI does not run it either.
+  See [End-to-end tests](/contributing/getting-started/#end-to-end-tests).
 
 ## 4. Documentation
 

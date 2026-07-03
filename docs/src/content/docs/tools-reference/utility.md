@@ -109,7 +109,7 @@ Response:
 }
 ```
 
-**Notes** — Parent directories of `file_path` are created automatically. Only works in headless mode (Camoufox runs headless by default). The `landscape` and `print_background` parameters must be passed as keyword-only arguments.
+**Notes** — Parent directories of `file_path` are created automatically. PDF generation (`page.pdf()`) is a **Chromium-only** Playwright feature; Camoufox runs Firefox, so this tool currently always fails on this server (it returns `internal_error`) regardless of headless mode. It is documented here for shape parity with the Microsoft Playwright MCP surface, not because it works today. The `landscape` and `print_background` parameters must be passed as keyword-only arguments.
 
 ## browser_generate_locator
 
@@ -141,8 +141,8 @@ async def browser_generate_locator(
 {
   "ref": "e12",
   "selector": null,
-  "internal_selector": "get_by_role('button', name='Submit')",
-  "python_syntax": "get_by_role('button', name='Submit')"
+  "internal_selector": "internal:role=button[name=\"Submit\"i]",
+  "python_syntax": "get_by_role(\"button\", name='Submit')"
 }
 ```
 
@@ -173,13 +173,13 @@ Response:
   "data": {
     "ref": "e12",
     "selector": null,
-    "internal_selector": "get_by_role('button', name='Submit')",
-    "python_syntax": "get_by_role('button', name='Submit')"
+    "internal_selector": "internal:role=button[name=\"Submit\"i]",
+    "python_syntax": "get_by_role(\"button\", name='Submit')"
   }
 }
 ```
 
-**Notes** — Exactly one of `ref` or `selector` must be provided. For `ref` mode, resolution priority is: data-testid > ARIA role+name > label > placeholder > alt text > title > text content > CSS fallback. The `internal_selector` form is suitable for use with `page.locator()` and survives navigation, making it ideal for saving durable test code or reusable workflow definitions. The `python_syntax` field provides a human-readable representation suitable for codegen.
+**Notes** — Exactly one of `ref` or `selector` must be provided. For `ref` mode, resolution priority is: data-testid > ARIA role+name > label > placeholder > alt text > title > text content > CSS fallback. The `internal_selector` field is a raw Playwright engine selector (e.g. `internal:role=button[name="Submit"i]`) suitable for use directly with `page.locator()`, and survives navigation, making it ideal for saving durable test code or reusable workflow definitions. The `python_syntax` field converts that same resolution into the equivalent Python API call (e.g. `get_by_role("button", name='Submit')`) for codegen output — the two fields describe the same element via different syntaxes, they are not identical strings. (When `selector` mode is used instead of `ref`, both fields are set to the same passthrough value, since no resolution occurs.)
 
 ## browser_tabs
 

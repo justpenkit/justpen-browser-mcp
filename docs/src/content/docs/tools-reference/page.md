@@ -1,9 +1,9 @@
 ---
 title: Page
-description: "Per-page operations: list, focus, close."
+description: "Per-page operations: browser_close."
 ---
 
-Page tools manage individual tabs within a browser instance. Closing a page leaves the instance alive — use `browser_destroy_instance` to tear down the whole session.
+Page tools manage individual tabs within a browser instance. This page currently documents `browser_close` (closing the active tab). Closing a page leaves the instance alive — use `browser_destroy_instance` to tear down the whole session. Listing, focusing, and selecting tabs live under `browser_tabs` — see [Utility](/tools-reference/utility/#browser_tabs).
 
 ## browser_close
 

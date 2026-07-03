@@ -5,6 +5,8 @@ description: Evaluate JavaScript inside the page context.
 
 Execute JavaScript or Python code against the active page. Use `browser_evaluate` for single JavaScript expressions; use `browser_run_code` for multi-step Python logic that needs Playwright's full async API.
 
+Both tools run JavaScript in Camoufox's **isolated JS world**: `window.*` globals set by the page's own scripts are not visible to your expression, and values your expression assigns to `window` are not visible to the page's scripts either. Only DOM-backed reads (`document.title`, an element's `.textContent`, an `<input>`'s `.value`, etc.) and the expression's own return value cross the boundary.
+
 ## browser_evaluate
 
 Evaluate a JavaScript expression on the active page and return its result.
@@ -66,10 +68,10 @@ async def browser_run_code(instance: str, code: str) -> dict[str, Any]
 
 **Parameters**
 
-| Name       | Type  | Default | Description                                                                                                                                                            |
-| ---------- | ----- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `instance` | `str` | —       | Instance name.                                                                                                                                                         |
-| `code`     | `str` | —       | Python code body. Runs as the body of an async function with `page`, `context` (Playwright BrowserContext), and `ctx_mgr` in scope. Use `return` to send a value back. |
+| Name       | Type  | Default | Description                                                                                                                                                        |
+| ---------- | ----- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `instance` | `str` | —       | Instance name.                                                                                                                                                     |
+| `code`     | `str` | —       | Python code body. Runs as the body of an async function with `page`, `context` (Playwright BrowserContext), and `mgr` in scope. Use `return` to send a value back. |
 
 **Returns** — see [response envelope](/concepts/response-envelope/). `data` shape:
 
@@ -103,4 +105,4 @@ Response:
 { "status": "success", "instance": "main", "data": { "result": "Task Complete" } }
 ```
 
-**Notes** — The snippet runs with `page`, `context` (the Playwright BrowserContext object), and `ctx_mgr` (InstanceManager, for advanced use) in scope. Any exception raised is caught and returned as `evaluation_failed` with the original traceback included in the message.
+**Notes** — The snippet runs with `page`, `context` (the Playwright BrowserContext object), and `mgr` (InstanceManager, for advanced use) in scope. Any exception raised is caught and returned as `evaluation_failed` with the original traceback included in the message.
