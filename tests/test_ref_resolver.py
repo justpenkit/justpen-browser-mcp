@@ -16,22 +16,25 @@ from justpen_browser_mcp.ref_resolver import (
 
 
 class TestCaptureSnapshot:
-    async def test_calls_snapshot_for_ai_via_channel(self):
-        """capture_snapshot must call page._impl_obj._channel.send("snapshotForAI", ...)"""
+    async def test_calls_aria_snapshot_via_main_frame_channel(self):
+        """capture_snapshot must call main_frame._channel.send("ariaSnapshot", mode=ai, ...)."""
         page = MagicMock()
         channel = MagicMock()
         channel.send = AsyncMock(return_value="- button [ref=e1]")
         page._impl_obj = MagicMock()
-        page._impl_obj._channel = channel
+        page._impl_obj.main_frame = MagicMock()
+        page._impl_obj.main_frame._channel = channel
 
         result = await capture_snapshot(page)
         assert result == "- button [ref=e1]"
 
         channel.send.assert_awaited_once()
         call_args = channel.send.call_args
-        assert call_args[0][0] == "snapshotForAI"
-        # Third positional arg is the params dict with timeout
-        assert "timeout" in call_args[0][2]
+        assert call_args[0][0] == "ariaSnapshot"
+        # Third positional arg is the params dict: AI mode + timeout.
+        params = call_args[0][2]
+        assert params["mode"] == "ai"
+        assert "timeout" in params
 
 
 class TestLocatorForRef:
