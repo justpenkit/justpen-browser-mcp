@@ -18,7 +18,7 @@ for platform requirements.
 Install with [uv](https://docs.astral.sh/uv/) inside your Python project:
 
 ```bash
-uv add "justpen-browser-mcp @ git+https://github.com/justpenkit/justpen-browser-mcp@v0.4.0"
+uv add "justpen-browser-mcp @ git+https://github.com/justpenkit/justpen-browser-mcp@v0.5.0"
 ```
 
 Run the server (stdio transport); startup fetches Camoufox if needed:
