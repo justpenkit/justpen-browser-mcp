@@ -1,6 +1,6 @@
 """End-to-end tests for element interaction tools: browser_click, browser_type,
 browser_fill_form, browser_select_option, browser_hover, browser_press_key,
-browser_file_upload, browser_handle_dialog.
+browser_drag, browser_file_upload, browser_handle_dialog.
 
 Drives a real Camoufox instance through a real FastMCP client against the
 local static test site. Interaction tools operate on accessibility refs
@@ -13,33 +13,17 @@ Elements without their own ref (e.g. ``<option>`` entries nested under a
 ``<select>``) inherit the nearest ancestor's ref, since only the ancestor is
 individually addressable by interaction tools.
 
-Note: ``browser_drag`` is intentionally NOT covered here. Empirically, on
-``drag.html`` (plain ``draggable`` divs with no ``dragover``/``drop`` JS
-handlers), Playwright's ``Locator.drag_to`` times out after 30s against the
-real Camoufox instance — the native HTML5 DnD sequence never completes
-because the drop target never accepts the drop. This is an environment/
-fixture limitation, not something to work around with source changes per
-this task's scope.
+The drag fixture uses pointer events and records a drop only after a press
+on the source, movement, and release over the target. Native HTML5 drag
+events and DataTransfer can time out with the pinned Camoufox browser even
+when the target accepts drops; that separate model is not covered here.
 
-Note on the dialog flow: clicking any of dialog.html's buttons opens a
-NATIVE, blocking JS dialog (alert/confirm/prompt) from inside the onclick
-handler. Empirically, ``browser_click``'s own post-action "wait for element
-to be stable" re-check then hangs for the full 30s Playwright action
-timeout — it never observes the click resolving, because it's holding the
-per-instance lock while the page's JS thread is occupied by the modal's
-nested event loop, and that lock is the SAME one ``browser_handle_dialog``
-needs to consume the dialog and unblock the page. So ``browser_click``
-reliably returns an ``internal_error`` timeout response here — but the
-physical click (and therefore the dialog open) already happened before that
-internal wait started, so a SUBSEQUENT ``browser_handle_dialog`` call
-reliably succeeds once the click call finally times out and releases the
-lock. The tests below therefore deliberately do NOT assert success on the
-click step of a dialog-triggering interaction — only on the dialog handling
-step that follows it. This is a real, worth-knowing quirk of the current
-click/dialog lock interaction (see the task-14 report for the full writeup)
-and it means every dialog-triggering click currently costs a mandatory ~30s.
+Dialog tests assert the handling result separately from the initiating
+click. A native modal can leave that click waiting until its action timeout
+while holding the instance lock needed by ``browser_handle_dialog``. The
+dialog can then be handled after the click releases the lock.
 
-browser_run_code is out of scope for this task (see task-14 brief).
+Code execution tools are covered in ``test_e2e_code_execution.py``.
 """
 
 from __future__ import annotations
@@ -234,6 +218,28 @@ async def test_hover_does_not_trigger_click_handler(e2e_client, test_site):
     assert dialog_r["error_type"] == "modal_state_blocked"
 
 
+async def test_drag_completes_pointer_drop(e2e_client, test_site):
+    """Resolve real snapshot refs and verify the page received the pointer drop."""
+    await call(e2e_client, "browser_create_instance", {"name": "drag"})
+    await call(e2e_client, "browser_navigate", {"instance": "drag", "url": f"{test_site}/drag.html"})
+    snapshot = await _snapshot_text(e2e_client, "drag")
+    source_ref = _ref_by_text(snapshot, 'button "Drag source"')
+    target_ref = _ref_by_text(snapshot, 'button "Drop target"')
+    assert source_ref is not None, snapshot
+    assert target_ref is not None, snapshot
+    dragged = await call(
+        e2e_client, "browser_drag", {"instance": "drag", "source_ref": source_ref, "target_ref": target_ref}
+    )
+    assert dragged["status"] == "success", dragged
+    result = await call(
+        e2e_client,
+        "browser_evaluate",
+        {"instance": "drag", "expression": "document.querySelector('#result').textContent"},
+    )
+    assert result["status"] == "success", result
+    assert result["data"]["result"] == "dropped: source"
+
+
 async def test_dialog_accept_alert(e2e_client, test_site):
     await call(e2e_client, "browser_create_instance", {"name": "i6"})
     await call(e2e_client, "browser_navigate", {"instance": "i6", "url": f"{test_site}/dialog.html"})
@@ -241,9 +247,7 @@ async def test_dialog_accept_alert(e2e_client, test_site):
     alert_ref = _ref_by_text(snapshot, "Alert")
     assert alert_ref is not None
 
-    # Deliberately not asserted: see the module docstring — this click
-    # reliably reports an internal_error timeout even though the underlying
-    # click (and dialog open) already happened.
+    # The click can time out after opening the dialog; assert its handling below.
     await call(e2e_client, "browser_click", {"instance": "i6", "ref": alert_ref})
 
     dialog_r = await call(e2e_client, "browser_handle_dialog", {"instance": "i6", "accept": True})

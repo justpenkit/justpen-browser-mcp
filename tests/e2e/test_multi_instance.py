@@ -19,13 +19,13 @@ async def real_manager():
 @pytest.mark.e2e
 @pytest.mark.asyncio
 @pytest.mark.filterwarnings("ignore::camoufox._warnings.LeakWarning")
-async def test_two_ephemeral_instances_are_isolated(real_manager):
+async def test_two_ephemeral_instances_are_isolated(real_manager, test_site):
     a = await real_manager.create("alice")
     b = await real_manager.create("bob")
 
     page_a = await real_manager.active_page("alice")
-    await page_a.goto("https://example.com")
-    await a.context.add_cookies([{"name": "isolation", "value": "alice", "domain": "example.com", "path": "/"}])
+    await page_a.goto(test_site + "/index.html")
+    await a.context.add_cookies([{"name": "isolation", "value": "alice", "url": test_site}])
 
     cookies_b = await b.context.cookies()
     assert all(c["name"] != "isolation" or c["value"] != "alice" for c in cookies_b)
@@ -34,18 +34,18 @@ async def test_two_ephemeral_instances_are_isolated(real_manager):
 @pytest.mark.e2e
 @pytest.mark.asyncio
 @pytest.mark.filterwarnings("ignore::camoufox._warnings.LeakWarning")
-async def test_persistent_instance_survives_destroy_create_cycle(tmp_path):
+async def test_persistent_instance_survives_destroy_create_cycle(tmp_path, test_site):
     cfg = BrowserServerConfig(log_level="INFO", max_instances=5)
     mgr = InstanceManager(cfg)
     try:
         rec = await mgr.create("alice", profile_dir=str(tmp_path))
         page = await mgr.active_page("alice")
-        await page.goto("https://example.com")
+        await page.goto(test_site + "/index.html")
         # expires must be set: session cookies (expires=-1) are in-memory only in Firefox
         # and are not written to the profile's cookies.sqlite. A future timestamp forces
         # the cookie to be treated as a persistent cookie and flushed to disk on close.
         await rec.context.add_cookies(
-            [{"name": "persist", "value": "yes", "domain": "example.com", "path": "/", "expires": time.time() + 86400}]
+            [{"name": "persist", "value": "yes", "url": test_site, "expires": time.time() + 86400}]
         )
         await mgr.destroy("alice")
 

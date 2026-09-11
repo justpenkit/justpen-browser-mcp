@@ -13,12 +13,10 @@ import signal
 import sys
 from typing import Any
 
-from camoufox.pkgman import installed_verstr
-
 from .app import mcp
+from .browser_runtime import ensure_camoufox_binary as _ensure_camoufox_binary
 from .cli import build_config
 from .config import BrowserServerConfig
-from .errors import BinaryNotFoundError
 from .instance_manager import InstanceManager
 from .tools import register_all
 
@@ -31,30 +29,6 @@ def _setup_logging(level: str) -> None:
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         stream=sys.stderr,
     )
-
-
-async def _ensure_camoufox_binary() -> None:
-    """Verify the Camoufox binary is installed; auto-fetch once if missing."""
-    try:
-        installed_verstr()
-    except (OSError, RuntimeError, ValueError) as e:
-        logger.debug("installed_verstr() raised: %s", e)
-    else:
-        return
-
-    logger.warning("Camoufox binary not found, fetching (one-time download)...")
-    proc = await asyncio.create_subprocess_exec(
-        sys.executable,
-        "-m",
-        "camoufox",
-        "fetch",
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    _, stderr = await proc.communicate()
-    if proc.returncode != 0:
-        raise BinaryNotFoundError(f"Failed to fetch Camoufox binary: {stderr.decode().strip()}")
-    logger.info("Camoufox binary fetched successfully")
 
 
 def _run_kwargs(config: BrowserServerConfig) -> dict[str, Any]:

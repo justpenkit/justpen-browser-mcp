@@ -18,9 +18,9 @@ dist/
 coverage.xml
 htmlcov/
 
-# Docs build output (Astro Starlight)
-docs/dist/
-docs/.astro/
+# MkDocs output and tool caches
+site/
+.cache/
 
 # Secrets
 .env
@@ -38,6 +38,7 @@ playwright/.cache/
 
 # Claude Code local overrides (personal, non-shared)
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
 
 # Superpowers private working area (specs, plans)
 .superpowers/
@@ -45,5 +46,5 @@ playwright/.cache/
 # Git worktrees
 .worktrees/
 
-# Node (prettier toolchain only — not a Node project otherwise)
+# Leftover dependency caches from older template versions
 node_modules/

@@ -18,6 +18,7 @@ Helper:
 
 from __future__ import annotations
 
+import asyncio
 import threading
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -28,6 +29,7 @@ import pytest
 from fastmcp import FastMCP
 from fastmcp.client import Client
 
+from justpen_browser_mcp.browser_runtime import ensure_camoufox_binary
 from justpen_browser_mcp.config import BrowserServerConfig
 from justpen_browser_mcp.instance_manager import InstanceManager
 from justpen_browser_mcp.tools import register_all
@@ -36,6 +38,19 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Iterator
 
 PAGES_DIR = Path(__file__).parent / "pages"
+
+
+@pytest.fixture(scope="session", autouse=True)
+def pinned_browser_runtime() -> None:
+    """Use the same verified browser for direct manager and transport tests."""
+    asyncio.run(ensure_camoufox_binary())
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Fail a stalled real-browser test with diagnostics instead of hanging CI."""
+    for item in items:
+        if item.get_closest_marker("e2e") and not item.get_closest_marker("timeout"):
+            item.add_marker(pytest.mark.timeout(90))
 
 
 class _Handler(SimpleHTTPRequestHandler):
