@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Literal, TypeVar, cast
 
+from camoufox import DefaultAddons
 from camoufox.async_api import AsyncCamoufox
 
 if TYPE_CHECKING:
@@ -117,6 +118,8 @@ async def launch_instance(
         "block_webrtc": True,
         "block_images": False,
         "disable_coop": True,
+        # uBlock's startup request handler can leave navigations suspended.
+        "exclude_addons": [DefaultAddons.UBO],
     }
     if proxy is not None:
         kwargs["proxy"] = proxy
