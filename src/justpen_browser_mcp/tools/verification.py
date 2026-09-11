@@ -87,7 +87,7 @@ async def _verify_items_in_container(
     missing: list[str] = []
     for item_text in items:
         inner = container_locator.get_by_text(item_text)
-        if not await inner.first.is_visible():
+        if not await inner.filter(visible=True).first.is_visible():
             missing.append(item_text)
     return missing
 
@@ -146,7 +146,7 @@ def _register_browser_verify_list_visible(mcp: FastMCP, mgr: InstanceManager) ->
         1. refs mode: Pass refs=[...] — each ref must be visible.
         2. container mode: Pass container_ref + items=[...] — each item is a
            text pattern that must be visible as a descendant of container_ref
-           (via ``container.get_by_text(item).first.is_visible()``).
+           (at least one matching descendant must be visible).
 
         Returns on success:
             refs mode:      data: {"visible_refs": list[str]}
@@ -213,8 +213,8 @@ def _register_browser_verify_text_visible(mcp: FastMCP, mgr: InstanceManager) ->
 
         The check is synchronous — the text must be visible at the moment of the call.
         Matching is non-exact substring; text is case-insensitive. Child frames are
-        searched as well as the main frame. Uses ``.first`` to avoid strict-mode
-        violations when the text matches multiple elements.
+        searched as well as the main frame. Any visible match satisfies the check,
+        including when an earlier match is hidden.
 
         Returns on success:
             data: {"text": str, "visible": True}
@@ -237,7 +237,7 @@ def _register_browser_verify_text_visible(mcp: FastMCP, mgr: InstanceManager) ->
                 ]
                 found = False
                 for frame in frames:
-                    locator = frame.get_by_text(text).first
+                    locator = frame.get_by_text(text).filter(visible=True).first
                     try:
                         if await locator.is_visible():
                             found = True

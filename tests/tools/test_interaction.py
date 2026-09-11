@@ -26,6 +26,7 @@ def make_page_with_locator(mock_ctx_mgr):
     locator.text_content = AsyncMock(return_value="text")
 
     page = MagicMock()
+    page.is_closed.return_value = False
     page.locator = MagicMock(return_value=locator)
     page.keyboard = MagicMock()
     page.keyboard.press = AsyncMock()

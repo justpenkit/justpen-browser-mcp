@@ -1,4 +1,4 @@
-"""Preserve the public input schemas captured before the framework migration."""
+"""Verify the reviewed public input schemas for all browser tools."""
 
 import json
 from pathlib import Path

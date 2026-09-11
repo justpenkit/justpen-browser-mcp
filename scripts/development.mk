@@ -1,4 +1,4 @@
-.PHONY: help version install setup clean test test-one test-permissions lint lint-fix format format-check format-ruff format-ruff-check format-md format-md-check format-toml format-toml-check format-yaml format-yaml-check format-json format-json-check typecheck audit check docs-build docs-serve bump-patch bump-minor bump-major changelog pre-commit lock-check format-project-text
+.PHONY: help version install setup clean test test-one test-permissions lint lint-fix format format-check format-ruff format-ruff-check format-md format-md-check format-toml format-toml-check format-yaml format-yaml-check format-json format-json-check typecheck audit check docs-build docs-serve bump-patch bump-minor bump-major release-tag changelog pre-commit lock-check format-project-text
 
 VENV := .venv
 # Preserve literal test IDs instead of evaluating Make expressions supplied in TEST.
@@ -24,7 +24,8 @@ help::
 	@echo "  docs-build             Build MkDocs with strict link and anchor checks"
 	@echo "  docs-serve             Serve MkDocs locally with live reload"
 	@echo "  changelog              Generate the changelog with Commitizen"
-	@echo "  bump-patch|bump-minor|bump-major   Version, changelog, commit and local annotated tag"
+	@echo "  bump-patch|bump-minor|bump-major   Prepare version, changelog and commit for review"
+	@echo "  release-tag            Annotate the reviewed release merge on updated main"
 	@echo "  version                Print current version"
 
 version:
@@ -113,3 +114,6 @@ changelog:
 
 bump-patch bump-minor bump-major:
 	uv run --group dev python scripts/release.py bump $(patsubst bump-%,%,$@)
+
+release-tag:
+	uv run --group dev python scripts/release.py tag

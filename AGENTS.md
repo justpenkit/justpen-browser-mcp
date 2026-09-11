@@ -23,6 +23,7 @@ The stdlib-only permission hook is the sole exception: it runs with
     set `CODEX_TEST_BINARY` to an installed CLI first.
 - `make docs-build`: build MkDocs with strict link and anchor checks.
 - `make test-e2e`: run the real Camoufox browser suite separately from fast checks.
+- `make test-consumer`: build and exercise the wheel outside the checkout with locked and minimum runtime dependencies.
 - `make setup` also installs the Camoufox browser; `make install` installs Python dependencies only.
 
 Do not replace these targets with ad hoc pytest/ruff/pyright commands, alternate
@@ -88,8 +89,9 @@ most 72 characters. Do not bypass Git hooks with `--no-verify`.
 
 Before a PR, follow the [checklist](docs/contributing/pr-checklist.md)
 and run `make check` plus `make docs-build`. Merge with a regular merge commit,
-never squash. Version bumps also use a PR. `make bump-{patch,minor,major}` commits
-and tags locally; push the tag only after the branch merges. The whole release
+never squash. Version bumps also use a PR. `make bump-{patch,minor,major}` prepares
+the release commit without a tag. After review and merge, update main and run
+`make release-tag` to annotate the reviewed merge; then push that tag. The whole release
 command is not an automatic dependency-management exemption. Follow the
 [release process](docs/contributing/release-process.md).
 

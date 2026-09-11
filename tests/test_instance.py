@@ -188,3 +188,13 @@ def test_instance_state_defaults_status_live():
     st = InstanceState()
     assert st.status == "live"
     assert st.last_used_at is not None
+
+
+async def test_explicit_geoip_false_overrides_proxy_auto(mock_camoufox):
+    stack, _, _ = await launch_instance(
+        profile_dir=None, headless=True, proxy={"server": "http://proxy:3128"}, humanize=True, window=None, geoip=False
+    )
+    try:
+        assert mock_camoufox["captured"]["kwargs"]["geoip"] is False
+    finally:
+        await stack.aclose()

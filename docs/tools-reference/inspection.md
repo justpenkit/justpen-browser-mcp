@@ -60,7 +60,7 @@ Response:
 
 ## browser_screenshot { #browser_screenshot }
 
-Take a visual screenshot of the active page and return it as base64.
+Take a visual screenshot as base64, or save it to an explicit server-side path.
 
 **Signature**
 
@@ -70,6 +70,7 @@ async def browser_screenshot(
     image_format: str = "png",
     *,
     full_page: bool = False,
+    path: str | None = None,
 ) -> dict[str, Any]
 ```
 
@@ -80,6 +81,9 @@ async def browser_screenshot(
 | `instance`     | `str`  | —       | Instance name.                                                           |
 | `image_format` | `str`  | `"png"` | `"png"` (lossless) or `"jpeg"` (lossy, smaller).                         |
 | `full_page`    | `bool` | `False` | Capture the entire scrollable page instead of just the current viewport. |
+
+`path` is an optional string, default `None`; when supplied it replaces the inline
+image with a file artifact reference.
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -92,7 +96,9 @@ async def browser_screenshot(
 }
 ```
 
-`width` and `height` are `null` when PIL/Pillow is unavailable.
+`width` and `height` are `null` when image processing is unavailable. With
+`path`, the data contains that path instead of `image_base64`; parent directories
+must already exist. The image is still resized before saving.
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
@@ -124,16 +130,19 @@ Response:
 }
 ```
 
-**Notes** — When PIL/Pillow is installed, oversized images are automatically downscaled so the longest side is at most 1568 px (Claude's vision input limit). The `width` and `height` fields in the response reflect the final, possibly downscaled dimensions. Prefer `browser_snapshot` for most inspection tasks; screenshots are most useful for visual debugging or when the accessibility tree does not carry enough detail.
+**Notes** — When PIL/Pillow is installed, oversized images are automatically downscaled so the longest side is at most 1568 px (the server's image-size convention). The `width` and `height` fields in the response reflect the final, possibly downscaled dimensions. Prefer `browser_snapshot` for most inspection tasks; screenshots are most useful for visual debugging or when the accessibility tree does not carry enough detail.
 
 ## browser_console_messages { #browser_console_messages }
 
-Return all console messages collected since the instance was created.
+Read a bounded page of recent console messages retained for the instance.
 
 **Signature**
 
 ```python
-async def browser_console_messages(instance: str, level: str | None = None) -> dict[str, Any]
+async def browser_console_messages(
+    instance: str, level: str | None = None, *,
+    after: str | None = None, limit: int = 100, path: str | None = None,
+) -> dict[str, Any]
 ```
 
 **Parameters**
@@ -189,11 +198,12 @@ Response:
 }
 ```
 
-**Notes** — The buffer is cumulative and never cleared — it includes all messages across all pages and all navigations in the instance (not just since the last navigation). Uncaught page errors are captured as `type="error"` entries with `location=null`. Useful for diagnosing JavaScript errors or confirming page-side logging without opening DevTools.
+**Notes** — The buffer retains recent messages across pages and navigations,
+evicting the oldest at its configured capacity. See [pagination and export](#event-pagination-and-export). Uncaught page errors are captured as `type="error"` entries with `location=null`. Useful for diagnosing JavaScript errors or confirming page-side logging without opening DevTools.
 
 ## browser_network_requests { #browser_network_requests }
 
-Return all network requests collected since the instance was created.
+Read a bounded page of recent network request states retained for the instance.
 
 **Signature**
 
@@ -203,6 +213,9 @@ async def browser_network_requests(
     url_filter: str | None = None,
     *,
     static: bool = False,
+    after: str | None = None,
+    limit: int = 100,
+    path: str | None = None,
 ) -> dict[str, Any]
 ```
 
@@ -272,4 +285,49 @@ Response:
 }
 ```
 
-**Notes** — The buffer is cumulative and never cleared — it covers all requests across all pages and all navigations in the instance. By default, static resource types (image, font, stylesheet, media, manifest) are filtered out to reduce noise; pass `static=True` to include everything. Useful for verifying API calls were made, checking redirect chains, or diagnosing network errors during page load.
+**Notes** — The buffer retains recent requests across pages and navigations;
+old records are evicted. See [pagination and export](#event-pagination-and-export). By default, static resource types (image, font, stylesheet, media, manifest) are filtered out to reduce noise; pass `static=True` to include everything. Useful for verifying API calls were made, checking redirect chains, or diagnosing network errors during page load.
+
+## Event pagination and export
+
+Console and network queries accept these optional arguments:
+
+| Parameter | Default | Meaning                                                                                                       |
+| --------- | ------- | ------------------------------------------------------------------------------------------------------------- |
+| `after`   | `None`  | A cursor from this same instance and event stream. Omit it to start at the oldest retained entry.             |
+| `limit`   | `100`   | Maximum matching entries to return, from 1 to 500.                                                            |
+| `path`    | `None`  | Save this JSON page to a server-side file instead of returning inline entries. Parent directories must exist. |
+
+Each entry adds a monotonic `sequence`, UTC `timestamp`, and `page_id` identifying
+its source tab. Network entries also have a stable `request_id`. A response or
+failure updates that request with a new sequence and timestamp; consumers should
+upsert by `request_id`. A pending request evicted before its response arrives is
+not brought back into the retained buffer.
+
+Each result includes `next_cursor`, `has_more`, `retained_count`, `dropped_count`,
+and `retention_lost`. Reuse `next_cursor` as `after` with the same filters. Cursors
+are specific to an instance lifetime and event stream; invalid or foreign cursors
+return `invalid_params`. `retention_lost` means records after the requested cursor
+have already been evicted. Filtered-out records are not counted as dropped.
+
+The buffer holds at most `BROWSER_MCP_EVENT_BUFFER_SIZE` entries per stream
+(default 1000). Individual string fields are capped at 4096 characters; shortened
+fields are listed in `truncated_fields`. This is recent diagnostic evidence, not
+a complete network archive or response-body capture. Exporting does not restore
+evicted records or shortened fields.
+
+When `path` is provided, the file contains the selected `messages` or `requests`
+plus pagination metadata. The returned data contains `path`, `count`, and the
+same pagination metadata, without inline entries. Artifacts refer to files on
+the server; see [framework integration](../guides/framework-integration.md).
+
+```json
+{
+  "name": "browser_network_requests",
+  "arguments": {
+    "instance": "main",
+    "limit": 50,
+    "path": "/workspace/evidence/network-page.json"
+  }
+}
+```

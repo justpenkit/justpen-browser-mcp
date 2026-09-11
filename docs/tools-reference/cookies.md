@@ -7,6 +7,12 @@ description: Read, set, and clear cookies and browser storage.
 Cookie jar and localStorage helpers let you read, set, and clear browser storage
 across origins. Set and clear operations affect the instance's stored state immediately.
 
+Examples below focus on tool-specific data. Registered tools also return the shared [operation metadata and error fields](../concepts/response-envelope.md).
+
+For localStorage calls with an explicit `origin`, the browser compares its canonical origin with the requested URL's canonical origin in the same JavaScript turn that accesses storage. Equivalent IDN/punycode hosts, IPv6 spellings, shortened IPv4 addresses, and default ports therefore work consistently. A redirect to a different scheme, host, or effective port returns `invalid_params` before the tool reads or changes that destination's storage. The response echoes the requested `origin` spelling.
+
+Operation metadata identifies the temporary page that accesses storage, while the selected active page remains unchanged. Cleanup attempts to close the temporary page within a bounded, shielded period, including after cancellation. A cleanup failure is reported if the storage operation otherwise succeeded; if an earlier error or cancellation occurred, that original result is preserved and the cleanup failure is logged. Inspect tabs after a failure if cleanup could not finish.
+
 ## browser_get_cookies { #browser_get_cookies }
 
 Return cookies stored in the instance, optionally filtered by URL and name.
@@ -226,6 +232,7 @@ If the key does not exist, `value` is `null`:
 
 - `instance_not_found`
 - `invalid_params` — navigation redirected to a different origin
+- `modal_state_blocked` — a dialog or file chooser is pending
 - `internal_error` — navigation to origin failed (e.g. network error)
 
 **Example**
@@ -272,6 +279,8 @@ Response:
 
 Storage is accessed after the document commits, without waiting for DOMContentLoaded or site initialization scripts.
 
+All stored keys are preserved in a full dump, including `__proto__`. Missing individual keys return `null`; an empty store returns an empty `items` object.
+
 ## browser_set_local_storage { #browser_set_local_storage }
 
 Set localStorage key-value pairs for the given origin.
@@ -300,6 +309,7 @@ async def browser_set_local_storage(instance: str, origin: str, items: dict[str,
 
 - `instance_not_found`
 - `invalid_params` — navigation redirected to a different origin
+- `modal_state_blocked` — a dialog or file chooser is pending
 - `internal_error` — navigation to origin failed
 
 **Example**
@@ -328,6 +338,8 @@ Response:
 ```
 
 **Notes** — Opens a temporary page that navigates to the origin, sets each item via `localStorage.setItem`, then closes the page — the instance's active page is not disturbed. All values must be strings because localStorage only stores strings.
+
+Keys such as `__proto__` are written as ordinary storage keys and round-trip through `browser_get_local_storage` without being dropped.
 
 Storage is accessed after the document commits, without waiting for DOMContentLoaded or site initialization scripts.
 
@@ -358,6 +370,7 @@ async def browser_clear_local_storage(instance: str, origin: str | None = None) 
 
 - `instance_not_found`
 - `invalid_params` — navigation redirected to a different origin
+- `modal_state_blocked` — a dialog or file chooser is pending
 - `internal_error` — navigation to origin failed
 
 **Example**
@@ -397,6 +410,6 @@ Response:
 }
 ```
 
-**Notes** — When `origin` is provided, a temporary page navigates to that origin, clears localStorage, then closes — the instance's active page is not disturbed. When `origin` is omitted, localStorage is cleared on the active page directly with no navigation (a shortcut for when you are already on the origin whose storage you want to clear). The `origin` field in the response always reflects which origin's storage was actually cleared.
+**Notes** — When `origin` is provided, a temporary page navigates to that origin, clears localStorage, then closes — the instance's active page is not disturbed. When `origin` is omitted, localStorage is cleared on the active page directly with no navigation (a shortcut for when you are already on the origin whose storage you want to clear). The response's `origin` field echoes the supplied URL, or the active page's full URL when no origin was supplied.
 
 For an explicit origin, storage is accessed after the document commits, without waiting for DOMContentLoaded or site initialization scripts.

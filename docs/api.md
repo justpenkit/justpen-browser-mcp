@@ -20,5 +20,11 @@ client-facing reference for parameters, examples and error responses.
 
 ::: justpen_browser_mcp.responses
 
+## Operation metadata and evidence
+
+::: justpen_browser_mcp.operations
+
+::: justpen_browser_mcp.events
+
 Update docstrings alongside API changes and run `make docs-build` to validate the
 reference and local links.

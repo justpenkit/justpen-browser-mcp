@@ -73,7 +73,7 @@ async def resolve_ref(page: Page, ref: str, timeout_ms: int = 1000) -> Locator:
 # correctly handles escaped quotes like `\"` inside the captured value.
 _QUOTED = r'(?:[^"\\]|\\.)*'
 _TESTID_RE = re.compile(rf'^internal:testid=\[([^=]+)="({_QUOTED})"(s?)\]$')
-_ROLE_RE = re.compile(r"^internal:role=(\w+)(.*)$")
+_ROLE_RE = re.compile(rf'^internal:role=(\w+)(\[name="{_QUOTED}"[si]\])?$')
 _ROLE_NAME_RE = re.compile(rf'\[name="({_QUOTED})"(s|i)\]')
 
 
@@ -103,10 +103,9 @@ def _internal_to_python(sel: str) -> str:
 
     Unknown shapes fall back to ``locator(<raw>)``.
     """
-    # Frame chains (nested iframes)
-    if " >> internal:control=enter-frame >> " in sel:
-        parts = sel.split(" >> internal:control=enter-frame >> ")
-        return ".content_frame.".join(_internal_to_python(p) for p in parts)
+    # Keep chains intact, including frame entry and positional/filter semantics.
+    if " >> " in sel:
+        return f"locator({sel!r})"
 
     # Test ID (highest priority)
     m = _TESTID_RE.match(sel)
@@ -118,7 +117,7 @@ def _internal_to_python(sel: str) -> str:
     m = _ROLE_RE.match(sel)
     if m:
         role = m.group(1)
-        rest = m.group(2)
+        rest = m.group(2) or ""
         name_m = _ROLE_NAME_RE.search(rest)
         if name_m:
             name = _unescape(name_m.group(1))

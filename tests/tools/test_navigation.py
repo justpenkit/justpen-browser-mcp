@@ -22,6 +22,7 @@ def make_page(mock_ctx_mgr, url="https://example.com", title="Example"):
     text_locator = MagicMock()
     text_locator.first = MagicMock()
     text_locator.first.wait_for = AsyncMock()
+    text_locator.filter.return_value = text_locator
     page.get_by_text = MagicMock(return_value=text_locator)
 
     mock_ctx_mgr.active_page.return_value = page

@@ -1,54 +1,18 @@
 """Tests for tools/cookies.py — 6 cookie + localStorage tools."""
 
+import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from justpen_browser_mcp.errors import InstanceNotFoundError
-from justpen_browser_mcp.tools.cookies import _extract_origin, _verify_origin
-
-
-@pytest.mark.parametrize(
-    ("url", "expected"),
-    [
-        ("http://example.com/path?query=value#fragment", "http://example.com"),
-        ("http://example.com:80/path", "http://example.com"),
-        ("https://example.com:443/path", "https://example.com"),
-        ("http://example.com:443/path", "http://example.com:443"),
-        ("https://example.com:80/path", "https://example.com:80"),
-        ("https://example.com:8443/path", "https://example.com:8443"),
-        ("http://example.com:0/path", "http://example.com:0"),
-        ("https://user:password@EXAMPLE.COM:443/path", "https://example.com"),
-        ("https://[::1]/path", "https://[::1]"),
-        ("http://[::1]:80/path", "http://[::1]"),
-        ("https://[::1]:443/path", "https://[::1]"),
-        ("https://[::1]:80/path", "https://[::1]:80"),
-        ("https://[::1]:8080/path", "https://[::1]:8080"),
-        ("https://[::1:8080]/path", "https://[::1:8080]"),
-    ],
-)
-def test_extract_origin_preserves_host_and_nondefault_port(url, expected):
-    assert _extract_origin(url) == expected
-
-
-@pytest.mark.parametrize(
-    ("page_url", "requested_origin"),
-    [
-        ("http://example.com/path", "http://example.com:80"),
-        ("https://example.com/path", "https://example.com:443"),
-        ("https://[::1]:443/path", "https://[::1]"),
-        ("https://example.com:80/path", "https://example.com:80"),
-    ],
-)
-def test_verify_origin_accepts_same_origin(page_url, requested_origin):
-    _verify_origin(page_url, requested_origin)
 
 
 def make_ctx_with_page(mock_ctx_mgr, cookies=None, eval_result=None):
     """Wire mock_ctx_mgr.get to return a mock InstanceRecord with a mock active page."""
     page = MagicMock()
     page.url = "about:blank"
-    page.evaluate = AsyncMock(return_value=eval_result if eval_result is not None else {})
+    page.evaluate = AsyncMock(return_value=json.dumps({"value": eval_result if eval_result is not None else {}}))
 
     async def _goto_side_effect(url, **_kwargs):
         page.url = url
@@ -100,6 +64,7 @@ async def test_local_storage_rejects_different_origin_redirect(
         page.url = redirected_url
 
     page.goto.side_effect = redirect
+    page.evaluate.return_value = json.dumps({"mismatch": True, "origin": redirected_url})
     result = await mcp_client.call_tool(
         tool_name,
         {"instance": "admin", "origin": requested_origin, **extra_args},
@@ -108,7 +73,7 @@ async def test_local_storage_rejects_different_origin_redirect(
     assert result.data["status"] == "error"
     assert result.data["error_type"] == "invalid_params"
     assert "Origin mismatch" in result.data["message"]
-    page.evaluate.assert_not_awaited()
+    page.evaluate.assert_awaited_once()
     page.close.assert_awaited_once_with()
 
 
@@ -268,7 +233,8 @@ class TestBrowserGetLocalStorage:
         assert result.data["data"]["key"] == "theme"
         assert result.data["data"]["value"] == "dark"
         assert result.data["data"]["origin"] == "https://app.example.com"
-        page.evaluate.assert_awaited_once_with("(k) => localStorage.getItem(k)", "theme")
+        assert page.evaluate.call_args.args[1]["key"] == "theme"
+        assert page.evaluate.call_args.args[1]["operation"] == "get"
 
 
 class TestBrowserSetLocalStorage:
@@ -300,10 +266,11 @@ class TestBrowserSetLocalStorage:
         call_args = page.evaluate.call_args
         js = call_args[0][0]
         arg = call_args[0][1]
-        assert "(items)" in js
+        assert "new URL(origin).origin" in js
+        assert "actual !== expected" in js
         assert "localStorage.setItem" in js
         # items must be passed as second arg, NOT interpolated into JS source
-        assert arg == items
+        assert json.loads(arg["items"]) == items
         assert "auth_token" not in js
         assert "xyz" not in js
 

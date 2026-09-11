@@ -27,14 +27,15 @@ classifiers = [
 dependencies = [
   "anyio>=4.13.0",
   "camoufox>=0.5.4",
-  "fastmcp>=2.0",
-  "pillow>=10.0",
+  "fastmcp>=4.0.3",
+  "pillow>=11",
   # Upper bound: camoufox 0.4.x's Firefox build is incompatible with Playwright
   # >=1.60 — 1.60's driver crashes on any uncaught page error (reads
   # pageError.location.url when location is undefined) and 1.61 sends a viewport
   # scheme Firefox rejects. Lift this once camoufox ships a compatible Firefox.
-  "playwright>=1.49,<1.60",
+  "playwright>=1.59,<1.60",
   "tldextract>=5.3",
+  "typing-extensions>=4.4",
 ]
 
 [project.urls]

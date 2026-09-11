@@ -68,3 +68,5 @@ jobs:
         run: make browser-fetch
       - name: Test all browser tools and installed transports
         run: make test-e2e
+      - name: Verify locked and minimum consumer wheel installations
+        run: make test-consumer

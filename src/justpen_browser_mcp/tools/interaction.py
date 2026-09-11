@@ -10,17 +10,31 @@ import logging
 from typing import Any
 
 from fastmcp import FastMCP
-from playwright.async_api import Page, TimeoutError as PWTimeout
+from playwright.async_api import Error as PlaywrightError, Page, TimeoutError as PWTimeout
 
 from ..coercion import coerce_bool
 from ..errors import BrowserMcpError
 from ..instance_manager import InstanceManager, assert_no_modal
+from ..operation_context import mark_operation_started
 from ..ref_resolver import resolve_ref
 from ..responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 
 _VALID_BUTTONS = {"left", "right", "middle"}
+
+
+def _dialog_already_handled(error: BaseException) -> bool:
+    """Recognize Playwright's definitive terminal response for a stored dialog."""
+    return isinstance(error, PlaywrightError) and any(
+        message in str(error)
+        for message in (
+            "Cannot accept dialog which is already handled!",
+            "Cannot dismiss dialog which is already handled!",
+        )
+    )
+
+
 _VALID_MODIFIERS = {"Alt", "Control", "ControlOrMeta", "Meta", "Shift"}
 
 
@@ -64,8 +78,8 @@ def _register_browser_click(mcp: FastMCP, mgr: InstanceManager) -> None:
                 if bad:
                     return error_response(instance, "invalid_params", f"unknown modifiers: {bad!r}")
             mgr.get(instance)
-            assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
+                assert_no_modal(mgr, instance)
                 page = await mgr.active_page(instance)
                 locator = await resolve_ref(page, ref)
                 options: dict[str, Any] = {"button": button}
@@ -115,8 +129,8 @@ def _register_browser_type(mcp: FastMCP, mgr: InstanceManager) -> None:
         """
         try:
             mgr.get(instance)
-            assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
+                assert_no_modal(mgr, instance)
                 page = await mgr.active_page(instance)
                 locator = await resolve_ref(page, ref)
                 if clear_first:
@@ -191,8 +205,8 @@ def _register_browser_fill_form(mcp: FastMCP, mgr: InstanceManager) -> None:
         """
         try:
             mgr.get(instance)
-            assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
+                assert_no_modal(mgr, instance)
                 page = await mgr.active_page(instance)
                 for field in fields:
                     error = await _fill_form_field(page, field)
@@ -230,8 +244,8 @@ def _register_browser_select_option(mcp: FastMCP, mgr: InstanceManager) -> None:
         """
         try:
             mgr.get(instance)
-            assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
+                assert_no_modal(mgr, instance)
                 page = await mgr.active_page(instance)
                 locator = await resolve_ref(page, ref)
                 await locator.select_option(value)
@@ -263,8 +277,8 @@ def _register_browser_hover(mcp: FastMCP, mgr: InstanceManager) -> None:
         """
         try:
             mgr.get(instance)
-            assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
+                assert_no_modal(mgr, instance)
                 page = await mgr.active_page(instance)
                 locator = await resolve_ref(page, ref)
                 await locator.hover()
@@ -297,8 +311,8 @@ def _register_browser_drag(mcp: FastMCP, mgr: InstanceManager) -> None:
         """
         try:
             mgr.get(instance)
-            assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
+                assert_no_modal(mgr, instance)
                 page = await mgr.active_page(instance)
                 source = await resolve_ref(page, source_ref)
                 target = await resolve_ref(page, target_ref)
@@ -331,8 +345,8 @@ def _register_browser_press_key(mcp: FastMCP, mgr: InstanceManager) -> None:
         """
         try:
             mgr.get(instance)
-            assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
+                assert_no_modal(mgr, instance)
                 page = await mgr.active_page(instance)
                 await page.keyboard.press(key)
                 if key.lower() == "enter":
@@ -368,7 +382,8 @@ def _register_browser_file_upload(mcp: FastMCP, mgr: InstanceManager) -> None:
         """
         try:
             mgr.get(instance)
-            async with mgr.lock_for(instance):
+            async with mgr.modal_lock_for(instance):
+                instance_state = mgr.state(instance)
                 state = mgr.consume_modal_state(instance, "filechooser")
                 if state is None:
                     return error_response(
@@ -377,19 +392,22 @@ def _register_browser_file_upload(mcp: FastMCP, mgr: InstanceManager) -> None:
                         "no file chooser is currently pending",
                     )
                 file_chooser = state["object"]
+                if state["page"].is_closed():
+                    return error_response(instance, "modal_state_blocked", "file chooser page is already closed")
+                mark_operation_started(mgr.get(instance).instance_id, page_id=mgr.page_id(instance, state["page"]))
                 if not paths:
                     # Cancel: don't call set_files. The FileChooser object
                     # will be GC'd; the dialog resolves on next interaction.
                     return success_response(instance, data={"cancelled": True})
                 try:
                     await file_chooser.set_files(paths)
-                except Exception:
+                except BaseException:
                     # Re-insert modal state only if the page is still alive,
                     # otherwise the file chooser is dead and re-queuing it
                     # would wedge the instance behind modal_state_blocked.
                     page = state.get("page")
                     if page is not None and not page.is_closed():
-                        mgr.state(instance).modal_states.insert(0, state)
+                        instance_state.modal_states.insert(0, state)
                     raise
             return success_response(instance, data={"uploaded_count": len(paths)})
         except BrowserMcpError as e:
@@ -426,7 +444,8 @@ def _register_browser_handle_dialog(mcp: FastMCP, mgr: InstanceManager) -> None:
         """
         try:
             mgr.get(instance)
-            async with mgr.lock_for(instance):
+            async with mgr.modal_lock_for(instance):
+                instance_state = mgr.state(instance)
                 state = mgr.consume_modal_state(instance, "dialog")
                 if state is None:
                     return error_response(
@@ -436,10 +455,18 @@ def _register_browser_handle_dialog(mcp: FastMCP, mgr: InstanceManager) -> None:
                     )
                 dialog = state["object"]
                 page = state["page"]
-                if accept:
-                    await dialog.accept(prompt_text or "")
-                else:
-                    await dialog.dismiss()
+                if page.is_closed():
+                    return error_response(instance, "modal_state_blocked", "dialog page is already closed")
+                mark_operation_started(mgr.get(instance).instance_id, page_id=mgr.page_id(instance, page))
+                try:
+                    if accept:
+                        await dialog.accept(prompt_text or "")
+                    else:
+                        await dialog.dismiss()
+                except BaseException as error:
+                    if not page.is_closed() and not _dialog_already_handled(error):
+                        instance_state.modal_states.insert(0, state)
+                    raise
                 # Best-effort page stabilization after dialog resolution.
                 with contextlib.suppress(Exception):
                     await page.wait_for_load_state("domcontentloaded", timeout=1000)

@@ -4,9 +4,9 @@ description: "How named browser instances stay isolated: process, fingerprint, c
 
 # Instances & isolation { #_top }
 
-`justpen-browser-mcp` manages any number of named **instances**. Each instance
+`justpen-browser-mcp` manages named **instances** up to a configured capacity. Each instance
 is its own Camoufox process — a separate stealth-patched Firefox — with its own
-BrowserForge fingerprint and completely isolated browser state.
+BrowserForge fingerprint and separate browser session state.
 
 ## Why instances matter { #why-instances-matter }
 
@@ -65,7 +65,7 @@ persists on disk even after the instance is destroyed.
 ## Instance cap { #instance-cap }
 
 `BROWSER_MCP_MAX_INSTANCES` (default `10`) sets the maximum number of
-concurrently live instances. Attempting to create an instance beyond the cap
+reserved instances, including launches, live browsers, and unfinished teardown. Attempting to create an instance beyond the cap
 returns an `instance_limit_exceeded` error. Invalid values (non-integer, zero,
 or negative) fall back to `10` with a warning logged to stderr.
 
@@ -99,7 +99,7 @@ or other profile data, same as a clean `browser_destroy_instance`.
 A background task can automatically close instances that have been idle too
 long, so long-running servers don't accumulate abandoned browser processes.
 "Idle" is measured as time since the last tool operation on that instance —
-each serialized tool call refreshes an instance's idle clock.
+the clock is refreshed when serialized work starts and finishes. Busy instances and queued operations are skipped, and the reaper uses monotonic elapsed time.
 
 The reaper is controlled by two settings (see
 [Configuration](../getting-started/configuration.md)):
@@ -127,14 +127,12 @@ Reaping only closes the underlying browser process; a persistent instance's
 
 ## Why this is stronger than a shared process model { #why-this-is-stronger-than-a-shared-process-model }
 
-The old per-context model shared a single Camoufox process among all contexts.
-Process-level isolation means:
-
-- **No shared memory** — one misbehaving page cannot leak V8 heap, native
-    libraries, or timing oracles into another instance.
-- **Fingerprint diversity** — a shared process means all contexts expose
-    identical fingerprint signals; separate processes roll separate fingerprints.
-- **Fault containment** — a renderer crash is confined to the affected instance.
+Separate browser processes improve fault containment and let each launch use
+its own fingerprint and session data. They share the host, network resources,
+filesystem permissions, and the Python MCP server process. This is not an OS
+security boundary between untrusted tenants, and it does not promise immunity
+to timing or fingerprint correlation. Camoufox uses Firefox's JavaScript engine.
+Use external process/container supervision when stronger containment is needed.
 
 ## Lifecycle tools { #lifecycle-tools }
 
@@ -150,3 +148,28 @@ Use these tools to manage instance lifetimes:
 Within an instance, the MCP surface currently operates on a single active page.
 Opening a second tab is supported, but most tools target the active page; see
 [Page tools](../tools-reference/page.md) for switching.
+
+## Identity, concurrency and teardown
+
+Each launch has a new `instance_id`; each tab has a stable `page_id` until it
+closes. A reused name or tab index does not reuse that identity. The active tab
+is tracked by its page object, so an unrelated popup or tab removal does not
+silently retarget subsequent operations.
+
+Actions serialize within an instance; different instances can run concurrently.
+Launch and teardown do not hold the registry lock while waiting on the browser.
+`BROWSER_MCP_OPERATION_TIMEOUT_SECONDS` bounds cooperative operations including
+queue time. A timeout after execution starts leaves side effects uncertain; use
+[operation metadata](response-envelope.md#operation-metadata) before retrying.
+
+Destroy removes an instance from active listings, waits for work to drain, then
+cancels blocked work and closes resources within `BROWSER_MCP_CLOSE_TIMEOUT_SECONDS`.
+Names, capacity slots, and profile directories stay reserved until cleanup is
+confirmed. Failed or timed-out teardown remains `close_failed` in `browser_health`;
+failed launch rollback appears in `failed_launches`. Inspect and stop any surviving
+browser through your process supervisor before restarting the server. Repeated
+destroy calls do not pretend that an incomplete cleanup succeeded.
+
+Shutdown stops admission permanently for that manager. Calling destroy or shutdown
+from the instance's own `browser_run_code` operation is rejected to prevent a
+self-wait. See [framework integration](../guides/framework-integration.md).

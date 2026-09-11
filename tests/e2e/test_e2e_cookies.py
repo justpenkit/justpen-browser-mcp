@@ -81,7 +81,11 @@ async def test_local_storage_needs_origin_commit_not_finished_document(
     assert active["data"]["result"] == f"{test_site}/index.html"
     tabs = await call(e2e_client, "browser_tabs", {"instance": "streaming", "action": "list"})
     assert tabs["status"] == "success", tabs
-    assert tabs["data"]["tabs"] == [{"index": 0, "url": f"{test_site}/index.html"}]
+    assert len(tabs["data"]["tabs"]) == 1
+    tab = tabs["data"]["tabs"][0]
+    assert tab["index"] == 0
+    assert tab["url"] == f"{test_site}/index.html"
+    assert isinstance(tab["page_id"], str)
 
 
 async def test_get_cookies_returns_page_set_cookie(e2e_client, test_site):
@@ -170,4 +174,8 @@ async def test_local_storage_roundtrip_and_clear(e2e_client, test_site):
     assert active["data"]["result"] == f"{test_site}/index.html"
     tabs = await call(e2e_client, "browser_tabs", {"instance": "c4", "action": "list"})
     assert tabs["status"] == "success", tabs
-    assert tabs["data"]["tabs"] == [{"index": 0, "url": f"{test_site}/index.html"}]
+    assert len(tabs["data"]["tabs"]) == 1
+    tab = tabs["data"]["tabs"][0]
+    assert tab["index"] == 0
+    assert tab["url"] == f"{test_site}/index.html"
+    assert isinstance(tab["page_id"], str)

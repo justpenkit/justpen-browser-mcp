@@ -22,6 +22,10 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--max-instances", type=int)
     p.add_argument("--idle-ttl", type=int, help="Idle TTL seconds; 0 disables the reaper.")
     p.add_argument("--reaper-interval", type=int)
+    p.add_argument("--operation-timeout", type=float, help="Cooperative operation deadline in seconds (default 60).")
+    p.add_argument("--close-timeout", type=float, help="Maximum teardown duration in seconds (default 10).")
+    p.add_argument("--event-buffer-size", type=int, help="Retained events per buffer (default 1000).")
+    p.add_argument("--max-result-bytes", type=int, help="Tool output size limit in bytes (minimum 4096).")
     p.add_argument("--transport", choices=["stdio", "http"])
     p.add_argument("--host")
     p.add_argument("--port", type=int)
@@ -33,7 +37,9 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--proxy-password")
     p.add_argument("--camoufox-os", help="Comma-separated OS list, e.g. windows,macos,linux")
     p.add_argument("--locale")
-    p.add_argument("--geoip", action="store_true", default=None)
+    geoip = p.add_mutually_exclusive_group()
+    geoip.add_argument("--geoip", dest="geoip", action="store_true", default=None)
+    geoip.add_argument("--no-geoip", dest="geoip", action="store_false", default=None)
     p.add_argument("--block-images", action="store_true", default=None)
     p.add_argument("--window", help="Window size as WxH, e.g. 1280x800")
     p.add_argument("--firefox-pref", action="append", default=None, metavar="K=V")
@@ -58,6 +64,10 @@ def build_config(argv: list[str], env: Mapping[str, str]) -> BrowserServerConfig
     put("BROWSER_MCP_MAX_INSTANCES", ns.max_instances)
     put("BROWSER_MCP_IDLE_TTL_SECONDS", ns.idle_ttl)
     put("BROWSER_MCP_REAPER_INTERVAL_SECONDS", ns.reaper_interval)
+    put("BROWSER_MCP_OPERATION_TIMEOUT_SECONDS", ns.operation_timeout)
+    put("BROWSER_MCP_CLOSE_TIMEOUT_SECONDS", ns.close_timeout)
+    put("BROWSER_MCP_EVENT_BUFFER_SIZE", ns.event_buffer_size)
+    put("BROWSER_MCP_MAX_RESULT_BYTES", ns.max_result_bytes)
     put("BROWSER_MCP_TRANSPORT", ns.transport)
     put("BROWSER_MCP_HOST", ns.host)
     put("BROWSER_MCP_PORT", ns.port)
@@ -68,8 +78,8 @@ def build_config(argv: list[str], env: Mapping[str, str]) -> BrowserServerConfig
     put("BROWSER_MCP_PROXY_PASSWORD", ns.proxy_password)
     put("BROWSER_MCP_CAMOUFOX_OS", ns.camoufox_os)
     put("BROWSER_MCP_LOCALE", ns.locale)
-    if ns.geoip:
-        overlay["BROWSER_MCP_GEOIP"] = "true"
+    if ns.geoip is not None:
+        overlay["BROWSER_MCP_GEOIP"] = "true" if ns.geoip else "false"
     if ns.block_images:
         overlay["BROWSER_MCP_BLOCK_IMAGES"] = "true"
     put("BROWSER_MCP_WINDOW", ns.window)

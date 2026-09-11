@@ -31,6 +31,8 @@ weaker flags.
 - Run `make test-e2e` locally when browser behavior changes. The fast gate
     excludes these tests and does not start Camoufox. See
     [End-to-end tests](getting-started.md#end-to-end-tests).
+- Run `make test-consumer` when runtime APIs, packaging or dependency bounds change;
+    CI exercises the installed wheel with locked and minimum direct dependencies.
 - If changing permission policy, run `make test-permissions` with an installed
     Codex CLI selected by `CODEX_TEST_BINARY`, following the
     [agent guide](agents.md#verify-and-troubleshoot).

@@ -112,3 +112,30 @@ def test_host_empty_but_set_falls_back_with_warning(caplog):
         cfg = BrowserServerConfig.from_env({"BROWSER_MCP_HOST": "   "})
     assert cfg.host == "127.0.0.1"
     assert "BROWSER_MCP_HOST" in caplog.text
+
+
+def test_operation_and_close_deadlines_from_environment():
+    cfg = BrowserServerConfig.from_env(
+        {"BROWSER_MCP_OPERATION_TIMEOUT_SECONDS": "2.5", "BROWSER_MCP_CLOSE_TIMEOUT_SECONDS": "0.5"}
+    )
+    assert cfg.operation_timeout_seconds == 2.5
+    assert cfg.close_timeout_seconds == 0.5
+
+
+def test_invalid_deadlines_fall_back_to_bounded_defaults():
+    cfg = BrowserServerConfig.from_env(
+        {"BROWSER_MCP_OPERATION_TIMEOUT_SECONDS": "nan", "BROWSER_MCP_CLOSE_TIMEOUT_SECONDS": "0"}
+    )
+    assert cfg.operation_timeout_seconds == 60
+    assert cfg.close_timeout_seconds == 10
+
+
+def test_geoip_unset_preserves_proxy_auto_but_false_is_explicit():
+    assert BrowserServerConfig.from_env({}).geoip is None
+    assert BrowserServerConfig.from_env({"BROWSER_MCP_GEOIP": "false"}).geoip is False
+
+
+def test_evidence_bounds_configurable():
+    cfg = BrowserServerConfig.from_env({"BROWSER_MCP_EVENT_BUFFER_SIZE": "25", "BROWSER_MCP_MAX_RESULT_BYTES": "4096"})
+    assert cfg.event_buffer_size == 25
+    assert cfg.max_result_bytes == 4096

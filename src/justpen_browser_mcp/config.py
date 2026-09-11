@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -50,6 +51,17 @@ def _parse_optional_int(raw: str, *, name: str, minimum: int | None = None) -> i
         logger.warning("%s=%d is below minimum %d, defaulting to None", name, val, minimum)
         return None
     return val
+
+
+def _parse_deadline(raw: str, *, default: float, name: str) -> float:
+    try:
+        value = float(raw)
+    except ValueError:
+        value = 0
+    if not math.isfinite(value) or value <= 0:
+        logger.warning("%s=%r must be a positive finite duration, defaulting to %s", name, raw, default)
+        return default
+    return value
 
 
 def _parse_window(raw: str) -> tuple[int, int] | None:
@@ -118,6 +130,10 @@ class BrowserServerConfig:
     max_instances: int = 10
     idle_ttl_seconds: int = 0
     reaper_interval_seconds: int = 30
+    operation_timeout_seconds: float = 60
+    close_timeout_seconds: float = 10
+    event_buffer_size: int = 1000
+    max_result_bytes: int = 1_048_576
     transport: Literal["stdio", "http"] = "stdio"
     host: str = "127.0.0.1"
     port: int = 8931
@@ -125,7 +141,7 @@ class BrowserServerConfig:
     proxy: dict[str, str] | None = None
     camoufox_os: tuple[str, ...] | None = None
     locale: str | None = None
-    geoip: bool = False
+    geoip: bool | None = None
     humanize: bool | float = True
     block_images: bool = False
     block_webrtc: bool = True
@@ -142,6 +158,8 @@ class BrowserServerConfig:
 
         Recognized variables (all prefixed ``BROWSER_MCP_``): ``LOG_LEVEL``,
         ``MAX_INSTANCES``, ``IDLE_TTL_SECONDS``, ``REAPER_INTERVAL_SECONDS``,
+        ``OPERATION_TIMEOUT_SECONDS``, ``CLOSE_TIMEOUT_SECONDS``,
+        ``EVENT_BUFFER_SIZE``, ``MAX_RESULT_BYTES``,
         ``TRANSPORT``, ``HOST``, ``PORT``, ``HEADLESS``, ``PROXY_SERVER`` (+
         ``PROXY_USERNAME``/``PROXY_PASSWORD``), ``CAMOUFOX_OS``, ``LOCALE``,
         ``GEOIP``, ``BLOCK_IMAGES``, ``BLOCK_WEBRTC``, ``BLOCK_WEBGL``,
@@ -183,7 +201,8 @@ class BrowserServerConfig:
         os_raw = env.get("BROWSER_MCP_CAMOUFOX_OS", "").strip()
         camoufox_os = tuple(p.strip() for p in os_raw.split(",") if p.strip()) or None
         locale = env.get("BROWSER_MCP_LOCALE", "").strip() or None
-        geoip = _parse_bool(env.get("BROWSER_MCP_GEOIP", "false"), default=False, name="BROWSER_MCP_GEOIP")
+        geoip_raw = env.get("BROWSER_MCP_GEOIP")
+        geoip = None if geoip_raw is None else _parse_bool(geoip_raw, default=False, name="BROWSER_MCP_GEOIP")
         block_images = _parse_bool(
             env.get("BROWSER_MCP_BLOCK_IMAGES", "false"), default=False, name="BROWSER_MCP_BLOCK_IMAGES"
         )
@@ -209,6 +228,26 @@ class BrowserServerConfig:
             max_instances=max_instances,
             idle_ttl_seconds=idle_ttl,
             reaper_interval_seconds=reaper_interval,
+            operation_timeout_seconds=_parse_deadline(
+                env.get("BROWSER_MCP_OPERATION_TIMEOUT_SECONDS", "60"),
+                default=60,
+                name="BROWSER_MCP_OPERATION_TIMEOUT_SECONDS",
+            ),
+            close_timeout_seconds=_parse_deadline(
+                env.get("BROWSER_MCP_CLOSE_TIMEOUT_SECONDS", "10"), default=10, name="BROWSER_MCP_CLOSE_TIMEOUT_SECONDS"
+            ),
+            event_buffer_size=_parse_int(
+                env.get("BROWSER_MCP_EVENT_BUFFER_SIZE", "1000"),
+                default=1000,
+                name="BROWSER_MCP_EVENT_BUFFER_SIZE",
+                minimum=1,
+            ),
+            max_result_bytes=_parse_int(
+                env.get("BROWSER_MCP_MAX_RESULT_BYTES", "1048576"),
+                default=1_048_576,
+                name="BROWSER_MCP_MAX_RESULT_BYTES",
+                minimum=4096,
+            ),
             transport=transport,
             host=host,
             port=port,

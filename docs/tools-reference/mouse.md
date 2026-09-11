@@ -6,6 +6,8 @@ description: Move, drag, and scroll using mouse coordinates.
 
 Mouse tools provide low-level positional control over the browser's mouse pointer. Use these tools when you need to interact with elements that are not in the accessibility snapshot, trigger hover effects at specific coordinates, compose custom gesture sequences with `browser_mouse_down` / `browser_mouse_up`, or perform pixel-precise drag operations. When a target element is visible in `browser_snapshot`, prefer the higher-level ref-based tools (`browser_click`, `browser_hover`, `browser_drag`) — they are more stable across layout changes.
 
+Examples below focus on tool-specific data. Registered tools also return the shared [operation metadata and error fields](../concepts/response-envelope.md).
+
 ## browser_mouse_click_xy { #browser_mouse_click_xy }
 
 Click the mouse at a viewport position on the active page.
@@ -253,6 +255,8 @@ Response:
 ```
 
 **Notes** — Performs: move to (`from_x`, `from_y`), press left button, move to (`to_x`, `to_y`), release. For element-to-element drag, prefer `browser_drag(source_ref, target_ref)` which uses accessibility refs and is more stable across layout changes.
+
+Once the press begins, the tool attempts a bounded button release even if the drag fails or is cancelled. Cleanup preserves the original failure. A failed or timed-out drag can still have moved page content; inspect the resulting state before retrying.
 
 ## browser_mouse_wheel { #browser_mouse_wheel }
 

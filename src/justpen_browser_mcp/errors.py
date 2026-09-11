@@ -79,6 +79,12 @@ class WaitTimeoutError(BrowserMcpError):
     error_type = "wait_timeout"
 
 
+class OperationTimeoutError(BrowserMcpError):
+    """Raised when a cooperative browser operation exceeds its deadline."""
+
+    error_type = "operation_timeout"
+
+
 class DialogNotPresentError(BrowserMcpError):
     """Raised when a dialog operation runs but no dialog is currently open."""
 
@@ -128,6 +134,9 @@ VALID_ERROR_TYPES = frozenset(
         "navigation_failed",
         "navigation_timeout",
         "wait_timeout",
+        "operation_timeout",
+        "result_too_large",
+        "unsupported_capability",
         "dialog_not_present",
         "evaluation_failed",
         "verification_failed",

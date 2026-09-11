@@ -60,7 +60,7 @@ built-in default.
 | `block_webgl`        | `bool \| None`              | `False`                     | Block WebGL.                                                                                                                                   |
 | `camoufox_os`        | `tuple[str, ...] \| None`   | `None` (Camoufox default)   | OS fingerprint pool to sample from, e.g. `("windows", "macos")`.                                                                               |
 | `locale`             | `str \| None`               | `None` (Camoufox default)   | Locale string, e.g. `"en-US"`.                                                                                                                 |
-| `geoip`              | `bool \| None`              | `False`                     | Derive geolocation/timezone/locale from the public IP. A configured proxy automatically enables this, even when `False` is supplied.           |
+| `geoip`              | `bool \| None`              | `None` (automatic)          | Derive geolocation/timezone/locale from the public IP. When unset, a proxy enables GeoIP; explicit `False` disables it.                        |
 | `firefox_user_prefs` | `dict[str, Any] \| None`    | `{}` (none)                 | Extra `about:config` Firefox preferences to set, e.g. `{"privacy.trackingprotection.enabled": True}`.                                          |
 | `camoufox_args`      | `tuple[str, ...] \| None`   | `()` (none)                 | Extra CLI args passed through to the underlying Firefox process.                                                                               |
 | `enable_cache`       | `bool \| None`              | `True`                      | Enable Camoufox's disk cache.                                                                                                                  |
@@ -71,6 +71,7 @@ built-in default.
 ```json
 {
   "name": "main",
+  "instance_id": "launch-uuid",
   "status": "live",
   "mode": "ephemeral",
   "profile_dir": null,
@@ -85,16 +86,21 @@ built-in default.
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
-- `instance_already_exists` — an instance with that name is already live.
+- `instance_already_exists` — that name is reserved by a live instance, pending launch, or unfinished cleanup.
 - `instance_limit_exceeded` — the `BROWSER_MCP_MAX_INSTANCES` cap has been reached; destroy an existing instance first.
-- `profile_dir_in_use` — another live instance is already using the requested `profile_dir`.
+- `profile_dir_in_use` — that profile is reserved by a live instance, pending launch, or unfinished cleanup.
 
 **Example**
 
 Request:
 
 ```json
-{ "name": "browser_create_instance", "arguments": { "name": "main" } }
+{
+  "name": "browser_create_instance",
+  "arguments": {
+    "name": "main"
+  }
+}
 ```
 
 Response:
@@ -105,6 +111,7 @@ Response:
   "instance": "main",
   "data": {
     "name": "main",
+    "instance_id": "launch-uuid",
     "status": "live",
     "mode": "ephemeral",
     "profile_dir": null,
@@ -145,13 +152,22 @@ async def browser_destroy_instance(name: str) -> dict[str, Any]
 Request:
 
 ```json
-{ "name": "browser_destroy_instance", "arguments": { "name": "main" } }
+{
+  "name": "browser_destroy_instance",
+  "arguments": {
+    "name": "main"
+  }
+}
 ```
 
 Response:
 
 ```json
-{ "status": "success", "instance": "main", "data": {} }
+{
+  "status": "success",
+  "instance": "main",
+  "data": {}
+}
 ```
 
 **Notes** — Camoufox is terminated and all in-memory browser state is discarded. If the instance was created with a `profile_dir`, that directory and its contents are left intact on disk — the profile survives for the next `browser_create_instance` call. To close a single tab while keeping the instance alive, use `browser_close` instead.
@@ -177,6 +193,7 @@ _No parameters._
   "instances": [
     {
       "name": "main",
+      "instance_id": "launch-uuid",
       "status": "live",
       "mode": "ephemeral",
       "profile_dir": null,
@@ -211,7 +228,10 @@ Each entry in `instances` has:
 Request:
 
 ```json
-{ "name": "browser_list_instances", "arguments": {} }
+{
+  "name": "browser_list_instances",
+  "arguments": {}
+}
 ```
 
 Response:
@@ -224,6 +244,7 @@ Response:
     "instances": [
       {
         "name": "main",
+        "instance_id": "launch-uuid",
         "status": "live",
         "mode": "ephemeral",
         "profile_dir": null,
@@ -258,10 +279,13 @@ _No parameters._
 ```json
 {
   "instance_count": 1,
+  "reserved_count": 1,
+  "failed_launches": [],
   "max_instances": 10,
   "instances": [
     {
       "name": "main",
+      "instance_id": "launch-uuid",
       "status": "live",
       "mode": "ephemeral",
       "profile_dir": null,
@@ -320,7 +344,10 @@ Each entry in `instances` has:
 Request:
 
 ```json
-{ "name": "browser_health", "arguments": {} }
+{
+  "name": "browser_health",
+  "arguments": {}
+}
 ```
 
 Response:
@@ -331,10 +358,13 @@ Response:
   "instance": null,
   "data": {
     "instance_count": 1,
+    "reserved_count": 1,
+    "failed_launches": [],
     "max_instances": 10,
     "instances": [
       {
         "name": "main",
+        "instance_id": "launch-uuid",
         "status": "live",
         "mode": "ephemeral",
         "profile_dir": null,
@@ -356,3 +386,22 @@ Response:
 ```
 
 **Notes** — Never launches or otherwise touches a browser process, so it is safe to poll frequently (e.g. from monitoring). `instance` in the envelope is `null` because this is a server-level tool. Instances that have crashed but have not yet been evicted (see [crash detection](../concepts/instances-isolation.md#crash-detection)) still appear here with `status: "crashed"` until the next call that resolves them, or until the [idle reaper](../concepts/instances-isolation.md#idle-reaper) sweeps them up as a backstop.
+
+## Lifecycle identities and cleanup status
+
+Every instance summary contains `instance_id`, unique to that launch. Active
+listings omit instances already being closed. `browser_health` additionally shows
+closing and failed-close records, `reserved_count` (including pending launches
+and cleanup), and `failed_launches` for failed launch rollback. A failed launch
+cleanup entry contains `name`, `status` (`closing` or `close_failed`), and a
+`close_error` after failure.
+
+Creation reserves the name, capacity and profile before launching. Teardown keeps
+those reservations until cleanup succeeds. A teardown deadline or cleanup failure
+returns `internal_error` and retains the reservation; an earlier outer operation
+deadline returns `operation_timeout` while owned cleanup continues. In either case, inspect health and use your
+process supervisor before restarting the server. See [lifecycle behavior](../concepts/instances-isolation.md#identity-concurrency-and-teardown).
+
+`geoip=None` uses the configured default and enables proxy GeoIP automatically
+when unset. Explicit `geoip=False` disables that automatic behavior. All instance
+operations also include the shared [operation metadata](../concepts/response-envelope.md#operation-metadata).

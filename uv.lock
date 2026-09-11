@@ -1260,6 +1260,7 @@ dependencies = [
     { name = "pillow" },
     { name = "playwright" },
     { name = "tldextract" },
+    { name = "typing-extensions" },
 ]
 
 [package.dev-dependencies]
@@ -1291,10 +1292,11 @@ docs = [
 requires-dist = [
     { name = "anyio", specifier = ">=4.13.0" },
     { name = "camoufox", specifier = ">=0.5.4" },
-    { name = "fastmcp", specifier = ">=2.0" },
-    { name = "pillow", specifier = ">=10.0" },
-    { name = "playwright", specifier = ">=1.49,<1.60" },
+    { name = "fastmcp", specifier = ">=4.0.3" },
+    { name = "pillow", specifier = ">=11" },
+    { name = "playwright", specifier = ">=1.59,<1.60" },
     { name = "tldextract", specifier = ">=5.3" },
+    { name = "typing-extensions", specifier = ">=4.4" },
 ]
 
 [package.metadata.requires-dev]

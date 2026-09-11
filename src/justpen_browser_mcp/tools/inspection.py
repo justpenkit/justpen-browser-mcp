@@ -8,15 +8,18 @@ so tools can read them without their own state.
 """
 
 import base64
+import json
 import logging
 import re
 from io import BytesIO
 from typing import Any
 
+from anyio import Path as AsyncPath
 from fastmcp import FastMCP
 
 from ..errors import BrowserMcpError
 from ..instance_manager import InstanceManager, assert_no_modal
+from ..operation_context import mark_artifact_write_started, mark_operation_started
 from ..ref_resolver import capture_snapshot
 from ..responses import error_response, success_response
 
@@ -30,7 +33,18 @@ except ImportError:  # pragma: no cover - PIL is in deps but guarded anyway
 
 _VALID_CONSOLE_LEVELS = {"log", "info", "warning", "error", "debug"}
 _STATIC_RESOURCE_TYPES = {"image", "font", "stylesheet", "media", "manifest"}
-_CLAUDE_VISION_MAX_DIM = 1568
+_SCREENSHOT_MAX_DIM = 1568
+
+
+async def _event_result(instance: str, field: str, result: dict[str, Any], path: str | None) -> dict[str, Any]:
+    data = {**result, field: result["items"]}
+    data.pop("items")
+    if path is not None:
+        mark_artifact_write_started()
+        await AsyncPath(path).write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        data["count"] = len(data.pop(field))
+        data["path"] = path
+    return success_response(instance, data=data)
 
 
 def _register_browser_snapshot(mcp: FastMCP, mgr: InstanceManager) -> None:
@@ -64,8 +78,8 @@ def _register_browser_snapshot(mcp: FastMCP, mgr: InstanceManager) -> None:
         """
         try:
             mgr.get(instance)
-            assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
+                assert_no_modal(mgr, instance)
                 page = await mgr.active_page(instance)
                 if selector is None:
                     snapshot = await capture_snapshot(page)
@@ -84,7 +98,7 @@ def _register_browser_screenshot(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
     async def browser_screenshot(
-        instance: str, image_format: str = "png", *, full_page: bool = False
+        instance: str, image_format: str = "png", *, full_page: bool = False, path: str | None = None
     ) -> dict[str, Any]:
         """Take a visual screenshot of the active page and return it as base64.
 
@@ -93,8 +107,9 @@ def _register_browser_screenshot(mcp: FastMCP, mgr: InstanceManager) -> None:
         full_page=True captures the entire scrollable page.
 
         If PIL/Pillow is available, oversized images are automatically
-        downscaled so the longest side is at most 1568px — Claude's current
-        vision input limit. The width/height fields in the response reflect
+        downscaled so the longest side is at most 1568px to bound image output.
+        Pass path to save the final image on the server instead of returning base64.
+        The width/height fields in the response reflect
         the FINAL (possibly downscaled) image dimensions.
 
         Returns on success:
@@ -118,8 +133,8 @@ def _register_browser_screenshot(mcp: FastMCP, mgr: InstanceManager) -> None:
             )
         try:
             mgr.get(instance)
-            assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
+                assert_no_modal(mgr, instance)
                 page = await mgr.active_page(instance)
                 image_bytes = await page.screenshot(type=image_format, full_page=full_page)
 
@@ -130,8 +145,8 @@ def _register_browser_screenshot(mcp: FastMCP, mgr: InstanceManager) -> None:
                     img = _PILImage.open(BytesIO(image_bytes))
                     img.load()
                     max_dim = max(img.width, img.height)
-                    if max_dim > _CLAUDE_VISION_MAX_DIM:
-                        scale = _CLAUDE_VISION_MAX_DIM / max_dim
+                    if max_dim > _SCREENSHOT_MAX_DIM:
+                        scale = _SCREENSHOT_MAX_DIM / max_dim
                         new_size = (
                             max(1, int(img.width * scale)),
                             max(1, int(img.height * scale)),
@@ -149,15 +164,14 @@ def _register_browser_screenshot(mcp: FastMCP, mgr: InstanceManager) -> None:
                     width = None
                     height = None
 
-            return success_response(
-                instance,
-                data={
-                    "image_base64": base64.b64encode(image_bytes).decode("ascii"),
-                    "image_format": image_format,
-                    "width": width,
-                    "height": height,
-                },
-            )
+            data: dict[str, Any] = {"image_format": image_format, "width": width, "height": height}
+            if path is None:
+                data["image_base64"] = base64.b64encode(image_bytes).decode("ascii")
+            else:
+                mark_artifact_write_started()
+                await AsyncPath(path).write_bytes(image_bytes)
+                data["path"] = path
+            return success_response(instance, data=data)
         except BrowserMcpError as e:
             return error_response(instance, e.error_type, str(e))
         except Exception as e:
@@ -168,12 +182,23 @@ def _register_browser_screenshot(mcp: FastMCP, mgr: InstanceManager) -> None:
 def _register_browser_console_messages(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_console_messages(instance: str, level: str | None = None) -> dict[str, Any]:
-        """Return all console messages collected since the instance was created.
+    async def browser_console_messages(
+        instance: str,
+        level: str | None = None,
+        *,
+        after: str | None = None,
+        limit: int = 100,
+        path: str | None = None,
+    ) -> dict[str, Any]:
+        """Read a bounded page of recent console messages across instance pages.
 
         Messages are captured by an event listener attached at instance creation.
-        The buffer is cumulative — it includes ALL messages across ALL pages and
-        ALL navigations in this instance (not just since the last navigation).
+        The buffer evicts old records at the configured capacity. Use next_cursor
+        as after with the same filters; limit must be 1-500. dropped_count and
+        retention_lost disclose missing history. Entries include sequence,
+        timestamp, page_id, and truncated_fields when large text was shortened.
+        Pass path to write this JSON page on the server; the result then contains
+        path/count and pagination metadata instead of inline messages.
 
         Each entry has {type, text, location} where location is "url:line:col"
         or None when unavailable. Uncaught page errors are also captured as
@@ -199,11 +224,16 @@ def _register_browser_console_messages(mcp: FastMCP, mgr: InstanceManager) -> No
                 f"level must be one of {sorted(_VALID_CONSOLE_LEVELS)}, got {level!r}",
             )
         try:
-            mgr.get(instance)
-            messages = list(mgr.state(instance).console_messages)
-            if level is not None:
-                messages = [m for m in messages if m.get("type") == level]
-            return success_response(instance, data={"messages": messages})
+            record = mgr.get(instance)
+            mark_operation_started(record.instance_id)
+            result = mgr.state(instance).console_messages.page(
+                after=after,
+                limit=limit,
+                predicate=lambda entry: level is None or entry.get("type") == level,
+            )
+            return await _event_result(instance, "messages", result, path)
+        except ValueError as e:
+            return error_response(instance, "invalid_params", str(e))
         except BrowserMcpError as e:
             return error_response(instance, e.error_type, str(e))
         except Exception as e:
@@ -215,13 +245,24 @@ def _register_browser_network_requests(mcp: FastMCP, mgr: InstanceManager) -> No
 
     @mcp.tool
     async def browser_network_requests(
-        instance: str, url_filter: str | None = None, *, static: bool = False
+        instance: str,
+        url_filter: str | None = None,
+        *,
+        static: bool = False,
+        after: str | None = None,
+        limit: int = 100,
+        path: str | None = None,
     ) -> dict[str, Any]:
-        """Return all network requests collected since the instance was created.
+        """Read a bounded page of recent network request states across instance pages.
 
         Requests are captured by an event listener attached at instance creation.
-        The buffer is cumulative — it includes ALL requests across ALL pages and
-        ALL navigations in this instance (not just since the last navigation).
+        Old records are evicted at the configured capacity. Use next_cursor as
+        after with the same filters; limit must be 1-500. dropped_count and
+        retention_lost disclose missing history. A response/failure update has a
+        new sequence but the same request_id, so incremental consumers should
+        upsert by request_id. Entries also include timestamp and page_id.
+        Pass path to export this JSON page on the server and return path/count
+        plus pagination metadata instead of inline requests.
 
         Each entry has {url, method, status, resource_type, failure}:
         - status is None until the response arrives (or if it never does).
@@ -261,17 +302,18 @@ def _register_browser_network_requests(mcp: FastMCP, mgr: InstanceManager) -> No
                     f"url_filter is not a valid regular expression: {e}",
                 )
         try:
-            mgr.get(instance)
-            requests = list(mgr.state(instance).network_requests)
-            if not static:
-                requests = [r for r in requests if r.get("resource_type") not in _STATIC_RESOURCE_TYPES]
-            if compiled is not None:
-                requests = [r for r in requests if compiled.search(r.get("url", ""))]
-            # Strip private bookkeeping keys (e.g. "_id" used by the
-            # response listener to match by request identity) before
-            # returning to the caller.
-            requests = [{k: v for k, v in r.items() if not k.startswith("_")} for r in requests]
-            return success_response(instance, data={"requests": requests})
+            record = mgr.get(instance)
+            mark_operation_started(record.instance_id)
+
+            def matches(entry: dict[str, Any]) -> bool:
+                return (static or entry.get("resource_type") not in _STATIC_RESOURCE_TYPES) and (
+                    compiled is None or compiled.search(entry.get("url", "")) is not None
+                )
+
+            result = mgr.state(instance).network_requests.page(after=after, limit=limit, predicate=matches)
+            return await _event_result(instance, "requests", result, path)
+        except ValueError as e:
+            return error_response(instance, "invalid_params", str(e))
         except BrowserMcpError as e:
             return error_response(instance, e.error_type, str(e))
         except Exception as e:

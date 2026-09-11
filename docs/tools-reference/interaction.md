@@ -6,6 +6,8 @@ description: Click, type, fill forms, and dispatch keyboard events.
 
 Interaction tools let an agent act on the page — clicking, typing, filling forms, selecting dropdown options, dragging elements, hovering, pressing keys, handling JavaScript dialogs, and completing file uploads. Reach for these tools any time a workflow requires manipulating page content rather than just reading it. All element-targeting tools accept a `ref` obtained from a prior `browser_snapshot` call; see [Refs & snapshots](../concepts/refs-snapshots.md) for how refs work and when they become stale, and [Inspection tools](inspection.md) for the tools that produce them.
 
+Examples below focus on tool-specific data. Registered tools also return the shared [operation metadata and error fields](../concepts/response-envelope.md). Page actions check for blocking modals after acquiring the instance's action lock. Dialog and upload recovery use a separate lock so they can resolve a modal while its triggering action is still waiting.
+
 ## browser_click { #browser_click }
 
 Click an element by its accessibility ref from `browser_snapshot`.
@@ -416,7 +418,7 @@ Response:
 { "status": "success", "instance": "main", "data": { "uploaded_count": 1 } }
 ```
 
-**Notes** — A file-chooser must already be pending before calling this tool (opened by a prior `browser_click` on a file input). The modal-state listener captures the chooser automatically. If the `set_files` call fails and the page is still alive, the chooser is re-queued so you can retry. See [Modal state](../concepts/modal-state.md) for the broader dialog/chooser lifecycle.
+**Notes** — A file-chooser must already be pending before calling this tool (opened by a prior `browser_click` on a file input). The modal-state listener captures the chooser automatically. This tool can run while the triggering action is still waiting. If resolution fails or is cancelled while the page remains alive, the chooser is retained for retry. A chooser belonging to a closed page returns `modal_state_blocked`. Operation metadata identifies the chooser's page, which may be a popup rather than the active tab. See [Modal state](../concepts/modal-state.md) for the broader dialog/chooser lifecycle.
 
 ## browser_handle_dialog { #browser_handle_dialog }
 
@@ -465,4 +467,6 @@ Response:
 }
 ```
 
-**Notes** — The dialog must already be open before calling this tool; it was triggered by a prior tool call and captured automatically by the modal-state listener. This tool does not pre-register a handler for future dialogs. See [Modal state](../concepts/modal-state.md) for the broader dialog lifecycle.
+**Notes** — The dialog must already be open before calling this tool; it was triggered by a prior tool call and captured automatically by the modal-state listener. The triggering action may still be waiting: dialog recovery uses an independent lock and can unblock it. This tool does not pre-register a handler for future dialogs.
+
+If accepting or dismissing fails or is cancelled while the page remains alive, the dialog is normally retained for retry. A definitive Playwright response that the dialog was already handled discards the stale entry and returns an error with uncertain outcome; it does not claim that this call resolved the dialog. A dialog belonging to a closed page returns `modal_state_blocked`. Operation metadata identifies the dialog's page, including a non-active popup. See [Modal state](../concepts/modal-state.md) for the broader dialog lifecycle.

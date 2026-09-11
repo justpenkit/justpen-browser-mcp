@@ -77,3 +77,22 @@ def test_cli_block_images_flag():
 def test_cli_ff_version_flag():
     cfg = build_config(["--ff-version", "135"], env={})
     assert cfg.ff_version == 135
+
+
+def test_cli_runtime_deadlines_override_environment():
+    cfg = build_config(
+        ["--operation-timeout", "2.5", "--close-timeout", "0.5"], env={"BROWSER_MCP_OPERATION_TIMEOUT_SECONDS": "10"}
+    )
+    assert cfg.operation_timeout_seconds == 2.5
+    assert cfg.close_timeout_seconds == 0.5
+
+
+def test_cli_no_geoip_overrides_environment_and_proxy_auto():
+    cfg = build_config(["--no-geoip", "--proxy", "http://p:8080"], env={"BROWSER_MCP_GEOIP": "true"})
+    assert cfg.geoip is False
+
+
+def test_cli_evidence_bounds():
+    cfg = build_config(["--event-buffer-size", "25", "--max-result-bytes", "4096"], env={})
+    assert cfg.event_buffer_size == 25
+    assert cfg.max_result_bytes == 4096

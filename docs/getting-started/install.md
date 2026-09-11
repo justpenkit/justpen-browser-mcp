@@ -35,7 +35,7 @@ installs the locked dev and docs groups through `uv`, fetches the Camoufox binar
 installs the project's git hooks (pre-commit / pre-push / commit-msg).
 
 The server selects Camoufox `135.0.1-beta.24` for its
-`playwright>=1.49,<1.60` driver. Setup and server startup use the same selection,
+`playwright>=1.59,<1.60` driver. Setup and server startup use the same selection,
 which updates the Camoufox SDK's shared default browser for subsequent launches.
 Use `make browser-fetch` to restore that selection, and keep the compatibility
 bound in `pyproject.toml`.
