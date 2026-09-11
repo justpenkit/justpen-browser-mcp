@@ -12,11 +12,10 @@ Stealth-patched Firefox via Camoufox, exposed as MCP browser tools with per-inst
 
 ## 60-second quickstart { #60-second-quickstart }
 
-Release `v0.4.0` predates Python 3.11/3.12 support and requires Python 3.13.
-The current checkout supports Python 3.11–3.13; [clone current main](contributing/getting-started.md#clone-and-set-up)
-for unreleased improvements.
+Requires Python 3.11–3.13. See the [installation guide](getting-started/install.md)
+for platform requirements.
 
-Install with [uv](https://docs.astral.sh/uv/):
+Install with [uv](https://docs.astral.sh/uv/) inside your Python project:
 
 ```bash
 uv add "justpen-browser-mcp @ git+https://github.com/justpenkit/justpen-browser-mcp@v0.4.0"
@@ -25,18 +24,25 @@ uv add "justpen-browser-mcp @ git+https://github.com/justpenkit/justpen-browser-
 Run the server (stdio transport); startup fetches Camoufox if needed:
 
 ```bash
-justpen-browser-mcp
+uv run justpen-browser-mcp
 ```
 
-Register with an MCP client (generic form):
+Register with an MCP client using the installed environment's absolute Python
+path (generic form):
 
 ```json
 {
   "mcpServers": {
-    "justpen-browser": { "command": "justpen-browser-mcp" }
+    "justpen-browser": {
+      "command": "/absolute/path/to/.venv/bin/python",
+      "args": ["-m", "justpen_browser_mcp"]
+    }
   }
 }
 ```
+
+Replace the path with your project's interpreter; see the client guides below
+for client-specific setup.
 
 ## Where to go next { #where-to-go-next }
 

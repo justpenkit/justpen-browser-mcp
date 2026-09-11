@@ -44,9 +44,9 @@ Every tool returns one of two envelope shapes.
 | `navigation_failed`       | A network error, invalid URL, or page crash prevented navigation.                                               |
 | `navigation_timeout`      | The page did not finish loading within the timeout.                                                             |
 | `wait_timeout`            | A text or state wait condition did not resolve in time.                                                         |
-| `dialog_not_present`      | `browser_handle_dialog` was called but no JS dialog is pending.                                                 |
+| `dialog_not_present`      | Reserved error type; current tools use `modal_state_blocked` when no matching modal is pending.                 |
 | `evaluation_failed`       | A JavaScript expression or Python code snippet raised an exception.                                             |
 | `verification_failed`     | A verification tool found the element or text was not in the expected state.                                    |
 | `invalid_params`          | A parameter value was invalid or an incompatible combination was supplied.                                      |
-| `modal_state_blocked`     | A JS dialog or file-chooser is pending and must be resolved before this tool can run.                           |
+| `modal_state_blocked`     | A pending modal blocks the operation, or a dialog/upload handler was called without its matching pending modal. |
 | `internal_error`          | An unexpected internal error; all non-`BrowserMcpError` exceptions map here.                                    |

@@ -12,10 +12,6 @@ uv manages Python 3.11–3.13, with 3.13 as the local default. All formatters an
 MkDocs are installed through uv; Node/npm is not a separate prerequisite.
 The locked cryptography dependency no longer supports Intel macOS or 32-bit Windows.
 
-These requirements apply to the current checkout. Release `v0.4.0` predates
-Python 3.11/3.12 support and requires Python 3.13. Clone current main for
-unreleased improvements.
-
 ## Clone and set up
 
 ```bash
@@ -29,7 +25,7 @@ make setup
 Git hooks. `make install` installs dependencies only. Run setup again after
 cloning onto another computer or when hooks need reinstalling.
 
-The current checkout selects Camoufox `135.0.1-beta.24` for compatibility with
+The server selects Camoufox `135.0.1-beta.24` for compatibility with
 Playwright `<1.60`. Setup, `make browser-fetch` and server startup all use this
 selection, updating the SDK's shared default browser for subsequent Camoufox
 launches.

@@ -4,7 +4,7 @@ description: Wire justpen-browser-mcp into GitHub Copilot CLI.
 
 # Copilot CLI { #_top }
 
-Wire `justpen-browser-mcp` into [GitHub Copilot CLI](https://github.com/github/gh-copilot) MCP-enabled builds.
+Wire `justpen-browser-mcp` into [GitHub Copilot CLI](https://github.com/github/copilot-cli).
 
 ## Prerequisites { #prerequisites }
 
@@ -14,14 +14,16 @@ Wire `justpen-browser-mcp` into [GitHub Copilot CLI](https://github.com/github/g
 
 ## Registration { #registration }
 
-Add to your Copilot CLI MCP config (see upstream Copilot CLI docs for the
-canonical config file location):
+Add to `~/.copilot/mcp-config.json`, or register interactively with `/mcp add`.
+See the [official MCP setup guide](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers).
 
 ```json
 {
   "mcpServers": {
     "justpen-browser": {
-      "command": "justpen-browser-mcp"
+      "command": "justpen-browser-mcp",
+      "args": [],
+      "tools": ["*"]
     }
   }
 }
@@ -37,7 +39,8 @@ installed, use an explicit interpreter path:
   "mcpServers": {
     "justpen-browser": {
       "command": "/absolute/path/to/.venv/bin/python",
-      "args": ["-m", "justpen_browser_mcp"]
+      "args": ["-m", "justpen_browser_mcp"],
+      "tools": ["*"]
     }
   }
 }
@@ -62,5 +65,6 @@ interaction tools.
 
 ## Reference { #reference }
 
-Canonical Copilot CLI MCP config docs: see the upstream Copilot CLI
-documentation for the up-to-date config schema and config-file location.
+See the [official local server configuration fields](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference#local-server-configuration-fields)
+for the config schema. `tools: ["*"]` makes all server tools available; it does
+not disable Copilot's tool permission prompts.

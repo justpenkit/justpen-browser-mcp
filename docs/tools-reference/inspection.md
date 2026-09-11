@@ -56,7 +56,7 @@ Response:
 }
 ```
 
-**Notes** — Default mode (`selector=None`) uses the internal `snapshotForAI` channel and annotates every interactive element with `[ref=eN]`. Pass a ref value to `browser_click`, `browser_type`, or other interaction tools to act on that element. Refs are session-scoped and invalidated by navigation or page reload — call `browser_snapshot` again after any navigation to obtain fresh refs. Selector mode calls `Locator.aria_snapshot` on the matching element and returns plain aria YAML without refs; use it for scoped inspection of a known subtree when you do not need to interact with the results.
+**Notes** — Default mode (`selector=None`) uses the internal `Frame.ariaSnapshot` channel with `mode="ai"` and annotates every interactive element with `[ref=eN]`. Pass a ref value to `browser_click`, `browser_type`, or other interaction tools to act on that element. Refs are session-scoped and invalidated by navigation or page reload — call `browser_snapshot` again after any navigation to obtain fresh refs. Selector mode calls `Locator.aria_snapshot` on the matching element and returns plain aria YAML without refs; use it for scoped inspection of a known subtree when you do not need to interact with the results.
 
 ## browser_screenshot { #browser_screenshot }
 

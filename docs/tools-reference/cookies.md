@@ -4,7 +4,8 @@ description: Read, set, and clear cookies and browser storage.
 
 # Cookies & storage { #_top }
 
-Cookie jar and localStorage helpers let you manage browser storage state — setting and clearing cookies and localStorage across origins. Both tools affect the instance's stored state immediately.
+Cookie jar and localStorage helpers let you read, set, and clear browser storage
+across origins. Set and clear operations affect the instance's stored state immediately.
 
 ## browser_get_cookies { #browser_get_cookies }
 
@@ -224,7 +225,8 @@ If the key does not exist, `value` is `null`:
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
 - `instance_not_found`
-- `internal_error` — navigation to origin failed (e.g. network error, redirect to different origin)
+- `invalid_params` — navigation redirected to a different origin
+- `internal_error` — navigation to origin failed (e.g. network error)
 
 **Example**
 
@@ -297,6 +299,7 @@ async def browser_set_local_storage(instance: str, origin: str, items: dict[str,
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
 - `instance_not_found`
+- `invalid_params` — navigation redirected to a different origin
 - `internal_error` — navigation to origin failed
 
 **Example**
@@ -354,6 +357,7 @@ async def browser_clear_local_storage(instance: str, origin: str | None = None) 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
 - `instance_not_found`
+- `invalid_params` — navigation redirected to a different origin
 - `internal_error` — navigation to origin failed
 
 **Example**

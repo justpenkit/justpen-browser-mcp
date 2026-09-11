@@ -8,12 +8,13 @@ description: Start the MCP server over stdio or HTTP and connect a client.
 
 The install exposes two equivalent invocations — the `justpen-browser-mcp`
 console script (added by `[project.scripts]` in `pyproject.toml`) and the
-`python -m justpen_browser_mcp` module entry point:
+`python -m justpen_browser_mcp` module entry point. From your uv project,
+use `uv run` to select its installed environment:
 
 ```bash
-justpen-browser-mcp
+uv run justpen-browser-mcp
 # or
-python -m justpen_browser_mcp
+uv run python -m justpen_browser_mcp
 ```
 
 ## Transport { #transport }
@@ -28,10 +29,10 @@ python -m justpen_browser_mcp
 
 ```bash
 # stdio (default) — no flags needed
-justpen-browser-mcp
+uv run justpen-browser-mcp
 
 # HTTP, bound to loopback only
-justpen-browser-mcp --transport http --host 127.0.0.1 --port 8931
+uv run justpen-browser-mcp --transport http --host 127.0.0.1 --port 8931
 ```
 
 The HTTP MCP endpoint is `http://127.0.0.1:8931/mcp`.

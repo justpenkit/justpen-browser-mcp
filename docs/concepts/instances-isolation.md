@@ -38,15 +38,17 @@ Each instance has its own:
 ## Naming { #naming }
 
 Instances are identified by a string name of your choice. Names are
-case-sensitive. Tools that operate on an instance accept a `name` parameter;
-see the [Lifecycle tools](../tools-reference/lifecycle.md) page for creation
+case-sensitive. Creation and destruction use the `name` parameter; other tools
+scoped to an instance use `instance`.
+See the [Lifecycle tools](../tools-reference/lifecycle.md) page for creation
 and teardown.
 
 ## Ephemeral vs. persistent { #ephemeral-vs-persistent }
 
-`profile_dir=None` (the default) creates an **ephemeral** instance. Camoufox
-stores all browser state in memory; no profile is written to disk. When the
-instance is destroyed, the state is gone entirely.
+`profile_dir=None` (the default) creates an **ephemeral** instance without a
+reusable persistent profile. Its session is discarded when the instance closes.
+The browser can still create temporary profile files; ephemeral mode does not
+guarantee that no files are written to disk.
 
 `profile_dir="/path/to/dir"` creates a **persistent** instance. Cookies,
 localStorage, saved passwords, and other profile data survive across

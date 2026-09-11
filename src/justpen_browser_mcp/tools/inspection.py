@@ -40,7 +40,7 @@ def _register_browser_snapshot(mcp: FastMCP, mgr: InstanceManager) -> None:
         """Capture an accessibility snapshot of the active page in LLM-friendly YAML.
 
         Default (selector=None): a full-page snapshot is captured via the internal
-        snapshotForAI channel. Each interactive element is annotated with a
+        Frame.ariaSnapshot channel with mode="ai". Each interactive element is annotated with a
         [ref=eN] tag, for example:
             button "Submit" [ref=e12]
             textbox "Email" [ref=e7]

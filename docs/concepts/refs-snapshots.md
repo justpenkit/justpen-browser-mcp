@@ -17,19 +17,17 @@ When `browser_snapshot` is called with `selector=<css-or-aria>`, it returns a sc
 
 ## How a ref is captured { #how-a-ref-is-captured }
 
-The full-page (`selector=None`) snapshot is captured via Playwright's internal
-`snapshotForAI` protocol method. The Python high-level API does not expose
-this method (as of Playwright 1.58), so the server calls the underlying
-protocol channel directly (`page._impl_obj._channel.send("snapshotForAI", ...)`)
-— see [microsoft/playwright-python#2867](https://github.com/microsoft/playwright-python/issues/2867)
-for the upstream tracking issue. This workaround lives in one place
-(`ref_resolver.py`) rather than being scattered across tools.
+The full-page (`selector=None`) snapshot uses Playwright's internal
+`Frame.ariaSnapshot` protocol method with `mode="ai"` on the main frame.
+The pinned Playwright 1.59 driver exposes this AI mode through its private
+protocol, so `_playwright_internal.py` centralizes the channel access.
+`ref_resolver.py` calls that facade to obtain the ref-annotated YAML.
 
 ## How a ref is resolved back to an element { #how-a-ref-is-resolved-back-to-an-element }
 
 Interaction tools resolve a `ref` to a Playwright `Locator` via
 `page.locator(f"aria-ref={ref}")` — the standard, public `aria-ref` selector
-engine, which is unaffected by the `snapshotForAI` workaround above. If the
+engine, which is unaffected by the private snapshot call above. If the
 ref no longer matches any element (stale — see below), resolution raises
 `StaleRefError`.
 

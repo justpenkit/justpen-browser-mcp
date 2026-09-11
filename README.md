@@ -11,10 +11,10 @@ identities.
 
 ## Install
 
-Install with [uv](https://docs.astral.sh/uv/). Release `v0.4.0` predates Python
-3.11/3.12 support and requires Python 3.13. The current checkout supports Python
-3.11–3.13; [clone current main](docs/contributing/getting-started.md#clone-and-set-up)
-for unreleased improvements.
+Requires Python 3.11–3.13. Install with [uv](https://docs.astral.sh/uv/)
+inside your Python project. See the [installation guide](docs/getting-started/install.md)
+for platform requirements, or [clone the repository](docs/contributing/getting-started.md#clone-and-set-up)
+to contribute.
 
 ```bash
 uv add "justpen-browser-mcp @ git+https://github.com/justpenkit/justpen-browser-mcp@v0.4.0"
@@ -23,7 +23,7 @@ uv add "justpen-browser-mcp @ git+https://github.com/justpenkit/justpen-browser-
 Run the server (stdio transport); startup fetches Camoufox if needed:
 
 ```bash
-justpen-browser-mcp
+uv run justpen-browser-mcp
 ```
 
 ## Documentation

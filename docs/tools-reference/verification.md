@@ -94,7 +94,7 @@ Container mode:
 
 - `instance_not_found`
 - `modal_state_blocked`
-- `invalid_params` — neither mode supplied, both modes supplied, or `container_ref` given without `items`
+- `invalid_params` — neither mode supplied, both modes supplied, empty `refs` or `items`, or `container_ref` given without `items`
 - `stale_ref` — a ref is no longer in the accessibility tree
 - `verification_failed` — one or more elements or items are not visible
 
