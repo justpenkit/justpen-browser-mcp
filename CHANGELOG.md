@@ -1,7 +1,18 @@
-## Unreleased
+## v0.5.0 (2026-09-11)
+
+### BREAKING CHANGE
+
+- The secured cryptography dependency drops Intel macOS
+    and 32-bit Windows support; current platform requirements are documented.
+
+### Feat
+
+- adopt shared MCP development framework
 
 ### Fix
 
+- exclude the implicit request-blocking browser addon
+- isolate sandbox probes and storage readiness
 - preserve server failures and browser origin boundaries
 
 ## v0.4.0 (2026-07-03)

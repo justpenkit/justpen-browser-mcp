@@ -48,8 +48,8 @@ def register(mcp: FastMCP, mgr: InstanceManager) -> None:
                 closed_index = istate.active_page_index
                 page = await mgr.active_page(instance)
                 await page.close()
-                # Update active index so the prior tab becomes active,
-                # matching browser_tabs(action="close") behavior.
+                # Retain the index for the next tab, clamping to the prior tab
+                # when the last tab closes, as browser_tabs(action="close") does.
                 remaining = len(ctx.pages)
                 if remaining == 0:
                     istate.active_page_index = 0

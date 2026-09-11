@@ -8,7 +8,11 @@ Mouse tools provide low-level positional control over the browser's mouse pointe
 
 ## browser_mouse_click_xy { #browser_mouse_click_xy }
 
-Click the mouse at an absolute pixel position on the active page.
+Click the mouse at a viewport position on the active page.
+
+All click, move and drag coordinates on this page use CSS pixels relative to
+the main frame's viewport, with `(0, 0)` at its top-left corner. They are not
+document coordinates; account for scrolling when choosing a target position.
 
 **Signature**
 
@@ -25,14 +29,14 @@ async def browser_mouse_click_xy(
 
 **Parameters**
 
-| Name          | Type  | Default  | Description                                                |
-| ------------- | ----- | -------- | ---------------------------------------------------------- |
-| `instance`    | `str` | —        | Instance name.                                             |
-| `x`           | `int` | —        | Page-relative horizontal pixel coordinate (0 = left edge). |
-| `y`           | `int` | —        | Page-relative vertical pixel coordinate (0 = top edge).    |
-| `button`      | `str` | `"left"` | One of `"left"`, `"right"`, `"middle"`.                    |
-| `click_count` | `int` | `1`      | Number of clicks to deliver; use `2` for a double-click.   |
-| `delay_ms`    | `int` | `0`      | Delay in milliseconds between mousedown and mouseup.       |
+| Name          | Type  | Default  | Description                                                        |
+| ------------- | ----- | -------- | ------------------------------------------------------------------ |
+| `instance`    | `str` | —        | Instance name.                                                     |
+| `x`           | `int` | —        | Viewport-relative horizontal CSS pixel coordinate (0 = left edge). |
+| `y`           | `int` | —        | Viewport-relative vertical CSS pixel coordinate (0 = top edge).    |
+| `button`      | `str` | `"left"` | One of `"left"`, `"right"`, `"middle"`.                            |
+| `click_count` | `int` | `1`      | Number of clicks to deliver; use `2` for a double-click.           |
+| `delay_ms`    | `int` | `0`      | Delay in milliseconds between mousedown and mouseup.               |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -44,6 +48,7 @@ async def browser_mouse_click_xy(
 
 - `instance_not_found`
 - `modal_state_blocked`
+- `invalid_params` — unsupported mouse button
 - `internal_error`
 
 **Example**
@@ -135,6 +140,7 @@ async def browser_mouse_down(instance: str, button: str = "left") -> dict[str, A
 
 - `instance_not_found`
 - `modal_state_blocked`
+- `invalid_params` — unsupported mouse button
 - `internal_error`
 
 **Example**
@@ -180,6 +186,7 @@ async def browser_mouse_up(instance: str, button: str = "left") -> dict[str, Any
 
 - `instance_not_found`
 - `modal_state_blocked`
+- `invalid_params` — unsupported mouse button
 - `internal_error`
 
 **Example**

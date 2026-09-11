@@ -52,4 +52,4 @@ Response:
 { "status": "success", "instance": "main", "data": { "closed": true } }
 ```
 
-**Notes** — Only the currently active page is closed; other tabs remain open. After close, the previous tab becomes active — matching `browser_tabs(action="close")` behavior. Use `browser_destroy_instance` to tear down the entire browser session.
+**Notes** — Only the currently active page is closed; other tabs remain open. The next remaining tab becomes active, or the previous tab when closing the last tab in the list. This matches `browser_tabs(action="close")` when it closes the active tab. Use `browser_destroy_instance` to tear down the entire browser session.

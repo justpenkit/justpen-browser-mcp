@@ -39,7 +39,7 @@ def _register_browser_mouse_click_xy(mcp: FastMCP, mgr: InstanceManager) -> None
         the target element is in the accessibility snapshot — it is more reliable
         and does not depend on exact layout coordinates.
 
-        x, y are page-relative pixels (top-left is 0,0). button is "left",
+        x, y are main-frame viewport CSS pixels (top-left is 0,0). button is "left",
         "right", or "middle" (default "left"). click_count is the number of
         clicks to deliver (default 1; use 2 for a double-click). delay_ms is
         the delay in milliseconds between mousedown and mouseup (default 0).
@@ -77,7 +77,7 @@ def _register_browser_mouse_move_xy(mcp: FastMCP, mgr: InstanceManager) -> None:
         at specific coordinates. Prefer browser_hover(ref=...) when the target
         is in the accessibility snapshot.
 
-        x, y are page-relative pixels (top-left is 0,0).
+        x, y are main-frame viewport CSS pixels (top-left is 0,0).
 
         Returns on success:
             data: {"moved_to": [x, y]}
@@ -169,7 +169,7 @@ def _register_browser_mouse_drag_xy(mcp: FastMCP, mgr: InstanceManager) -> None:
         """Drag the mouse from one absolute pixel position to another.
 
         Performs: move to (from_x, from_y), press left button, move to (to_x, to_y),
-        release. All coordinates are page-relative pixels (top-left is 0,0).
+        release. All coordinates are main-frame viewport CSS pixels (top-left is 0,0).
 
         For element-to-element drag, prefer browser_drag(source_ref, target_ref)
         which uses accessibility refs and is more stable across layout changes.

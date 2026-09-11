@@ -64,6 +64,10 @@ CLI flags are implemented as an overlay onto the environment before
 env var, and an unset flag falls through to whatever the env var (or default)
 provides.
 
+A configured proxy automatically enables GeoIP lookup using the proxy's public
+IP. This launch behavior takes precedence over `geoip=False`, including a
+per-instance override.
+
 ## Instance cap { #instance-cap }
 
 `BROWSER_MCP_MAX_INSTANCES` controls how many Camoufox processes the server
