@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Delayed link</title>
+  </head>
+  <body>
+    <h1 id="title">Home</h1>
+    <a id="to-form" href="/form.html">Form</a>
+    <a id="to-second" href="/second.html" target="_blank">New Tab</a>
+    <script>
+        const link = document.querySelector("#to-form");
+        link.addEventListener("click", (event) => {
+            event.preventDefault();
+            window.setTimeout(() => window.location.assign(link.href), 3000);
+        });
+    </script>
+  </body>
+</html>

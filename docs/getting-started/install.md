@@ -41,6 +41,10 @@ which updates the Camoufox SDK's shared default browser for subsequent launches.
 Use `make browser-fetch` to restore that selection, and keep the compatibility
 bound in `pyproject.toml`.
 
+The current checkout excludes Camoufox's automatically added uBlock Origin
+extension because its startup request handler can leave navigations suspended.
+Extensions already installed in a persistent profile are retained.
+
 `make install` installs dependencies only. See the
 [contributor setup](../contributing/getting-started.md) for the full workflow.
 

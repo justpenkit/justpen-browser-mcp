@@ -164,3 +164,10 @@ async def test_local_storage_roundtrip_and_clear(e2e_client, test_site):
     after = await call(e2e_client, "browser_get_local_storage", {"instance": "c4", "origin": origin})
     assert after["status"] == "success", after
     assert after["data"]["items"] == {}
+
+    active = await call(e2e_client, "browser_evaluate", {"instance": "c4", "expression": "location.href"})
+    assert active["status"] == "success", active
+    assert active["data"]["result"] == f"{test_site}/index.html"
+    tabs = await call(e2e_client, "browser_tabs", {"instance": "c4", "action": "list"})
+    assert tabs["status"] == "success", tabs
+    assert tabs["data"]["tabs"] == [{"index": 0, "url": f"{test_site}/index.html"}]
