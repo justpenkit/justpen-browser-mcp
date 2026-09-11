@@ -1,11 +1,13 @@
 """Mouse positional tools — 6 tools."""
 
+import asyncio
 import contextlib
 import logging
 from typing import Any, Literal, cast
 
+import anyio
 from fastmcp import FastMCP
-from playwright.async_api import TimeoutError as PWTimeout
+from playwright.async_api import Mouse, TimeoutError as PWTimeout
 
 from ..errors import BrowserMcpError, InvalidParamsError
 from ..instance_manager import InstanceManager, assert_no_modal
@@ -14,6 +16,25 @@ from ..responses import error_response, success_response
 logger = logging.getLogger(__name__)
 
 _VALID_BUTTONS: frozenset[str] = frozenset({"left", "middle", "right"})
+
+
+async def _release_drag_button(mouse: Mouse) -> None:
+    """Finish a bounded mouse release even if the caller is being cancelled."""
+
+    async def release() -> None:
+        async with asyncio.timeout(2):
+            await mouse.up()
+
+    cleanup = asyncio.create_task(release())
+    with anyio.CancelScope(shield=True):
+        try:
+            await asyncio.shield(cleanup)
+        except asyncio.CancelledError:
+            # An asyncio Task.cancel() can still interrupt an AnyIO shield.
+            # Keep the instance lock until the release finishes, then propagate.
+            with contextlib.suppress(Exception):
+                await asyncio.shield(cleanup)
+            raise
 
 
 def _validated_button(button: str) -> Literal["left", "middle", "right"]:
@@ -53,8 +74,8 @@ def _register_browser_mouse_click_xy(mcp: FastMCP, mgr: InstanceManager) -> None
         """
         try:
             mgr.get(instance)
-            assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
+                assert_no_modal(mgr, instance)
                 page = await mgr.active_page(instance)
                 await page.mouse.click(x, y, button=_validated_button(button), click_count=click_count, delay=delay_ms)
                 with contextlib.suppress(PWTimeout):
@@ -88,8 +109,8 @@ def _register_browser_mouse_move_xy(mcp: FastMCP, mgr: InstanceManager) -> None:
         """
         try:
             mgr.get(instance)
-            assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
+                assert_no_modal(mgr, instance)
                 page = await mgr.active_page(instance)
                 await page.mouse.move(x, y)
             return success_response(instance, data={"moved_to": [x, y]})
@@ -119,8 +140,8 @@ def _register_browser_mouse_down(mcp: FastMCP, mgr: InstanceManager) -> None:
         """
         try:
             mgr.get(instance)
-            assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
+                assert_no_modal(mgr, instance)
                 page = await mgr.active_page(instance)
                 await page.mouse.down(button=_validated_button(button))
             return success_response(instance, data={"button_down": button})
@@ -150,8 +171,8 @@ def _register_browser_mouse_up(mcp: FastMCP, mgr: InstanceManager) -> None:
         """
         try:
             mgr.get(instance)
-            assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
+                assert_no_modal(mgr, instance)
                 page = await mgr.active_page(instance)
                 await page.mouse.up(button=_validated_button(button))
             return success_response(instance, data={"button_up": button})
@@ -183,13 +204,23 @@ def _register_browser_mouse_drag_xy(mcp: FastMCP, mgr: InstanceManager) -> None:
         """
         try:
             mgr.get(instance)
-            assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
+                assert_no_modal(mgr, instance)
                 page = await mgr.active_page(instance)
                 await page.mouse.move(from_x, from_y)
-                await page.mouse.down()
-                await page.mouse.move(to_x, to_y)
-                await page.mouse.up()
+                failed = False
+                try:
+                    await page.mouse.down()
+                    await page.mouse.move(to_x, to_y)
+                except BaseException:
+                    failed = True
+                    raise
+                finally:
+                    try:
+                        await _release_drag_button(page.mouse)
+                    except Exception:
+                        if not failed:
+                            raise
                 with contextlib.suppress(PWTimeout):
                     await page.wait_for_load_state("domcontentloaded", timeout=2000)
             return success_response(instance, data={"from": [from_x, from_y], "to": [to_x, to_y]})
@@ -228,8 +259,8 @@ def _register_browser_mouse_wheel(mcp: FastMCP, mgr: InstanceManager) -> None:
                     "at least one of delta_x or delta_y must be non-zero",
                 )
             mgr.get(instance)
-            assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
+                assert_no_modal(mgr, instance)
                 page = await mgr.active_page(instance)
                 await page.mouse.wheel(delta_x, delta_y)
             return success_response(instance, data={"scrolled": [delta_x, delta_y]})

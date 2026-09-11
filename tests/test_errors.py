@@ -49,8 +49,8 @@ def test_profile_dir_in_use_mapping():
 
 
 def test_valid_error_types_has_expected_count():
-    # 15 active + 1 profile_dir_in_use + 1 new instance_crashed = 17
-    assert len(VALID_ERROR_TYPES) == 17
+    assert {"operation_timeout", "result_too_large", "unsupported_capability"} <= VALID_ERROR_TYPES
+    assert len(VALID_ERROR_TYPES) == 20
 
 
 def test_instance_crashed_error_type():

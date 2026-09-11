@@ -1,7 +1,7 @@
 # Release process
 
 This project releases from `main`. Create a version bump on a feature branch,
-merge its PR, then push the local annotated tag to create the GitHub Release.
+merge its PR, then create and push the annotated tag to create the GitHub Release.
 The sequence is identical for patch, minor and major bumps.
 
 ## Versioning policy
@@ -31,14 +31,14 @@ Each `make bump-{patch,minor,major}` target:
     and formats `CHANGELOG.md` with mdformat. The website reads the version from
     project metadata during its MkDocs build.
 4. Commits the release changes with the normal Git hooks enabled.
-5. Creates the annotated local tag `v<new-version>` after the commit succeeds.
+5. Leaves tag creation to `make release-tag` after the reviewed PR merges.
 
 Every failed step stops the command. Inspect the reported error and working
 tree before retrying; formatting and hook changes are not silently discarded.
 The command never pushes tags or publishes to PyPI.
 
 For coding agents, ordinary uv-managed version changes remain allowed. The
-complete release operation also commits and tags, so it requires release
+complete release operation also commits and eventually tags, so it requires release
 authorization and is not an automatic dependency-management exemption.
 
 ## Step-by-step flow
@@ -63,8 +63,8 @@ make bump-patch     # or bump-minor, or bump-major
 ```
 
 Review the resulting metadata, lockfile and changelog. The command creates the
-bump commit and annotated tag locally. If you chose the wrong segment, inspect
-the unpushed commit and tag and agree on a correction before changing history.
+bump commit locally. If you chose the wrong segment, inspect the unpushed commit
+and agree on a correction before changing history.
 
 ### 3. Push the branch only
 
@@ -72,9 +72,9 @@ the unpushed commit and tag and agree on a correction before changing history.
 git push -u origin chore/bump-v<new-version>
 ```
 
-Use the branch name you created. Keep the tag local until the PR merges. A tag
-pushed early would refer to a commit that has not reached `main`, and the release
-workflow rejects it.
+Use the branch name you created. Create the tag after the PR merges so it includes
+all changes made during review. An early tag is rejected if unmerged or if its
+contents differ from the reviewed merge.
 
 ### 4. Open and merge the PR
 
@@ -82,23 +82,33 @@ workflow rejects it.
 - Complete the [PR checklist](pr-checklist.md), including `make check` and
     `make docs-build`.
 - Review the changelog as the exact notes that will accompany this release.
-- Merge with a regular merge commit, never squash. Squashing replaces the bump
-    commit and disconnects the local tag from the merged history.
+- Merge with a regular merge commit, never squash. Release finalization tags this
+    reviewed merge, including corrections committed after the version bump.
 
-### 5. Push the tag
+### 5. Create and push the reviewed tag
 
-Once the PR is merged and `main` contains the bump commit:
+Once the PR is merged and its checks have passed, update `main` to the release
+merge and finalize the tag before starting the next release:
 
 ```bash
 git switch main
-git pull
+git pull --ff-only
+make release-tag
 git push origin v<new-version>
 ```
+
+`make release-tag` requires a clean `main` at the same commit as `origin/main`,
+a regular merge commit, a matching changelog section, and an unused tag name.
+It never moves an existing tag or publishes anything itself. If more work has
+already landed on main, inspect the intended release contents before finalizing.
 
 ### 6. Automatic GitHub Release
 
 The tag-triggered workflow verifies that the tag is annotated, matches the
 version in `pyproject.toml`, and points to a commit contained in `origin/main`.
+A tag on a feature-branch commit is accepted only when its tree is identical to
+its first reviewed integration into main; this preserves valid historical tags
+while rejecting tags that omit PR review corrections.
 It takes the corresponding section from `CHANGELOG.md` and creates the GitHub
 Release. A rerun keeps an already-created release instead of duplicating it.
 

@@ -87,10 +87,36 @@
   "browser_console_messages": {
     "additionalProperties": false,
     "properties": {
+      "after": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
       "instance": {
         "type": "string"
       },
       "level": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "limit": {
+        "default": 100,
+        "type": "integer"
+      },
+      "path": {
         "anyOf": [
           {
             "type": "string"
@@ -752,8 +778,34 @@
   "browser_network_requests": {
     "additionalProperties": false,
     "properties": {
+      "after": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
       "instance": {
         "type": "string"
+      },
+      "limit": {
+        "default": 100,
+        "type": "integer"
+      },
+      "path": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
       },
       "static": {
         "default": false,
@@ -876,6 +928,17 @@
       },
       "instance": {
         "type": "string"
+      },
+      "path": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
       }
     },
     "required": [
@@ -998,6 +1061,17 @@
       },
       "instance": {
         "type": "string"
+      },
+      "page_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
       },
       "url": {
         "anyOf": [

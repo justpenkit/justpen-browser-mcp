@@ -50,4 +50,5 @@ for client-specific setup.
 - [Wire up a client](client-setup/claude-code.md) or [configure Codex](client-setup/codex.md) — Claude Code, Codex, Copilot CLI, Gemini CLI.
 - [Browse the tools](tools-reference/lifecycle.md) — All browser automation tools, organized by purpose.
 - [Understand the model](concepts/instances-isolation.md) — Per-instance fingerprint, cookies, storage isolation.
+- [Integrate a framework](guides/framework-integration.md) — Ownership, deadlines, retries and bounded evidence.
 - [Contribute](contributing/pr-checklist.md) — Pre-PR checklist + lint/typing rules.

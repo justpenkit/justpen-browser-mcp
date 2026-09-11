@@ -12,6 +12,9 @@ so downstream code never branches on instance mode.
 
 from __future__ import annotations
 
+import asyncio
+import time
+import uuid
 from contextlib import AsyncExitStack
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -20,11 +23,12 @@ from typing import TYPE_CHECKING, Any, Literal, TypeVar, cast
 from camoufox import DefaultAddons
 from camoufox.async_api import AsyncCamoufox
 
+from .events import EventBuffer
+
 if TYPE_CHECKING:
-    import asyncio
     from collections.abc import Callable
 
-    from playwright.async_api import Browser, BrowserContext
+    from playwright.async_api import Browser, BrowserContext, Page
 
 
 def _utcnow() -> datetime:
@@ -36,13 +40,16 @@ def _utcnow() -> datetime:
 class InstanceState:
     """Per-instance bookkeeping (console, network, modal state, active tab index)."""
 
-    console_messages: list[dict[str, Any]] = field(default_factory=list[dict[str, Any]])
-    network_requests: list[dict[str, Any]] = field(default_factory=list[dict[str, Any]])
+    console_messages: EventBuffer = field(default_factory=EventBuffer)
+    network_requests: EventBuffer = field(default_factory=EventBuffer)
     network_request_index: dict[int, dict[str, Any]] = field(default_factory=dict[int, dict[str, Any]])
     active_page_index: int = 0
+    active_page: Page | None = None
+    page_ids: dict[Page, str] = field(default_factory=dict["Page", str])
     modal_states: list[dict[str, Any]] = field(default_factory=list[dict[str, Any]])
-    status: Literal["live", "crashed"] = "live"
+    status: Literal["live", "crashed", "closing", "close_failed"] = "live"
     last_used_at: datetime = field(default_factory=_utcnow)
+    last_used_monotonic: float = field(default_factory=time.monotonic)
 
 
 @dataclass
@@ -57,6 +64,11 @@ class InstanceRecord:
     profile_dir: str | None
     created_at: datetime
     browser: Browser | None
+    instance_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    modal_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    operation_tasks: set[asyncio.Task[Any]] = field(default_factory=set[asyncio.Task[Any]])
+    close_task: asyncio.Task[None] | None = None
+    close_error: str | None = None
 
 
 T = TypeVar("T")
@@ -85,6 +97,7 @@ def _set_optional(
 
 async def launch_instance(
     *,
+    stack: AsyncExitStack | None = None,
     profile_dir: str | None,
     headless: bool | Literal["virtual"],
     proxy: dict[str, str] | None,
@@ -104,8 +117,9 @@ async def launch_instance(
     """Launch a Camoufox instance and return its exit stack + normalized BrowserContext.
 
     The caller owns the returned stack and is responsible for calling aclose()
-    when the instance is no longer needed. On exception during launch, the stack
-    is closed internally before re-raising so no resources leak. The third
+    when the instance is no longer needed. A supplied stack remains caller-owned
+    even when launch raises, allowing the manager to bound rollback and retain
+    failed teardown reservations. Without a supplied stack, rollback is internal. The third
     element is the Browser handle for ephemeral mode (used to wire up
     "disconnected" crash detection) or None for persistent mode, where Camoufox
     hands back a BrowserContext directly with no separate Browser object.
@@ -134,13 +148,14 @@ async def launch_instance(
     _set_optional(kwargs, "block_webgl", block_webgl)
     _set_optional(kwargs, "os", camoufox_os, transform=list)
     _set_optional(kwargs, "locale", locale)
-    _set_optional(kwargs, "geoip", geoip, require_truthy=True)
+    _set_optional(kwargs, "geoip", geoip)
     _set_optional(kwargs, "firefox_user_prefs", firefox_user_prefs, transform=dict, require_truthy=True)
     _set_optional(kwargs, "args", camoufox_args, transform=list, require_truthy=True)
     _set_optional(kwargs, "enable_cache", enable_cache)
     _set_optional(kwargs, "ff_version", ff_version)
 
-    stack = AsyncExitStack()
+    owns_stack = stack is None
+    stack = stack if stack is not None else AsyncExitStack()
     await stack.__aenter__()
     browser_handle: Browser | None = None
     try:
@@ -151,6 +166,7 @@ async def launch_instance(
             browser_handle = cast("Browser", obj)
             ctx = await browser_handle.new_context()
     except BaseException:
-        await stack.aclose()
+        if owns_stack:
+            await stack.aclose()
         raise
     return stack, ctx, browser_handle

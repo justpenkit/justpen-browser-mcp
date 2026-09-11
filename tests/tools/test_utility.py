@@ -1,7 +1,5 @@
 """Tests for tools/utility.py — 3 utility tools."""
 
-import asyncio
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from justpen_browser_mcp.errors import InstanceNotFoundError, StaleRefError
@@ -24,7 +22,12 @@ def make_page(mock_ctx_mgr):
     )
     ctx = MagicMock()
     ctx.pages = [page]
-    ctx.new_page = AsyncMock(return_value=new_page_mock)
+
+    async def new_page():
+        ctx.pages.append(new_page_mock)
+        return new_page_mock
+
+    ctx.new_page = AsyncMock(side_effect=new_page)
     rec = MagicMock()
     rec.context = ctx
     mock_ctx_mgr.get.return_value = rec
@@ -46,52 +49,16 @@ class TestBrowserResize:
 
 
 class TestBrowserPdfSave:
-    async def test_saves_pdf(self, mcp_client, mock_ctx_mgr, tmp_path):
-        make_page(mock_ctx_mgr)
+    async def test_reports_unsupported_without_creating_file(self, mcp_client, mock_ctx_mgr, tmp_path):
+        page = make_page(mock_ctx_mgr)
         out = tmp_path / "out.pdf"
         result = await mcp_client.call_tool(
             "browser_pdf_save",
-            {"instance": "admin", "file_path": str(out)},
+            {"instance": "admin", "file_path": str(out), "landscape": True, "print_background": True},
         )
-        assert result.data["status"] == "success"
-        assert out.exists()
-        assert out.read_bytes().startswith(b"%PDF")
-
-    async def test_pdf_save_default_filename(self, mcp_client, mock_ctx_mgr, tmp_path, monkeypatch):
-        make_page(mock_ctx_mgr)
-        monkeypatch.setenv("JUSTPEN_WORKSPACE", str(tmp_path))
-        result = await mcp_client.call_tool("browser_pdf_save", {"instance": "admin"})
-        assert result.data["status"] == "success"
-        saved = result.data["data"]["saved_to"]
-        assert "output/evidence/page-" in saved
-        assert await asyncio.to_thread(Path(saved).exists)
-
-    async def test_pdf_save_landscape(self, mcp_client, mock_ctx_mgr, tmp_path):
-        page = make_page(mock_ctx_mgr)
-        out = tmp_path / "land.pdf"
-        result = await mcp_client.call_tool(
-            "browser_pdf_save",
-            {"instance": "admin", "file_path": str(out), "landscape": True},
-        )
-        assert result.data["status"] == "success"
-        page.pdf.assert_awaited_once()
-        kwargs = page.pdf.call_args.kwargs
-        assert kwargs.get("landscape") is True
-
-    async def test_pdf_save_print_background(self, mcp_client, mock_ctx_mgr, tmp_path):
-        page = make_page(mock_ctx_mgr)
-        out = tmp_path / "bg.pdf"
-        result = await mcp_client.call_tool(
-            "browser_pdf_save",
-            {
-                "instance": "admin",
-                "file_path": str(out),
-                "print_background": True,
-            },
-        )
-        assert result.data["status"] == "success"
-        kwargs = page.pdf.call_args.kwargs
-        assert kwargs.get("print_background") is True
+        assert result.data["error_type"] == "unsupported_capability"
+        page.pdf.assert_not_awaited()
+        assert not out.exists()
 
 
 class TestBrowserResizeModalGuard:
@@ -184,6 +151,7 @@ class TestBrowserTabs:
         rec.context = ctx
         mock_ctx_mgr.state.return_value.active_page_index = 2
         mock_ctx_mgr.get.return_value = rec
+        mock_ctx_mgr.active_page.return_value = page2
 
         result = await mcp_client.call_tool(
             "browser_tabs",

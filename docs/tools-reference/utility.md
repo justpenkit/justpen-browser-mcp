@@ -4,7 +4,9 @@ description: Miscellaneous helpers and diagnostic tools.
 
 # Utility { #_top }
 
-Utility tools provide assorted helpers for viewport management, PDF rendering, locator generation, and tab navigation. These tools augment navigation and interaction by offering cross-cutting capabilities like responsive testing, document export, and durable selector resolution.
+Utility tools resize viewports, generate reusable locators, and manage tabs. The PDF compatibility tool reports that this Firefox/Camoufox server does not support PDF generation.
+
+Examples below focus on tool-specific data. Registered tools also return the shared [operation metadata and error fields](../concepts/response-envelope.md).
 
 ## browser_resize { #browser_resize }
 
@@ -52,7 +54,7 @@ Response:
 
 ## browser_pdf_save { #browser_pdf_save }
 
-Render the active page as a PDF and save it to the given file path.
+Report `unsupported_capability`: PDF generation requires Chromium and is unavailable on this Firefox/Camoufox server.
 
 **Signature**
 
@@ -69,25 +71,20 @@ async def browser_pdf_save(
 
 **Parameters**
 
-| Name               | Type          | Default | Description                                                                                            |
-| ------------------ | ------------- | ------- | ------------------------------------------------------------------------------------------------------ |
-| `instance`         | `str`         | —       | Instance name.                                                                                         |
-| `file_path`        | `str \| None` | `None`  | Destination path. When omitted, defaults to `$JUSTPEN_WORKSPACE/output/evidence/page-{timestamp}.pdf`. |
-| `paper_format`     | `str`         | `"A4"`  | Paper size string: `"A4"`, `"Letter"`, `"A3"`, etc.                                                    |
-| `landscape`        | `bool`        | `False` | Rotate to landscape orientation.                                                                       |
-| `print_background` | `bool`        | `False` | Include CSS backgrounds in output.                                                                     |
+| Name               | Type          | Default | Description                                     |
+| ------------------ | ------------- | ------- | ----------------------------------------------- |
+| `instance`         | `str`         | —       | Instance name.                                  |
+| `file_path`        | `str \| None` | `None`  | Retained for compatibility; no file is written. |
+| `paper_format`     | `str`         | `"A4"`  | Retained for compatibility; unused.             |
+| `landscape`        | `bool`        | `False` | Retained for compatibility; unused.             |
+| `print_background` | `bool`        | `False` | Retained for compatibility; unused.             |
 
-**Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
-
-```json
-{ "saved_to": "/workspace/output/evidence/page-1719234567.pdf", "size_bytes": 156789 }
-```
+**Returns** — an error [response envelope](../concepts/response-envelope.md); there is no PDF success result on this server.
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
 - `instance_not_found`
-- `modal_state_blocked`
-- `internal_error`
+- `unsupported_capability` — PDF generation requires Chromium
 
 **Example**
 
@@ -104,13 +101,14 @@ Response:
 
 ```json
 {
-  "status": "success",
+  "status": "error",
   "instance": "main",
-  "data": { "saved_to": "/workspace/output/evidence/page-1719234567.pdf", "size_bytes": 156789 }
+  "error_type": "unsupported_capability",
+  "message": "PDF generation is not supported by Firefox/Camoufox. Use browser_screenshot for visual evidence."
 }
 ```
 
-**Notes** — Parent directories of `file_path` are created automatically. PDF generation (`page.pdf()`) is a **Chromium-only** Playwright feature; Camoufox runs Firefox, so this tool currently always fails on this server (it returns `internal_error`) regardless of headless mode. It is documented here for shape parity with the Microsoft Playwright MCP surface, not because it works today. The `landscape` and `print_background` parameters must be passed as keyword-only arguments.
+**Notes** — The tool name and parameters remain available for existing clients. It does not create directories, write a file, or launch another browser. Use [browser_screenshot](inspection.md#browser_screenshot) for visual evidence.
 
 ## browser_generate_locator { #browser_generate_locator }
 
@@ -182,6 +180,8 @@ Response:
 
 **Notes** — Exactly one of `ref` or `selector` must be provided. For `ref` mode, resolution priority is: data-testid > ARIA role+name > label > placeholder > alt text > title > text content > CSS fallback. The `internal_selector` field is a raw Playwright engine selector (e.g. `internal:role=button[name="Submit"i]`) suitable for use directly with `page.locator()`, and survives navigation, making it ideal for saving durable test code or reusable workflow definitions. The `python_syntax` field converts that same resolution into the equivalent Python API call (e.g. `get_by_role("button", name='Submit')`) for codegen output — the two fields describe the same element via different syntaxes, they are not identical strings. In `selector` mode, `internal_selector` preserves the supplied selector and `python_syntax` wraps it in `locator(...)`; for `selector="#main"`, these are `"#main"` and `"locator('#main')"` respectively.
 
+Complex selectors use `locator(...)` in `python_syntax` when a shorter Python call would lose meaning. Role filters, `nth` selection, and frame chains remain intact. For example, `internal:role=button[name="Same"i] >> nth=1` stays a raw locator that selects the second matching button.
+
 ## browser_tabs { #browser_tabs }
 
 Manage tabs (pages) within a browser instance.
@@ -194,29 +194,32 @@ async def browser_tabs(
     action: str,
     index: int | None = None,
     url: str | None = None,
+    page_id: str | None = None,
 ) -> dict[str, Any]
 ```
 
 **Parameters**
 
-| Name       | Type          | Default | Description                                                   |
-| ---------- | ------------- | ------- | ------------------------------------------------------------- |
-| `instance` | `str`         | —       | Instance name.                                                |
-| `action`   | `str`         | —       | One of `"list"`, `"new"`, `"close"`, `"select"`.              |
-| `index`    | `int \| None` | `None`  | Tab index (required for `"close"` and `"select"`).            |
-| `url`      | `str \| None` | `None`  | URL to navigate to when opening a new tab (only for `"new"`). |
+| Name       | Type          | Default | Description                                                                                  |
+| ---------- | ------------- | ------- | -------------------------------------------------------------------------------------------- |
+| `instance` | `str`         | —       | Instance name.                                                                               |
+| `action`   | `str`         | —       | One of `"list"`, `"new"`, `"close"`, `"select"`.                                             |
+| `index`    | `int \| None` | `None`  | Current zero-based tab index for `"close"` or `"select"`; mutually exclusive with `page_id`. |
+| `url`      | `str \| None` | `None`  | URL to navigate to when opening a new tab (only for `"new"`).                                |
+| `page_id`  | `str \| None` | `None`  | Stable tab ID for `"close"` or `"select"`; mutually exclusive with `index`.                  |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape depends on `action`:
 
-- `"list"`: `{"tabs": [{"index": 0, "url": "https://example.com"}, ...]}`
-- `"new"`: `{"index": 1, "url": "https://example.com"}`
-- `"close"`: `{"closed_index": 1}`
-- `"select"`: `{"selected_index": 1}`
+- `"list"`: `{"tabs": [{"index": 0, "url": "https://example.com", "page_id": "page-1"}, ...]}`
+- `"new"`: `{"index": 1, "url": "https://example.com", "page_id": "page-2"}`
+- `"close"`: `{"closed_index": 1, "page_id": "page-2"}`
+- `"select"`: `{"selected_index": 1, "page_id": "page-2"}`
 
 **Errors** — emits `error_type` codes (see [envelope error codes](../concepts/response-envelope.md#error_type-values)):
 
 - `instance_not_found`
-- `invalid_params` — unrecognized action, or index missing/out of range
+- `invalid_params` — unrecognized action, missing or unknown target, conflicting `index`/`page_id`, or `page_id` supplied for `"list"`/`"new"`
+- `modal_state_blocked` — `"new"` was requested while a modal is pending
 
 **Example**
 
@@ -234,8 +237,8 @@ Response:
   "instance": "main",
   "data": {
     "tabs": [
-      { "index": 0, "url": "https://example.com" },
-      { "index": 1, "url": "https://example.com/page2" }
+      { "index": 0, "url": "https://example.com", "page_id": "page-1" },
+      { "index": 1, "url": "https://example.com/page2", "page_id": "page-2" }
     ]
   }
 }
@@ -256,8 +259,18 @@ Response:
 {
   "status": "success",
   "instance": "main",
-  "data": { "index": 1, "url": "https://example.com/page2" }
+  "data": { "index": 1, "url": "https://example.com/page2", "page_id": "page-2" }
 }
 ```
 
-**Notes** — The `action` parameter is required and must be one of the four values listed above. For `"close"` and `"select"`, the `index` parameter must be a valid tab index (0-based). The active page index is automatically adjusted when a tab is closed to ensure the instance always has an active page.
+Request (select by stable ID):
+
+```json
+{ "name": "browser_tabs", "arguments": { "instance": "main", "action": "select", "page_id": "page-2" } }
+```
+
+**Notes** — For `"close"` and `"select"`, supply either a current `index` or a `page_id` returned by this tool. IDs are opaque and remain stable for a page's lifetime, including when other tabs close and indices shift. IDs are not reusable after that page or instance is destroyed. The strings above are illustrative.
+
+`"new"` selects the page created by that request, even if another popup opens while its URL loads. If loading fails or the request is cancelled, the tool attempts a bounded close of the newly created tab while preserving the original failure. Inspect the tab list after an error if the browser could not complete cleanup. Closing a non-active tab preserves the active page; closing the active tab selects the next remaining tab, or the previous one at the end of the list. Closing the last tab keeps the instance alive with no open pages.
+
+Operation metadata for `"new"`, `"select"`, and `"close"` identifies the page acted on, including the closed page for `"close"`.

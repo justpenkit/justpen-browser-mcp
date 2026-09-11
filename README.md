@@ -6,8 +6,13 @@ Exposes a stealth-patched Firefox (via [Camoufox](https://github.com/daijro/camo
 to MCP-aware clients as a set of browser automation tools. Each named instance
 runs in its own Camoufox process with its own BrowserForge fingerprint and
 (optionally) its own persistent profile on disk, so a single server can drive
-fully isolated parallel sessions for different users, tenants, or pentest
+separate parallel browser sessions for different users, tenants, or pentest
 identities.
+
+The runtime provides stable instance/tab identities, cooperative operation deadlines,
+bounded console/network evidence with cursor pagination, and explicit recovery
+metadata on tool results. See the [framework integration guide](docs/guides/framework-integration.md)
+for lifecycle ownership, artifact collection and process supervision.
 
 ## Install
 

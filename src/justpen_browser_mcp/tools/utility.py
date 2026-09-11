@@ -3,18 +3,17 @@
 browser_resize, browser_pdf_save, browser_generate_locator, browser_tabs.
 """
 
-import asyncio
+import contextlib
 import logging
-import os
-import time
-from pathlib import Path
 from typing import Any
 
+import anyio
 from fastmcp import FastMCP
 from playwright.async_api import BrowserContext
 
 from ..errors import BrowserMcpError
-from ..instance_manager import InstanceManager, InstanceState, assert_no_modal
+from ..instance_manager import InstanceManager, assert_no_modal
+from ..operation_context import mark_operation_started
 from ..ref_resolver import resolve_selector_to_stable
 from ..responses import error_response, success_response
 from .navigation import canonicalize_browser_url
@@ -40,8 +39,8 @@ def _register_browser_resize(mcp: FastMCP, mgr: InstanceManager) -> None:
         """
         try:
             mgr.get(instance)
-            assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
+                assert_no_modal(mgr, instance)
                 page = await mgr.active_page(instance)
                 await page.set_viewport_size({"width": width, "height": height})
             return success_response(instance, data={"width": width, "height": height})
@@ -63,48 +62,28 @@ def _register_browser_pdf_save(mcp: FastMCP, mgr: InstanceManager) -> None:
         landscape: bool = False,
         print_background: bool = False,
     ) -> dict[str, Any]:
-        """Render the active page as a PDF and save it to the given file path.
+        """Report that PDF generation is unsupported by this Firefox/Camoufox server.
 
-        file_path is optional — when omitted, a file named ``page-{timestamp}.pdf``
-        is written under ``$JUSTPEN_WORKSPACE/output/evidence`` (default:
-        ``/workspace/output/evidence``). paper_format is a paper size string:
-        "A4" (default), "Letter", "A3", etc. landscape rotates the
-        page to landscape orientation. print_background includes CSS
-        backgrounds in the rendered output (off by default to match browser
-        print behavior). Parent directories of file_path are created
-        automatically if they don't exist. Only works in headless mode
-        (Camoufox runs headless by default).
-
-        Returns on success:
-            data: {"saved_to": str, "size_bytes": int}
+        Playwright's PDF API requires Chromium. This compatibility tool never
+        launches another browser or writes a file. Its parameters are retained
+        so existing clients receive a precise unsupported_capability response.
 
         Errors:
-            instance_not_found  — instance does not exist
-            modal_state_blocked — a dialog is pending and must be handled first
-            internal_error      — PDF generation failed (e.g. not in headless mode)
+            instance_not_found     — instance does not exist
+            unsupported_capability — PDF generation requires Chromium
         """
+        # Retain these legacy parameters in the tool schema without pretending
+        # that a Firefox renderer can honor any PDF options.
+        del file_path, paper_format, landscape, print_background
         try:
             mgr.get(instance)
-            assert_no_modal(mgr, instance)
-            async with mgr.lock_for(instance):
-                page = await mgr.active_page(instance)
-                pdf_bytes = await page.pdf(
-                    format=paper_format,
-                    landscape=landscape,
-                    print_background=print_background,
-                )
-            if file_path is None:
-                base = os.environ.get("JUSTPEN_WORKSPACE", "/workspace")
-                file_path = f"{base}/output/evidence/page-{int(time.time())}.pdf"
-            pdf_path = Path(file_path)
-            await asyncio.to_thread(pdf_path.parent.mkdir, parents=True, exist_ok=True)
-            await asyncio.to_thread(pdf_path.write_bytes, pdf_bytes)
-            return success_response(instance, data={"saved_to": file_path, "size_bytes": len(pdf_bytes)})
+            return error_response(
+                instance,
+                "unsupported_capability",
+                "PDF generation is not supported by Firefox/Camoufox. Use browser_screenshot for visual evidence.",
+            )
         except BrowserMcpError as e:
             return error_response(instance, e.error_type, str(e))
-        except Exception as e:
-            logger.exception("browser_pdf_save failed")
-            return error_response(instance, "internal_error", str(e))
 
 
 def _register_browser_generate_locator(mcp: FastMCP, mgr: InstanceManager) -> None:
@@ -180,8 +159,8 @@ def _register_browser_generate_locator(mcp: FastMCP, mgr: InstanceManager) -> No
             logger.debug("browser_generate_locator: %s", element)
         try:
             mgr.get(instance)
-            assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
+                assert_no_modal(mgr, instance)
                 page = await mgr.active_page(instance)
                 if ref is not None:
                     result = await resolve_selector_to_stable(page, ref)
@@ -206,39 +185,61 @@ def _register_browser_generate_locator(mcp: FastMCP, mgr: InstanceManager) -> No
             return error_response(instance, "internal_error", str(e))
 
 
-async def _tabs_list(ctx: BrowserContext, instance: str) -> dict[str, Any]:
-    tabs = [{"index": i, "url": p.url} for i, p in enumerate(ctx.pages)]
+async def _tabs_list(ctx: BrowserContext, instance: str, mgr: InstanceManager) -> dict[str, Any]:
+    tabs = [{"index": i, "url": p.url, "page_id": mgr.page_id(instance, p)} for i, p in enumerate(ctx.pages)]
     return success_response(instance, data={"tabs": tabs})
 
 
 async def _tabs_new(
     ctx: BrowserContext,
     instance: str,
-    istate: InstanceState,
+    mgr: InstanceManager,
     url: str | None,
 ) -> dict[str, Any]:
     page = await ctx.new_page()
-    if url:
-        await page.goto(canonicalize_browser_url(url))
-    istate.active_page_index = len(ctx.pages) - 1
-    return success_response(instance, data={"index": len(ctx.pages) - 1, "url": page.url})
+    try:
+        mark_operation_started(mgr.get(instance).instance_id, page_id=mgr.page_id(instance, page))
+        if url:
+            await page.goto(canonicalize_browser_url(url))
+        index = ctx.pages.index(page)
+        mgr.set_active_page(instance, index)
+        return success_response(
+            instance, data={"index": index, "url": page.url, "page_id": mgr.page_id(instance, page)}
+        )
+    except BaseException:
+        # The tab belongs to this call until navigation and selection succeed.
+        with anyio.CancelScope(shield=True), contextlib.suppress(Exception):
+            with anyio.fail_after(2):
+                await page.close()
+        raise
+
+
+def _tab_index(
+    ctx: BrowserContext, instance: str, mgr: InstanceManager, index: int | None, page_id: str | None
+) -> int | None:
+    if page_id is not None:
+        return next((i for i, page in enumerate(ctx.pages) if mgr.page_id(instance, page) == page_id), None)
+    return index
 
 
 async def _tabs_close(
     ctx: BrowserContext,
     instance: str,
-    istate: InstanceState,
+    mgr: InstanceManager,
     index: int | None,
 ) -> dict[str, Any]:
     if index is None or index < 0 or index >= len(ctx.pages):
         return error_response(instance, "invalid_params", f"invalid tab index: {index}")
-    await ctx.pages[index].close()
-    current_active = istate.active_page_index
-    new_active = current_active - 1 if index < current_active else current_active
-    remaining = len(ctx.pages)
-    new_active = 0 if remaining == 0 else max(0, min(new_active, remaining - 1))
-    istate.active_page_index = new_active
-    return success_response(instance, data={"closed_index": index})
+    page = ctx.pages[index]
+    page_id = mgr.page_id(instance, page)
+    active = await mgr.active_page(instance)
+    mark_operation_started(mgr.get(instance).instance_id, page_id=page_id)
+    await page.close()
+    remaining = ctx.pages
+    if remaining:
+        selected = remaining.index(active) if active in remaining else min(index, len(remaining) - 1)
+        mgr.set_active_page(instance, selected)
+    return success_response(instance, data={"closed_index": index, "page_id": page_id})
 
 
 async def _tabs_select(
@@ -249,10 +250,14 @@ async def _tabs_select(
 ) -> dict[str, Any]:
     if index is None or index < 0 or index >= len(ctx.pages):
         return error_response(instance, "invalid_params", f"invalid tab index: {index}")
-    mgr.set_active_page(instance, index)
     selected = ctx.pages[index]
+    mark_operation_started(mgr.get(instance).instance_id, page_id=mgr.page_id(instance, selected))
     await selected.bring_to_front()
-    return success_response(instance, data={"selected_index": index})
+    current_index = ctx.pages.index(selected)
+    mgr.set_active_page(instance, current_index)
+    return success_response(
+        instance, data={"selected_index": current_index, "page_id": mgr.page_id(instance, selected)}
+    )
 
 
 def _register_browser_tabs(mcp: FastMCP, mgr: InstanceManager) -> None:
@@ -263,19 +268,24 @@ def _register_browser_tabs(mcp: FastMCP, mgr: InstanceManager) -> None:
         action: str,
         index: int | None = None,
         url: str | None = None,
+        page_id: str | None = None,
     ) -> dict[str, Any]:
         """Manage tabs (pages) within a browser instance.
 
+        Select or close by stable page_id, or by the current index. These inputs
+        are mutually exclusive. Page IDs remain stable when other tabs close.
+        Every returned tab includes page_id.
+
         action must be one of:
           "list"   — list all open tabs with their index and URL.
-                     Returns: data: {"tabs": [{"index": int, "url": str}, ...]}
+                     Returns: data: {"tabs": [{"index": int, "url": str, "page_id": str}, ...]}
           "new"    — open a new tab, optionally navigating to url.
-                     Returns: data: {"index": int, "url": str}
-          "close"  — close the tab at the given index. index is required.
-                     Returns: data: {"closed_index": int}
-          "select" — bring the tab at the given index to the front, making it
-                     the active page for subsequent tool calls. index is required.
-                     Returns: data: {"selected_index": int}
+                     Returns: data: {"index": int, "url": str, "page_id": str}
+          "close"  — close the tab identified by index or page_id.
+                     Returns: data: {"closed_index": int, "page_id": str}
+          "select" — bring the identified tab to the front, making it active
+                     for subsequent tool calls. index or page_id is required.
+                     Returns: data: {"selected_index": int, "page_id": str}
 
         Errors:
             instance_not_found — instance does not exist
@@ -287,18 +297,23 @@ def _register_browser_tabs(mcp: FastMCP, mgr: InstanceManager) -> None:
                 "invalid_params",
                 f"action must be 'list'|'new'|'close'|'select', got {action!r}",
             )
+        if page_id is not None and (index is not None or action not in ("select", "close")):
+            return error_response(
+                instance, "invalid_params", "page_id is only valid for select/close and cannot be combined with index"
+            )
         try:
             rec = mgr.get(instance)
             async with mgr.lock_for(instance):
                 ctx = rec.context
-                istate = mgr.state(instance)
                 if action == "list":
-                    return await _tabs_list(ctx, instance)
+                    return await _tabs_list(ctx, instance, mgr)
                 if action == "new":
-                    return await _tabs_new(ctx, instance, istate, url)
+                    assert_no_modal(mgr, instance)
+                    return await _tabs_new(ctx, instance, mgr, url)
+                resolved_index = _tab_index(ctx, instance, mgr, index, page_id)
                 if action == "close":
-                    return await _tabs_close(ctx, instance, istate, index)
-                return await _tabs_select(ctx, instance, mgr, index)
+                    return await _tabs_close(ctx, instance, mgr, resolved_index)
+                return await _tabs_select(ctx, instance, mgr, resolved_index)
         except BrowserMcpError as e:
             return error_response(instance, e.error_type, str(e))
         except Exception as e:

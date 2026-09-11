@@ -105,6 +105,6 @@ async def test_pdf_save_unsupported_on_firefox(e2e_client, test_site, tmp_path):
     out = str(tmp_path / "out.pdf")
     r = await call(e2e_client, "browser_pdf_save", {"instance": "u5", "file_path": out})
     # page.pdf() is a Chromium-only Playwright API; Camoufox runs Firefox, so
-    # the tool surfaces the failure as an internal_error rather than a file.
+    # the tool explicitly reports the capability as unsupported.
     assert r["status"] == "error"
-    assert r["error_type"] == "internal_error"
+    assert r["error_type"] == "unsupported_capability"

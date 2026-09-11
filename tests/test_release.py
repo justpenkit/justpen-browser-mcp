@@ -30,6 +30,14 @@ def commit(repo, message):
     git(repo, "commit", "-qm", message)
 
 
+def finalize_reviewed(project):
+    branch = git(project, "branch", "--show-current")
+    git(project, "switch", "main")
+    git(project, "merge", "--no-ff", branch, "-m", "Merge reviewed release")
+    git(project, "update-ref", "refs/remotes/origin/main", "HEAD")
+    release.finalize(project)
+
+
 @pytest.fixture
 def project(tmp_path, monkeypatch):
     for key in os.environ:
@@ -62,7 +70,7 @@ def project(tmp_path, monkeypatch):
     return repo
 
 
-def test_bump_uses_uv_changelog_and_annotated_local_tag(project):
+def test_bump_uses_uv_changelog_and_defers_tag_until_review(project):
     release.bump(project, "patch")
     assert tomllib.loads((project / "pyproject.toml").read_text())["project"]["version"] == "0.0.1"
     assert tomllib.loads((project / "uv.lock").read_text())["package"][0]["version"] == "0.0.1"
@@ -71,10 +79,79 @@ def test_bump_uses_uv_changelog_and_annotated_local_tag(project):
     assert "application feature" in changelog
     assert "inherited template" not in changelog
     assert "v9.0.0" not in changelog
-    assert git(project, "cat-file", "-t", "refs/tags/v0.0.1") == "tag"
+    assert "v0.0.1" not in git(project, "tag").splitlines()
     assert git(project, "log", "-1", "--format=%s") == "chore: bump version to v0.0.1"
     assert git(project, "status", "--porcelain") == ""
     assert git(project, "remote") == ""
+
+
+def test_release_rejects_tag_that_omits_post_bump_review_fixes(project):
+    release.bump(project, "patch")
+    if "v0.0.1" not in git(project, "tag").splitlines():
+        git(project, "tag", "-a", "v0.0.1", "-m", "premature release")
+    (project / "app.py").write_text('"""Corrected during PR review."""\n')
+    commit(project, "fix: address release review")
+    git(project, "switch", "main")
+    git(project, "merge", "--no-ff", "release/first", "-m", "Merge reviewed release")
+    git(project, "update-ref", "refs/remotes/origin/main", "HEAD")
+
+    with pytest.raises(ValueError, match="reviewed"):
+        release.release_notes(project, "v0.0.1")
+
+
+def test_finalize_tags_reviewed_merge_and_preserves_future_main_changes(project):
+    release.bump(project, "patch")
+    (project / "app.py").write_text('"""Corrected during PR review."""\n')
+    commit(project, "fix: address release review")
+    git(project, "switch", "main")
+    git(project, "merge", "--no-ff", "release/first", "-m", "Merge reviewed release")
+    git(project, "update-ref", "refs/remotes/origin/main", "HEAD")
+    reviewed = git(project, "rev-parse", "HEAD")
+
+    release.finalize(project)
+
+    assert git(project, "cat-file", "-t", "refs/tags/v0.0.1") == "tag"
+    assert git(project, "rev-parse", "v0.0.1^{commit}") == reviewed
+    assert "Corrected during PR review" in git(project, "show", "v0.0.1:app.py")
+    (project / "later.py").write_text('"""Next release work."""\n')
+    commit(project, "feat: later development")
+    git(project, "update-ref", "refs/remotes/origin/main", "HEAD")
+    assert "application feature" in release.release_notes(project, "v0.0.1")
+
+
+@pytest.mark.parametrize("state", ["branch", "behind", "dirty", "existing", "not_merge"])
+def test_finalize_rejects_unreviewed_or_ambiguous_state(project, state):
+    release.bump(project, "patch")
+    if state != "branch":
+        git(project, "switch", "main")
+        git(project, "merge", "--no-ff", "release/first", "-m", "Merge reviewed release")
+        git(project, "update-ref", "refs/remotes/origin/main", "HEAD")
+    if state == "behind":
+        git(project, "update-ref", "refs/remotes/origin/main", "HEAD~1")
+    elif state == "dirty":
+        (project / "new.py").write_text("# unreviewed\n")
+    elif state == "existing":
+        git(project, "tag", "-a", "v0.0.1", "-m", "existing release")
+    elif state == "not_merge":
+        (project / "new.py").write_text("# unreviewed\n")
+        commit(project, "feat: unreviewed next change")
+        git(project, "update-ref", "refs/remotes/origin/main", "HEAD")
+    previous_tags = git(project, "show-ref", "--tags")
+
+    with pytest.raises(ValueError):
+        release.finalize(project)
+
+    assert git(project, "show-ref", "--tags") == previous_tags
+
+
+def test_historical_branch_tag_with_identical_reviewed_tree_stays_valid(project):
+    release.bump(project, "patch")
+    git(project, "tag", "-a", "v0.0.1", "-m", "historical release")
+    git(project, "switch", "main")
+    git(project, "merge", "--no-ff", "release/first", "-m", "Merge reviewed release")
+    git(project, "update-ref", "refs/remotes/origin/main", "HEAD")
+
+    assert "application feature" in release.release_notes(project, "v0.0.1")
 
 
 @pytest.mark.parametrize("state", ["main", "master", "detached", "tracked", "untracked", "staged"])
@@ -236,10 +313,10 @@ def test_future_bump_updates_only_current_project_install_pins(project, project_
         assert f"{project_name}@v0.4.0-rc1" in text
         assert f"other-{project_name}@v0.4.0" in text
         assert "Release v0.4.0 requires Python 3.13." in text
-        assert git(project, "show", f"v0.4.1:{relative}") == text.strip()
+        assert git(project, "show", f"HEAD:{relative}") == text.strip()
         assert git(project, "show", f"v0.4.0:{relative}") == original.strip()
     assert history.read_text() == original
-    assert git(project, "show", "v0.4.1:docs/history.md") == original.strip()
+    assert git(project, "show", "HEAD:docs/history.md") == original.strip()
     assert git(project, "rev-parse", "v0.4.0") == previous_tag
     assert "inherited template feature" in (project / "CHANGELOG.md").read_text()
     assert git(project, "status", "--porcelain") == ""
@@ -256,7 +333,7 @@ def test_generator_changelog_includes_its_own_history(project):
 
 def test_notes_cli_writes_only_the_verified_section(project, monkeypatch, tmp_path):
     release.bump(project, "patch")
-    git(project, "update-ref", "refs/remotes/origin/main", "HEAD")
+    finalize_reviewed(project)
     output = tmp_path / "notes.md"
     monkeypatch.chdir(project)
     release.main(["notes", "--tag", "v0.0.1", "--output", str(output)])
@@ -266,6 +343,8 @@ def test_notes_cli_writes_only_the_verified_section(project, monkeypatch, tmp_pa
 
 def test_consecutive_release_keeps_earlier_application_section(project):
     release.bump(project, "patch")
+    finalize_reviewed(project)
+    git(project, "switch", "-c", "release/second")
     (project / "app.py").write_text('"""Corrected application."""\n')
     (project / ".copier-answers.yml").write_text("project_name: release-fixture\n_commit: updated-template\n")
     commit(project, "fix: correct application feature")
@@ -274,7 +353,7 @@ def test_consecutive_release_keeps_earlier_application_section(project):
     assert "## v0.1.0" in changelog
     assert "## v0.0.1" in changelog
     assert "inherited template" not in changelog
-    git(project, "update-ref", "refs/remotes/origin/main", "HEAD")
+    finalize_reviewed(project)
     notes = release.release_notes(project, "v0.1.0")
     assert "correct application feature" in notes
     assert "## v0.0.1" not in notes
@@ -283,6 +362,7 @@ def test_consecutive_release_keeps_earlier_application_section(project):
 @pytest.mark.parametrize("problem", ["lightweight", "unmerged", "metadata", "section"])
 def test_release_notes_reject_invalid_release_identity(project, problem):
     release.bump(project, "patch")
+    git(project, "tag", "-a", "v0.0.1", "-m", "fixture")
     if problem == "lightweight":
         git(project, "tag", "-d", "v0.0.1")
         git(project, "tag", "v0.0.1")

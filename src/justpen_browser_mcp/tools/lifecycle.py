@@ -43,7 +43,7 @@ def _register_browser_create_instance(mcp: FastMCP, mgr: InstanceManager) -> Non
 
         Each instance runs in its own Camoufox process with its own BrowserForge
         fingerprint and (if `profile_dir` is provided) its own on-disk profile.
-        Ephemeral instances (profile_dir=None) leave no trace after destroy.
+        Ephemeral instances discard session state on destroy; temporary files may still be created.
 
         Every camoufox-related parameter defaults to None, meaning "use the
         server-level config default"; passing a non-None value overrides that

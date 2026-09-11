@@ -68,6 +68,19 @@ handling, page code execution, instance isolation or other browser behavior.
 `make setup` fetches the binary; run `make browser-fetch` if the browser
 installation is missing or another Camoufox release has become the shared default.
 
+### Consumer installation checks
+
+```bash
+make test-consumer
+```
+
+This builds the wheel, installs it in disposable environments outside the checkout,
+and checks the console entry point, installed package identity, all 43 tool schemas,
+and a real browser round trip. One environment uses locked runtime dependencies;
+another resolves the lowest allowed direct versions with compatible transitive
+packages. It does not upgrade `uv.lock`. CI runs this on Python 3.11, 3.12 and 3.13.
+The local target needs network access and the fetched Camoufox binary.
+
 ## Make a change
 
 1. Create a feature branch: `codex/short-description` for Codex, otherwise

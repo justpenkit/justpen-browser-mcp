@@ -1,12 +1,14 @@
 ---
-description: Evaluate JavaScript inside the page context.
+description: Evaluate JavaScript in the page and trusted Python in the server process.
 ---
 
 # Code execution { #_top }
 
 Execute JavaScript or Python code against the active page. Use `browser_evaluate` for single JavaScript expressions; use `browser_run_code` for multi-step Python logic that needs Playwright's full async API.
 
-Both tools run JavaScript in Camoufox's **isolated JS world**: `window.*` globals set by the page's own scripts are not visible to your expression, and values your expression assigns to `window` are not visible to the page's scripts either. Only DOM-backed reads (`document.title`, an element's `.textContent`, an `<input>`'s `.value`, etc.) and the expression's own return value cross the boundary.
+JavaScript evaluations use Camoufox's **isolated JS world**: `window.*` globals set by the page's own scripts are not visible to your expression, and values your expression assigns to `window` are not visible to the page's scripts either. DOM state, browser storage, and evaluation results remain available. This JavaScript behavior is separate from `browser_run_code`, which executes trusted Python inside the server process with that process's permissions.
+
+Examples below focus on tool-specific data. Registered tools also return the shared [operation metadata and error fields](../concepts/response-envelope.md).
 
 ## browser_evaluate { #browser_evaluate }
 
@@ -40,6 +42,7 @@ async def browser_evaluate(instance: str, expression: str, ref: str | None = Non
 - `stale_ref` — ref no longer valid; take a fresh snapshot
 - `modal_state_blocked` — a dialog or file-chooser is pending; resolve it first
 - `evaluation_failed` — JS syntax error, runtime exception, or timeout
+- `operation_timeout` — the overall instance operation deadline expired
 
 **Example**
 
@@ -56,6 +59,8 @@ Response:
 ```
 
 **Notes** — When neither `ref` nor `selector` is provided, the expression runs at page scope. Non-serializable values (DOM nodes, functions) return `null`. Use `browser_run_code` for multi-step Python logic that needs Playwright's full async API.
+
+If the expression opens a JavaScript dialog and remains pending, call `browser_handle_dialog` concurrently to resolve it. That recovery call has an independent lock.
 
 ## browser_run_code { #browser_run_code }
 
@@ -85,6 +90,8 @@ async def browser_run_code(instance: str, code: str) -> dict[str, Any]
 - `instance_not_found`
 - `modal_state_blocked` — a dialog or file chooser is pending; resolve it first
 - `evaluation_failed` — Python exception raised inside the snippet; error message includes the original traceback
+- `operation_timeout` — a cooperative async wait exceeded the instance operation deadline
+- `result_too_large` — the returned result exceeds the configured response limit
 
 **Example**
 
@@ -106,4 +113,8 @@ Response:
 { "status": "success", "instance": "main", "data": { "result": "Task Complete" } }
 ```
 
-**Notes** — The snippet runs with `page`, `context` (the Playwright BrowserContext object), and `mgr` (InstanceManager, for advanced use) in scope. Any exception raised is caught and returned as `evaluation_failed` with the original traceback included in the message.
+**Notes** — The snippet runs with `page`, `context` (the Playwright BrowserContext object), and `mgr` (InstanceManager, for advanced use) in scope. Return a JSON-compatible value. Ordinary Python exceptions return `evaluation_failed` with the original traceback included in the message.
+
+This is intentional trusted code execution: imports, filesystem access, and process access use the server's permissions. Instance separation does not sandbox Python snippets. Use an external supervisor when the framework needs a hard execution limit or a separate process boundary.
+
+The configured operation timeout bounds lock acquisition and cooperative async work. A synchronous infinite loop or blocking Python call can stall the event loop for every instance and cannot be interrupted by that cooperative timeout. Cancellation or a timeout also does not roll back actions already performed; use the returned operation metadata and inspect browser state before retrying.

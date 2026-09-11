@@ -63,6 +63,7 @@ nav:
       - Utility: tools-reference/utility.md
       - Page: tools-reference/page.md
   - Python API reference: api.md
+  - Framework integration: guides/framework-integration.md
   - Template updates: guides/template-updates.md
   - Contributing:
       - Getting started: contributing/getting-started.md

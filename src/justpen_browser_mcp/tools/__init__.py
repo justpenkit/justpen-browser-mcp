@@ -9,6 +9,7 @@ entrypoint.
 from fastmcp import FastMCP
 
 from ..instance_manager import InstanceManager
+from ..operations import OperationMiddleware
 from . import (
     code_execution,
     cookies,
@@ -27,6 +28,7 @@ __all__ = ["register_all"]
 
 def register_all(mcp: FastMCP, mgr: InstanceManager) -> None:
     """Register every tool category on the FastMCP instance."""
+    mcp.add_middleware(OperationMiddleware(mgr))
     lifecycle.register(mcp, mgr)
     cookies.register(mcp, mgr)
     navigation.register(mcp, mgr)

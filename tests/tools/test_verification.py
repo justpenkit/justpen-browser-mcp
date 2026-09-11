@@ -27,6 +27,7 @@ def make_page(
     main_text_first.is_visible = AsyncMock(return_value=text_present)
     main_text_locator = MagicMock()
     main_text_locator.first = main_text_first
+    main_text_locator.filter.return_value = main_text_locator
 
     main_frame = MagicMock(name="main_frame")
     main_frame.get_by_text = MagicMock(return_value=main_text_locator)
@@ -139,6 +140,7 @@ class TestBrowserVerifyListVisible:
         inner_first.is_visible = AsyncMock(return_value=True)
         inner_locator = MagicMock()
         inner_locator.first = inner_first
+        inner_locator.filter.return_value = inner_locator
         container_locator.get_by_text = MagicMock(return_value=inner_locator)
 
         result = await mcp_client.call_tool(
@@ -163,10 +165,12 @@ class TestBrowserVerifyListVisible:
         first_a.is_visible = AsyncMock(return_value=True)
         loc_a = MagicMock()
         loc_a.first = first_a
+        loc_a.filter.return_value = loc_a
         first_b = MagicMock()
         first_b.is_visible = AsyncMock(return_value=False)
         loc_b = MagicMock()
         loc_b.first = first_b
+        loc_b.filter.return_value = loc_b
         container_locator.get_by_text = MagicMock(side_effect=[loc_a, loc_b])
 
         result = await mcp_client.call_tool(
@@ -250,6 +254,7 @@ class TestBrowserVerifyTextVisible:
         child_first.is_visible = AsyncMock(return_value=True)
         child_text_locator = MagicMock()
         child_text_locator.first = child_first
+        child_text_locator.filter.return_value = child_text_locator
         child_frame = MagicMock(name="child_frame")
         child_frame.get_by_text = MagicMock(return_value=child_text_locator)
 

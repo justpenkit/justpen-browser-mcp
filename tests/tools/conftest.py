@@ -13,6 +13,8 @@ import pytest
 from fastmcp import FastMCP
 from fastmcp.client import Client
 
+from justpen_browser_mcp.events import EventBuffer
+
 
 class _AsyncLockContext:
     """Minimal async context manager that acts like asyncio.Lock in a ``with`` block."""
@@ -47,10 +49,19 @@ def mock_mgr():
     mgr.get = MagicMock(return_value=MagicMock())
     mgr.active_page = AsyncMock()
     mgr.lock_for = MagicMock(return_value=_AsyncLockContext())
+    mgr.modal_lock_for = MagicMock(return_value=_AsyncLockContext())
     mgr.state = MagicMock(return_value=MagicMock())
+    mgr.state.return_value.console_messages = EventBuffer()
+    mgr.state.return_value.network_requests = EventBuffer()
     mgr.get_modal_states = MagicMock(return_value=[])
     mgr.consume_modal_state = MagicMock(return_value=None)
-    mgr.set_active_page = MagicMock()
+
+    def set_active_page(_name, index):
+        mgr.state.return_value.active_page_index = index
+        mgr.state.return_value.active_page = mgr.get.return_value.context.pages[index]
+
+    mgr.set_active_page = MagicMock(side_effect=set_active_page)
+    mgr.page_id = MagicMock(side_effect=lambda _instance, page: f"page-{id(page)}")
     return mgr
 
 

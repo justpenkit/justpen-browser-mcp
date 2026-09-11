@@ -6,6 +6,8 @@ description: Navigate, reload, go back/forward, and open URLs.
 
 Navigation tools control where the active page points and how long the agent waits before proceeding. Use `browser_navigate` to load a URL into the current tab, `browser_navigate_back` to step back through browser history, and `browser_wait_for` to pause until a piece of text appears, disappears, or a fixed delay expires. Reach for these tools any time you need to move between pages, handle redirect flows, or synchronise with dynamic content that takes time to render.
 
+Examples below focus on tool-specific data. Registered tools also return the shared [operation metadata and error fields](../concepts/response-envelope.md).
+
 ## browser_navigate { #browser_navigate }
 
 Navigate the active page in the given instance to a URL.
@@ -54,7 +56,9 @@ Response:
 }
 ```
 
-**Notes** — URL normalisation: `localhost[:PORT]` and bare IPv4 addresses receive an `http://` scheme; schemeless hostnames containing a dot receive `https://`. When a download is triggered instead of a page load, the response data includes an extra `"download": true` field alongside `url` and `title`. After any successful navigation, refs obtained from `browser_snapshot` are invalidated — take a fresh snapshot before referencing page elements.
+**Notes** — URL normalisation: `localhost[:PORT]` and bare IPv4 addresses receive an `http://` scheme; schemeless hostnames containing a dot receive `https://`, including hostnames with a port. Explicit schemes such as `data:`, `javascript:`, and `about:` are preserved.
+
+When an observed download event matches the navigation or its redirect chain, the response data includes `"download": true` alongside the current page's `url` and `title`. A URL or error message containing the word `download` alone does not indicate success. This response confirms the download was triggered; it does not report a completed file save. After navigation changes the document, refs obtained from `browser_snapshot` are invalidated — take a fresh snapshot before referencing page elements.
 
 ## browser_navigate_back { #browser_navigate_back }
 
@@ -118,12 +122,12 @@ async def browser_wait_for(
 
 **Parameters**
 
-| Name        | Type            | Default | Description                                     |
-| ----------- | --------------- | ------- | ----------------------------------------------- |
-| `instance`  | `str`           | —       | Instance name.                                  |
-| `text`      | `str \| None`   | `None`  | Wait until this string is visible on the page.  |
-| `text_gone` | `str \| None`   | `None`  | Wait until this string is hidden on the page.   |
-| `time`      | `float \| None` | `None`  | Seconds to wait unconditionally (capped at 30). |
+| Name        | Type            | Default | Description                                                      |
+| ----------- | --------------- | ------- | ---------------------------------------------------------------- |
+| `instance`  | `str`           | —       | Instance name.                                                   |
+| `text`      | `str \| None`   | `None`  | Wait until at least one matching element is visible on the page. |
+| `text_gone` | `str \| None`   | `None`  | Wait until no matching element is visible on the page.           |
+| `time`      | `float \| None` | `None`  | Seconds to wait unconditionally (capped at 30).                  |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -153,3 +157,5 @@ Response:
 ```
 
 **Notes** — At least one of `text`, `text_gone`, or `time` must be provided; omitting all three returns an `invalid_params` error immediately. When multiple conditions are given they are evaluated in order: `time` first, then `text_gone`, then `text`.
+
+Text conditions use substring matches in the active page's main frame. Hidden duplicates do not mask a visible match. `text_gone` requires every matching element to be hidden or removed; a hidden first match alone is insufficient.

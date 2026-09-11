@@ -100,6 +100,11 @@ def _register_browser_run_code(mcp: FastMCP, mgr: InstanceManager) -> None:
         Any exception raised in the snippet is caught and returned as
         evaluation_failed.
 
+        This is trusted Python running with the server's process permissions.
+        Cooperative awaits are bounded by the instance operation timeout;
+        synchronous blocking code can stall all instances and needs external
+        process supervision. Return JSON-compatible values.
+
         Returns on success:
             data: {"result": any}  — the return value of the snippet, or None
 

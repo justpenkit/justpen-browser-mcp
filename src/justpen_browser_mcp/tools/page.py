@@ -44,17 +44,11 @@ def register(mcp: FastMCP, mgr: InstanceManager) -> None:
                 ctx = rec.context
                 if not ctx.pages:
                     return success_response(instance, data={"closed": False, "reason": "no open pages"})
-                istate = mgr.state(instance)
-                closed_index = istate.active_page_index
                 page = await mgr.active_page(instance)
+                closed_index = ctx.pages.index(page)
                 await page.close()
-                # Retain the index for the next tab, clamping to the prior tab
-                # when the last tab closes, as browser_tabs(action="close") does.
-                remaining = len(ctx.pages)
-                if remaining == 0:
-                    istate.active_page_index = 0
-                else:
-                    istate.active_page_index = max(0, min(closed_index, remaining - 1))
+                if ctx.pages:
+                    mgr.set_active_page(instance, min(closed_index, len(ctx.pages) - 1))
             return success_response(instance, data={"closed": True})
         except BrowserMcpError as e:
             return error_response(instance, e.error_type, str(e))

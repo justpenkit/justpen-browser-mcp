@@ -1,11 +1,13 @@
 """Cookie and localStorage tools — 6 tools."""
 
+import json
 import logging
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 from urllib.parse import urlparse
 
+import anyio
 from fastmcp import FastMCP
-from playwright.async_api import Error as PlaywrightError
+from playwright.async_api import BrowserContext, Error as PlaywrightError
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -13,33 +15,86 @@ if TYPE_CHECKING:
     from playwright._impl._api_structures import SetCookieParam
 
 from ..errors import BrowserMcpError, InvalidParamsError
-from ..instance_manager import InstanceManager
+from ..instance_manager import InstanceManager, assert_no_modal
+from ..operation_context import mark_operation_started
 from ..responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 
-
-def _extract_origin(url: str) -> str:
-    """Extract scheme://host[:port] origin from a URL."""
-    parsed = urlparse(url)
-    hostname = parsed.hostname
-    if hostname is not None and ":" in hostname:
-        hostname = f"[{hostname}]"
-    origin = f"{parsed.scheme}://{hostname}"
-    default_port = {"http": 80, "https": 443}.get(parsed.scheme)
-    if parsed.port is not None and parsed.port != default_port:
-        origin += f":{parsed.port}"
-    return origin
+_STORAGE_CLOSE_TIMEOUT_SECONDS = 2
 
 
-def _verify_origin(page_url: str, requested_origin: str) -> None:
-    """Raise InvalidParamsError if page redirected to a different origin."""
-    actual = _extract_origin(page_url)
-    expected = _extract_origin(requested_origin)
-    if actual != expected:
+_STORAGE_OPERATION = """({origin, operation, key, items}) => {
+    const expected = new URL(origin).origin;
+    const actual = location.origin;
+    if (expected === 'null' || actual !== expected) {
+        return JSON.stringify({mismatch: true, origin: actual});
+    }
+    if (operation === 'set') {
+        Object.entries(JSON.parse(items)).forEach(([k, v]) => localStorage.setItem(k, v));
+        return JSON.stringify({value: null});
+    }
+    if (operation === 'clear') {
+        localStorage.clear();
+        return JSON.stringify({value: null});
+    }
+    if (key !== null) {
+        return JSON.stringify({value: localStorage.getItem(key)});
+    }
+    const out = Object.create(null);
+    for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        out[k] = localStorage.getItem(k);
+    }
+    return JSON.stringify({value: out});
+}"""
+
+
+def _decode_storage_result(payload: str, origin: str) -> str | dict[str, str] | None:
+    result = json.loads(payload)
+    if result.get("mismatch"):
         raise InvalidParamsError(
-            f"Origin mismatch: requested {requested_origin!r} but page landed on {actual!r} (likely redirect)"
+            f"Origin mismatch: requested {origin!r} but page landed on {result['origin']!r} (likely redirect)"
         )
+    return cast("str | dict[str, str] | None", result["value"])
+
+
+async def _storage_in_origin(
+    context: BrowserContext,
+    origin: str,
+    operation: Literal["get", "set", "clear"],
+    *,
+    mgr: InstanceManager,
+    instance: str,
+    key: str | None = None,
+    items: dict[str, str] | None = None,
+) -> str | dict[str, str] | None:
+    """Check the browser-canonical origin and touch storage in the same JS turn."""
+    page = await context.new_page()
+    failed = False
+    try:
+        mark_operation_started(mgr.get(instance).instance_id, page_id=mgr.page_id(instance, page))
+        await page.goto(origin, wait_until="commit")
+        # Playwright drops __proto__ object properties at its JS serialization
+        # boundary. JSON text preserves arbitrary storage keys in both directions.
+        return _decode_storage_result(
+            await page.evaluate(
+                _STORAGE_OPERATION,
+                {"origin": origin, "operation": operation, "key": key, "items": json.dumps(items)},
+            ),
+            origin,
+        )
+    except BaseException:
+        failed = True
+        raise
+    finally:
+        try:
+            with anyio.CancelScope(shield=True), anyio.fail_after(_STORAGE_CLOSE_TIMEOUT_SECONDS):
+                await page.close()
+        except Exception:
+            if not failed:
+                raise
+            logger.warning("Temporary storage page cleanup failed after an operation failure", exc_info=True)
 
 
 def _register_browser_get_cookies(mcp: FastMCP, mgr: InstanceManager) -> None:
@@ -201,25 +256,11 @@ def _register_browser_get_local_storage(mcp: FastMCP, mgr: InstanceManager) -> N
             rec = mgr.get(instance)
             ctx = rec.context
             async with mgr.lock_for(instance):
-                page = await ctx.new_page()
-                try:
-                    await page.goto(origin, wait_until="commit")
-                    _verify_origin(page.url, origin)
-                    if key is not None:
-                        value = await page.evaluate("(k) => localStorage.getItem(k)", key)
-                        return success_response(
-                            instance,
-                            data={"key": key, "value": value, "origin": origin},
-                        )
-                    items = await page.evaluate(
-                        "() => { const out = {}; "
-                        "for (let i = 0; i < localStorage.length; i++) { "
-                        "  const k = localStorage.key(i); out[k] = localStorage.getItem(k); "
-                        "} return out; }"
-                    )
-                finally:
-                    await page.close()
-            return success_response(instance, data={"items": items, "origin": origin})
+                assert_no_modal(mgr, instance)
+                value = await _storage_in_origin(ctx, origin, "get", mgr=mgr, instance=instance, key=key)
+            if key is not None:
+                return success_response(instance, data={"key": key, "value": value, "origin": origin})
+            return success_response(instance, data={"items": value, "origin": origin})
         except BrowserMcpError as e:
             return error_response(instance, e.error_type, str(e))
         except Exception as e:
@@ -250,16 +291,8 @@ def _register_browser_set_local_storage(mcp: FastMCP, mgr: InstanceManager) -> N
             rec = mgr.get(instance)
             ctx = rec.context
             async with mgr.lock_for(instance):
-                page = await ctx.new_page()
-                try:
-                    await page.goto(origin, wait_until="commit")
-                    _verify_origin(page.url, origin)
-                    await page.evaluate(
-                        "(items) => { Object.entries(items).forEach(([k, v]) => localStorage.setItem(k, v)); }",
-                        items,
-                    )
-                finally:
-                    await page.close()
+                assert_no_modal(mgr, instance)
+                await _storage_in_origin(ctx, origin, "set", mgr=mgr, instance=instance, items=items)
             return success_response(
                 instance,
                 data={"set_count": len(items), "origin": origin},
@@ -302,17 +335,12 @@ def _register_browser_clear_local_storage(mcp: FastMCP, mgr: InstanceManager) ->
             rec = mgr.get(instance)
             ctx = rec.context
             async with mgr.lock_for(instance):
+                assert_no_modal(mgr, instance)
                 if origin is None:
                     page = await mgr.active_page(instance)
                     await page.evaluate("() => localStorage.clear()")
                     return success_response(instance, data={"cleared": True, "origin": page.url})
-                page = await ctx.new_page()
-                try:
-                    await page.goto(origin, wait_until="commit")
-                    _verify_origin(page.url, origin)
-                    await page.evaluate("() => localStorage.clear()")
-                finally:
-                    await page.close()
+                await _storage_in_origin(ctx, origin, "clear", mgr=mgr, instance=instance)
             return success_response(instance, data={"cleared": True, "origin": origin})
         except BrowserMcpError as e:
             return error_response(instance, e.error_type, str(e))

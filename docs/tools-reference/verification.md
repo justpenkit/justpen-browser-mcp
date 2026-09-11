@@ -6,6 +6,8 @@ description: Wait for conditions and assert page state.
 
 Verification tools let you assert that the current state of a page matches expectations — checking element visibility, text presence, or input values — without the round-trip of a full snapshot. Each tool returns on success or emits a `verification_failed` error code (specific to this module) when the assertion does not hold; see [envelope error codes](../concepts/response-envelope.md#error_type-values) for the full list of `error_type` values. Use `browser_wait_for` before any verification if the state you need has not yet appeared.
 
+Examples below focus on tool-specific data. Registered tools also return the shared [operation metadata and error fields](../concepts/response-envelope.md).
+
 ## browser_verify_element_visible { #browser_verify_element_visible }
 
 Verify that the element identified by a ref is currently visible on the page.
@@ -131,7 +133,7 @@ Response:
 }
 ```
 
-**Notes** — The two modes are mutually exclusive: pass either `refs` or `container_ref`+`items`, never both. Container mode matches by text substring (`get_by_text`) and uses `.first` to avoid strict-mode violations when text appears multiple times. Useful for post-action assertions such as verifying all rows of a rendered list.
+**Notes** — The two modes are mutually exclusive: pass either `refs` or `container_ref`+`items`, never both. Container mode matches by text substring and requires at least one visible descendant for each requested item. Hidden duplicates do not cause failure when another matching descendant is visible. Useful for post-action assertions such as verifying all rows of a rendered list.
 
 ## browser_verify_text_visible { #browser_verify_text_visible }
 
@@ -176,7 +178,7 @@ Response:
 { "status": "success", "instance": "main", "data": { "text": "Welcome", "visible": true } }
 ```
 
-**Notes** — Matching is a case-insensitive non-exact substring search via `get_by_text`. Both the main frame and all child frames are searched. Uses `.first` to avoid strict-mode violations when the text matches multiple elements. Use `browser_wait_for(text=...)` if the text may not have appeared yet.
+**Notes** — Matching is a case-insensitive non-exact substring search via `get_by_text`. Both the main frame and all child frames are searched. Any visible match is sufficient, even when an earlier match is hidden. Use `browser_wait_for(text=...)` if the text may not have appeared yet in the main frame.
 
 ## browser_verify_value { #browser_verify_value }
 

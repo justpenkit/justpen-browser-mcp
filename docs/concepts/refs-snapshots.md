@@ -33,8 +33,7 @@ ref no longer matches any element (stale — see below), resolution raises
 
 ## Resolving a ref to a durable selector { #resolving-a-ref-to-a-durable-selector }
 
-`browser_generate_locator` converts an ephemeral ref into a selector that
-survives navigation, using Playwright's `resolveSelector` protocol method.
+`browser_generate_locator` converts an ephemeral ref into a reusable selector, using Playwright's `resolveSelector` protocol method.
 The resolution follows a priority ladder (`ref_resolver._internal_to_python`
 mirrors this order when producing the Python-syntax form):
 
@@ -51,31 +50,24 @@ The tool returns two representations: `internal_selector` (a raw Playwright
 engine selector, e.g. `internal:role=button[name="Submit"i]`, usable directly
 with `page.locator()`) and `python_syntax` (the equivalent Python API call,
 e.g. `get_by_role("button", name='Submit')`, intended for codegen/test output).
+Complex selectors retain every filter, index and frame boundary using a lossless
+`locator(...)` expression when a simpler Python call cannot represent them. Reuse
+still depends on the page structure and accessible attributes remaining compatible.
 See [`browser_generate_locator`](../tools-reference/utility.md#browser_generate_locator)
 for the full parameter and error reference.
 
 ## iframe / child-frame refs { #iframe--child-frame-refs }
 
-Plain `resolve_ref` (used by `browser_click`, `browser_evaluate`, etc.) builds
-its locator via `page.locator(f"aria-ref={ref}")`, which only searches the
-main frame's selector-engine path — it does not descend into `<iframe>`
-content on its own.
+Snapshot refs may include a frame-qualified prefix, such as `f1e2`. The pinned
+Playwright driver's `aria-ref` engine can resolve these refs through child frames;
+ordinary interaction tools therefore work with native frame-qualified refs too.
+Verification also includes a child-frame fallback for a ref that is not found by
+the main-frame path. Keep the complete ref string returned by the snapshot.
 
-Verification tools go further: `_resolve_ref_in_any_frame` first tries the
-main frame and, if that raises `StaleRefError`, falls back to trying
-`frame.locator(f"aria-ref={ref}")` against each child frame of the page in
-turn, only raising `StaleRefError` itself if no frame (main or child)
-resolves the ref. This is what lets `verify_element_visible`,
-`verify_text_visible`, and similar checks work against elements inside
-iframes without extra caller-side frame bookkeeping.
-
-Separately, when `browser_generate_locator` resolves a ref that lives inside
-a nested iframe, the underlying `resolveSelector` protocol call can return an
-internal selector containing `... >> internal:control=enter-frame >> ...`
-segments — one per frame boundary crossed. `_internal_to_python` recognizes
-this shape and translates it into chained `.content_frame.` calls in the
-`python_syntax` output, so a saved locator still resolves correctly through
-the same frame chain when replayed in a future session.
+Generated selectors preserve `internal:control=enter-frame` segments. The Python
+representation retains that full selector when translating individual components
+would lose frame boundaries or other selection constraints. A reusable selector
+still needs matching frames and DOM structure in the future session.
 
 ## When tools require a ref { #when-tools-require-a-ref }
 

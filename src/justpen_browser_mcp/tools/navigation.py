@@ -5,10 +5,11 @@ browser_navigate, browser_navigate_back, browser_wait_for.
 
 import contextlib
 import logging
+import re
 from typing import Any
 
 from fastmcp import FastMCP
-from playwright.async_api import Error as PlaywrightError, TimeoutError as PWTimeout
+from playwright.async_api import Download, Error as PlaywrightError, Page, Request, TimeoutError as PWTimeout
 
 from ..errors import (
     BrowserMcpError,
@@ -53,9 +54,38 @@ def canonicalize_browser_url(url: str) -> str:
     host_part = url.split("/", maxsplit=1)[0].split("?", maxsplit=1)[0].split("#", maxsplit=1)[0]
     if _looks_like_ip(host_part):
         return f"http://{url}"
+    hostname_port = re.match(r"^[^/?#:]+\.[^/?#:]+:\d+(?:[/?#]|$)", url)
+    if not hostname_port and re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", url):
+        return url
     if "." in url:
         return f"https://{url}"
     return url
+
+
+async def _navigate_with_download(page: Page, url: str) -> bool:
+    """Recognize downloads observed on this page's in-flight main navigation."""
+    navigation_urls: set[str] = set()
+    downloads: list[Download] = []
+
+    def on_request(request: Request) -> None:
+        if request.is_navigation_request() and request.frame == page.main_frame:
+            navigation_urls.add(request.url)
+
+    def on_download(download: Download) -> None:
+        downloads.append(download)
+
+    page.on("request", on_request)
+    page.on("download", on_download)
+    try:
+        await page.goto(url, wait_until="domcontentloaded")
+    except PlaywrightError:
+        if any(download.url in navigation_urls for download in downloads):
+            return True
+        raise
+    finally:
+        page.remove_listener("request", on_request)
+        page.remove_listener("download", on_download)
+    return False
 
 
 def _register_browser_navigate(mcp: FastMCP, mgr: InstanceManager) -> None:
@@ -90,29 +120,20 @@ def _register_browser_navigate(mcp: FastMCP, mgr: InstanceManager) -> None:
         """
         try:
             mgr.get(instance)
-            assert_no_modal(mgr, instance)
             normalized = canonicalize_browser_url(url)
             async with mgr.lock_for(instance):
+                assert_no_modal(mgr, instance)
                 page = await mgr.active_page(instance)
                 try:
-                    await page.goto(normalized, wait_until="domcontentloaded")
+                    downloaded = await _navigate_with_download(page, normalized)
                 except PWTimeout as e:
                     raise NavigationTimeoutError(str(e)) from e
                 except PlaywrightError as e:
-                    err_msg = str(e).lower()
-                    if "net::err_aborted" in err_msg or "download" in err_msg:
-                        # Navigation aborted because a download started.
-                        # This is expected for export/report/download
-                        # endpoints — not a real navigation failure.
-                        return success_response(
-                            instance,
-                            data={
-                                "url": page.url,
-                                "title": await page.title(),
-                                "download": True,
-                            },
-                        )
                     raise NavigationFailedError(str(e)) from e
+                if downloaded:
+                    return success_response(
+                        instance, data={"url": page.url, "title": await page.title(), "download": True}
+                    )
                 with contextlib.suppress(PWTimeout):
                     await page.wait_for_load_state("load", timeout=5000)
                 return success_response(
@@ -149,8 +170,8 @@ def _register_browser_navigate_back(mcp: FastMCP, mgr: InstanceManager) -> None:
         """
         try:
             mgr.get(instance)
-            assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
+                assert_no_modal(mgr, instance)
                 page = await mgr.active_page(instance)
                 try:
                     await page.go_back()
@@ -202,8 +223,8 @@ def _register_browser_wait_for(mcp: FastMCP, mgr: InstanceManager) -> None:
             )
         try:
             mgr.get(instance)
-            assert_no_modal(mgr, instance)
             async with mgr.lock_for(instance):
+                assert_no_modal(mgr, instance)
                 page = await mgr.active_page(instance)
                 parts: list[str] = []
                 if time is not None:
@@ -212,13 +233,13 @@ def _register_browser_wait_for(mcp: FastMCP, mgr: InstanceManager) -> None:
                     parts.append(f"{capped_seconds}s")
                 if text_gone is not None:
                     try:
-                        await page.get_by_text(text_gone).first.wait_for(state="hidden")
+                        await page.get_by_text(text_gone).filter(visible=True).first.wait_for(state="hidden")
                     except PWTimeout as e:
                         raise WaitTimeoutError(f"Text '{text_gone}' did not disappear: {e}") from e
                     parts.append(f"text_gone={text_gone!r}")
                 if text is not None:
                     try:
-                        await page.get_by_text(text).first.wait_for(state="visible")
+                        await page.get_by_text(text).filter(visible=True).first.wait_for(state="visible")
                     except PWTimeout as e:
                         raise WaitTimeoutError(f"Text '{text}' did not appear: {e}") from e
                     parts.append(f"text={text!r}")
