@@ -18,10 +18,10 @@ How did you verify this works? E.g.:
 
 ## Checklist
 
-- [ ] Branch follows `type/short-description` (feat/fix/docs/chore/refactor/test/ci/build).
+- [ ] Branch follows `codex/short-description` for Codex, otherwise `type/short-description`.
 - [ ] Commits use Conventional Commits (`type(scope): subject`).
 - [ ] `make check` is green locally.
-- [ ] `make docs-build` is green if anything under `docs/` changed.
+- [ ] `make docs-build` is green.
 - [ ] Relevant docs updated (`docs/`, `README.md`, or `CLAUDE.md` as appropriate).
 - [ ] PR will be merged with a regular merge commit (not squash).
 

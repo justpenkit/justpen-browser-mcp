@@ -4,7 +4,7 @@
 Rules:
 - First line matches ``<type>[(scope)][!]: <subject>``.
 - ``type`` in the allowed set.
-- Subject length ≤ 72 characters.
+- Complete first line, including type and scope, is at most 72 characters.
 - Subject does not end with a period.
 - Autosquash (``fixup!``/``squash!``/``amend!``), merge and revert-autogen
   commits bypass all checks.

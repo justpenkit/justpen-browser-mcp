@@ -63,6 +63,26 @@ async def test_launch_ephemeral_calls_new_context(mock_camoufox):
     await stack.aclose()
 
 
+@pytest.mark.parametrize(
+    ("humanize", "expected"),
+    [(True, 1.5), (False, False), (0.0, 0.0), (0.25, 0.25), (2.0, 2.0)],
+)
+async def test_launch_normalizes_boolean_humanization_duration(mock_camoufox, humanize, expected):
+    stack, _, _ = await launch_instance(
+        profile_dir=None,
+        headless=True,
+        proxy=None,
+        humanize=humanize,
+        window=None,
+    )
+    try:
+        actual = mock_camoufox["captured"]["kwargs"]["humanize"]
+        assert actual == expected
+        assert type(actual) is type(expected)
+    finally:
+        await stack.aclose()
+
+
 @pytest.mark.asyncio
 async def test_launch_proxy_enables_geoip(mock_camoufox):
     stack, _, _ = await launch_instance(

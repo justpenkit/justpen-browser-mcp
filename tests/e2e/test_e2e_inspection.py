@@ -7,6 +7,7 @@ a short browser_wait_for to let async page scripts (setTimeout, fetch) run.
 """
 
 import base64
+import struct
 
 import pytest
 
@@ -59,8 +60,10 @@ async def test_screenshot_returns_decodable_png(e2e_client, test_site):
     # starts with the PNG magic bytes.
     assert raw.startswith(b"\x89PNG\r\n\x1a\n")
     assert len(raw) > 1000
-    assert r["data"]["width"] == 1280
-    assert r["data"]["height"] == 720
+    width, height = struct.unpack("!II", raw[16:24])
+    assert width > 0
+    assert height > 0
+    assert (r["data"]["width"], r["data"]["height"]) == (width, height)
 
 
 async def test_screenshot_rejects_invalid_format(e2e_client, test_site):

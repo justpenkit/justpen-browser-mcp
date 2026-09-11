@@ -101,12 +101,15 @@ class TestBrowserEvaluate:
 
 class TestBrowserRunCode:
     async def test_executes_code_snippet(self, mcp_client, mock_ctx_mgr):
-        make_page(mock_ctx_mgr)
+        page = make_page(mock_ctx_mgr)
+        page.title = AsyncMock(return_value="Test title")
         result = await mcp_client.call_tool(
             "browser_run_code",
             {"instance": "admin", "code": "return await page.title()"},
         )
-        assert result.data["status"] in ("success", "error")
+        assert result.data["status"] == "success"
+        assert result.data["data"]["result"] == "Test title"
+        page.title.assert_awaited_once_with()
 
     async def test_run_code_error_includes_traceback(self, mcp_client, mock_ctx_mgr):
         make_page(mock_ctx_mgr)

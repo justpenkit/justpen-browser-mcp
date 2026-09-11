@@ -11,14 +11,16 @@ identities.
 
 ## Install
 
-Requires Python 3.13+ and [uv](https://docs.astral.sh/uv/):
+Install with [uv](https://docs.astral.sh/uv/). Release `v0.4.0` predates Python
+3.11/3.12 support and requires Python 3.13. The current checkout supports Python
+3.11–3.13; [clone current main](docs/contributing/getting-started.md#clone-and-set-up)
+for unreleased improvements.
 
 ```bash
 uv add "justpen-browser-mcp @ git+https://github.com/justpenkit/justpen-browser-mcp@v0.4.0"
-uv run python -m camoufox fetch   # one-time ~150MB Camoufox binary download
 ```
 
-Run the server (stdio transport):
+Run the server (stdio transport); startup fetches Camoufox if needed:
 
 ```bash
 justpen-browser-mcp
@@ -26,16 +28,18 @@ justpen-browser-mcp
 
 ## Documentation
 
-Full docs are on the Astro Starlight site: **<https://justpenkit.github.io/justpen-browser-mcp/>**
+Read the [documentation](docs/index.md) in this repository, or run `make docs-serve`
+after `make setup` to browse the MkDocs site locally. `make docs-build` creates
+the static site in `site/` for deployment to a host of your choice.
 
-- [Install](https://justpenkit.github.io/justpen-browser-mcp/getting-started/install/) · [Run the server](https://justpenkit.github.io/justpen-browser-mcp/getting-started/run-server/) · [Configuration](https://justpenkit.github.io/justpen-browser-mcp/getting-started/configuration/)
-- Client setup: [Claude Code](https://justpenkit.github.io/justpen-browser-mcp/client-setup/claude-code/) · [Copilot CLI](https://justpenkit.github.io/justpen-browser-mcp/client-setup/copilot-cli/) · [Gemini CLI](https://justpenkit.github.io/justpen-browser-mcp/client-setup/gemini-cli/)
-- Concepts: [Response envelope](https://justpenkit.github.io/justpen-browser-mcp/concepts/response-envelope/) · [Instances & isolation](https://justpenkit.github.io/justpen-browser-mcp/concepts/instances-isolation/) · [Refs & snapshots](https://justpenkit.github.io/justpen-browser-mcp/concepts/refs-snapshots/) · [Modal state](https://justpenkit.github.io/justpen-browser-mcp/concepts/modal-state/)
-- [Tools reference](https://justpenkit.github.io/justpen-browser-mcp/tools-reference/lifecycle/) — lifecycle, navigation, interaction, mouse, inspection, verification, code execution, cookies, utility, page
+- [Install](docs/getting-started/install.md) · [Run the server](docs/getting-started/run-server.md) · [Configuration](docs/getting-started/configuration.md)
+- Client setup: [Codex](docs/client-setup/codex.md) · [Claude Code](docs/client-setup/claude-code.md) · [Copilot CLI](docs/client-setup/copilot-cli.md) · [Gemini CLI](docs/client-setup/gemini-cli.md)
+- Concepts: [Response envelope](docs/concepts/response-envelope.md) · [Instances & isolation](docs/concepts/instances-isolation.md) · [Refs & snapshots](docs/concepts/refs-snapshots.md) · [Modal state](docs/concepts/modal-state.md)
+- [Tools reference](docs/tools-reference/lifecycle.md) — lifecycle, navigation, interaction, mouse, inspection, verification, code execution, cookies, utility, page
 
 ## Contributing
 
-See the [contributing guides](https://justpenkit.github.io/justpen-browser-mcp/contributing/pr-checklist/) on the site for the PR checklist, lint/typing rules, code-intelligence conventions, and release process.
+See the [contributing guides](docs/contributing/pr-checklist.md) for the PR checklist, lint/typing rules, code-intelligence conventions, and release process.
 
 ## License
 

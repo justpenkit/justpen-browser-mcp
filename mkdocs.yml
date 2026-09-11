@@ -1,0 +1,101 @@
+site_name: justpen-browser-mcp
+site_description: Camoufox-based MCP server with multi-instance browser session isolation
+repo_url: https://github.com/justpenkit/justpen-browser-mcp
+repo_name: justpenkit/justpen-browser-mcp
+edit_uri: ''
+
+theme:
+  name: material
+  logo: assets/logo.svg
+  favicon: assets/favicon.svg
+  font: false
+  palette:
+    - media: '(prefers-color-scheme: light)'
+      scheme: default
+      primary: deep purple
+      accent: deep purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: '(prefers-color-scheme: dark)'
+      scheme: slate
+      primary: deep purple
+      accent: deep purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+
+hooks:
+  - scripts/docs_version.py
+
+extra_css:
+  - assets/custom.css
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - Install: getting-started/install.md
+      - Run the server: getting-started/run-server.md
+      - Configuration: getting-started/configuration.md
+  - Concepts:
+      - Response envelope: concepts/response-envelope.md
+      - Instances & isolation: concepts/instances-isolation.md
+      - Refs & snapshots: concepts/refs-snapshots.md
+      - Modal state: concepts/modal-state.md
+  - Client setup:
+      - Claude Code: client-setup/claude-code.md
+      - Codex: client-setup/codex.md
+      - Copilot CLI: client-setup/copilot-cli.md
+      - Gemini CLI: client-setup/gemini-cli.md
+  - Tools reference:
+      - Lifecycle: tools-reference/lifecycle.md
+      - Navigation: tools-reference/navigation.md
+      - Interaction: tools-reference/interaction.md
+      - Mouse: tools-reference/mouse.md
+      - Inspection: tools-reference/inspection.md
+      - Verification: tools-reference/verification.md
+      - Code execution: tools-reference/code-execution.md
+      - Cookies & storage: tools-reference/cookies.md
+      - Utility: tools-reference/utility.md
+      - Page: tools-reference/page.md
+  - Python API reference: api.md
+  - Template updates: guides/template-updates.md
+  - Contributing:
+      - Getting started: contributing/getting-started.md
+      - Claude Code and Codex: contributing/agents.md
+      - PR checklist: contributing/pr-checklist.md
+      - Lint & typing: contributing/lint-typing.md
+      - Release process: contributing/release-process.md
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google
+            show_source: true
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+
+validation:
+  nav:
+    omitted_files: warn
+    not_found: warn
+    absolute_links: warn
+  links:
+    not_found: warn
+    anchors: warn
+    absolute_links: warn
+    unrecognized_links: warn

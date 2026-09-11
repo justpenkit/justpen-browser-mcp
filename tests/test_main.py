@@ -6,10 +6,11 @@ import asyncio
 import signal
 import subprocess
 import sys
-from typing import TYPE_CHECKING, Literal, override
+from typing import TYPE_CHECKING, Literal
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from typing_extensions import override
 
 import justpen_browser_mcp.__main__ as main_mod
 from justpen_browser_mcp.__main__ import _run_kwargs

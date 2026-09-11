@@ -15,7 +15,7 @@ from __future__ import annotations
 from contextlib import AsyncExitStack
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, TypeVar, cast
 
 from camoufox.async_api import AsyncCamoufox
 
@@ -58,7 +58,10 @@ class InstanceRecord:
     browser: Browser | None
 
 
-def _set_optional[T](
+T = TypeVar("T")
+
+
+def _set_optional(
     kwargs: dict[str, Any],
     key: str,
     value: T | None,
@@ -108,7 +111,9 @@ async def launch_instance(
     """
     kwargs: dict[str, Any] = {
         "headless": headless,
-        "humanize": humanize,
+        # Camoufox treats bool as a numeric duration. Pass its native 1.5-second
+        # default explicitly so True is not serialized into a double property.
+        "humanize": 1.5 if humanize is True else humanize,
         "block_webrtc": True,
         "block_images": False,
         "disable_coop": True,

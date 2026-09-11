@@ -1,0 +1,1200 @@
+{
+  "browser_clear_cookies": {
+    "additionalProperties": false,
+    "properties": {
+      "instance": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "instance"
+    ],
+    "type": "object"
+  },
+  "browser_clear_local_storage": {
+    "additionalProperties": false,
+    "properties": {
+      "instance": {
+        "type": "string"
+      },
+      "origin": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "required": [
+      "instance"
+    ],
+    "type": "object"
+  },
+  "browser_click": {
+    "additionalProperties": false,
+    "properties": {
+      "button": {
+        "default": "left",
+        "type": "string"
+      },
+      "double_click": {
+        "default": false,
+        "type": "boolean"
+      },
+      "instance": {
+        "type": "string"
+      },
+      "modifiers": {
+        "anyOf": [
+          {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "ref": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "instance",
+      "ref"
+    ],
+    "type": "object"
+  },
+  "browser_close": {
+    "additionalProperties": false,
+    "properties": {
+      "instance": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "instance"
+    ],
+    "type": "object"
+  },
+  "browser_console_messages": {
+    "additionalProperties": false,
+    "properties": {
+      "instance": {
+        "type": "string"
+      },
+      "level": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "required": [
+      "instance"
+    ],
+    "type": "object"
+  },
+  "browser_create_instance": {
+    "additionalProperties": false,
+    "properties": {
+      "block_images": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "block_webgl": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "block_webrtc": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "camoufox_args": {
+        "anyOf": [
+          {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "camoufox_os": {
+        "anyOf": [
+          {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "enable_cache": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "ff_version": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "firefox_user_prefs": {
+        "anyOf": [
+          {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "geoip": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "headless": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "const": "virtual",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "humanize": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "locale": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "name": {
+        "type": "string"
+      },
+      "profile_dir": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "proxy": {
+        "anyOf": [
+          {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "window": {
+        "anyOf": [
+          {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "required": [
+      "name"
+    ],
+    "type": "object"
+  },
+  "browser_destroy_instance": {
+    "additionalProperties": false,
+    "properties": {
+      "name": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "name"
+    ],
+    "type": "object"
+  },
+  "browser_drag": {
+    "additionalProperties": false,
+    "properties": {
+      "instance": {
+        "type": "string"
+      },
+      "source_ref": {
+        "type": "string"
+      },
+      "target_ref": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "instance",
+      "source_ref",
+      "target_ref"
+    ],
+    "type": "object"
+  },
+  "browser_evaluate": {
+    "additionalProperties": false,
+    "properties": {
+      "expression": {
+        "type": "string"
+      },
+      "instance": {
+        "type": "string"
+      },
+      "ref": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "selector": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "required": [
+      "instance",
+      "expression"
+    ],
+    "type": "object"
+  },
+  "browser_file_upload": {
+    "additionalProperties": false,
+    "properties": {
+      "instance": {
+        "type": "string"
+      },
+      "paths": {
+        "anyOf": [
+          {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "required": [
+      "instance"
+    ],
+    "type": "object"
+  },
+  "browser_fill_form": {
+    "additionalProperties": false,
+    "properties": {
+      "fields": {
+        "items": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "instance": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "instance",
+      "fields"
+    ],
+    "type": "object"
+  },
+  "browser_generate_locator": {
+    "additionalProperties": false,
+    "properties": {
+      "element": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "instance": {
+        "type": "string"
+      },
+      "ref": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "selector": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "required": [
+      "instance"
+    ],
+    "type": "object"
+  },
+  "browser_get_cookies": {
+    "additionalProperties": false,
+    "properties": {
+      "instance": {
+        "type": "string"
+      },
+      "name": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "urls": {
+        "anyOf": [
+          {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "required": [
+      "instance"
+    ],
+    "type": "object"
+  },
+  "browser_get_local_storage": {
+    "additionalProperties": false,
+    "properties": {
+      "instance": {
+        "type": "string"
+      },
+      "key": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "origin": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "instance",
+      "origin"
+    ],
+    "type": "object"
+  },
+  "browser_handle_dialog": {
+    "additionalProperties": false,
+    "properties": {
+      "accept": {
+        "type": "boolean"
+      },
+      "instance": {
+        "type": "string"
+      },
+      "prompt_text": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "required": [
+      "instance",
+      "accept"
+    ],
+    "type": "object"
+  },
+  "browser_health": {
+    "additionalProperties": false,
+    "properties": {},
+    "type": "object"
+  },
+  "browser_hover": {
+    "additionalProperties": false,
+    "properties": {
+      "instance": {
+        "type": "string"
+      },
+      "ref": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "instance",
+      "ref"
+    ],
+    "type": "object"
+  },
+  "browser_list_instances": {
+    "additionalProperties": false,
+    "properties": {},
+    "type": "object"
+  },
+  "browser_mouse_click_xy": {
+    "additionalProperties": false,
+    "properties": {
+      "button": {
+        "default": "left",
+        "type": "string"
+      },
+      "click_count": {
+        "default": 1,
+        "type": "integer"
+      },
+      "delay_ms": {
+        "default": 0,
+        "type": "integer"
+      },
+      "instance": {
+        "type": "string"
+      },
+      "x": {
+        "type": "integer"
+      },
+      "y": {
+        "type": "integer"
+      }
+    },
+    "required": [
+      "instance",
+      "x",
+      "y"
+    ],
+    "type": "object"
+  },
+  "browser_mouse_down": {
+    "additionalProperties": false,
+    "properties": {
+      "button": {
+        "default": "left",
+        "type": "string"
+      },
+      "instance": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "instance"
+    ],
+    "type": "object"
+  },
+  "browser_mouse_drag_xy": {
+    "additionalProperties": false,
+    "properties": {
+      "from_x": {
+        "type": "integer"
+      },
+      "from_y": {
+        "type": "integer"
+      },
+      "instance": {
+        "type": "string"
+      },
+      "to_x": {
+        "type": "integer"
+      },
+      "to_y": {
+        "type": "integer"
+      }
+    },
+    "required": [
+      "instance",
+      "from_x",
+      "from_y",
+      "to_x",
+      "to_y"
+    ],
+    "type": "object"
+  },
+  "browser_mouse_move_xy": {
+    "additionalProperties": false,
+    "properties": {
+      "instance": {
+        "type": "string"
+      },
+      "x": {
+        "type": "integer"
+      },
+      "y": {
+        "type": "integer"
+      }
+    },
+    "required": [
+      "instance",
+      "x",
+      "y"
+    ],
+    "type": "object"
+  },
+  "browser_mouse_up": {
+    "additionalProperties": false,
+    "properties": {
+      "button": {
+        "default": "left",
+        "type": "string"
+      },
+      "instance": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "instance"
+    ],
+    "type": "object"
+  },
+  "browser_mouse_wheel": {
+    "additionalProperties": false,
+    "properties": {
+      "delta_x": {
+        "default": 0,
+        "type": "integer"
+      },
+      "delta_y": {
+        "default": 0,
+        "type": "integer"
+      },
+      "instance": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "instance"
+    ],
+    "type": "object"
+  },
+  "browser_navigate": {
+    "additionalProperties": false,
+    "properties": {
+      "instance": {
+        "type": "string"
+      },
+      "url": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "instance",
+      "url"
+    ],
+    "type": "object"
+  },
+  "browser_navigate_back": {
+    "additionalProperties": false,
+    "properties": {
+      "instance": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "instance"
+    ],
+    "type": "object"
+  },
+  "browser_network_requests": {
+    "additionalProperties": false,
+    "properties": {
+      "instance": {
+        "type": "string"
+      },
+      "static": {
+        "default": false,
+        "type": "boolean"
+      },
+      "url_filter": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "required": [
+      "instance"
+    ],
+    "type": "object"
+  },
+  "browser_pdf_save": {
+    "additionalProperties": false,
+    "properties": {
+      "file_path": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "instance": {
+        "type": "string"
+      },
+      "landscape": {
+        "default": false,
+        "type": "boolean"
+      },
+      "paper_format": {
+        "default": "A4",
+        "type": "string"
+      },
+      "print_background": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "instance"
+    ],
+    "type": "object"
+  },
+  "browser_press_key": {
+    "additionalProperties": false,
+    "properties": {
+      "instance": {
+        "type": "string"
+      },
+      "key": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "instance",
+      "key"
+    ],
+    "type": "object"
+  },
+  "browser_resize": {
+    "additionalProperties": false,
+    "properties": {
+      "height": {
+        "type": "integer"
+      },
+      "instance": {
+        "type": "string"
+      },
+      "width": {
+        "type": "integer"
+      }
+    },
+    "required": [
+      "instance",
+      "width",
+      "height"
+    ],
+    "type": "object"
+  },
+  "browser_run_code": {
+    "additionalProperties": false,
+    "properties": {
+      "code": {
+        "type": "string"
+      },
+      "instance": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "instance",
+      "code"
+    ],
+    "type": "object"
+  },
+  "browser_screenshot": {
+    "additionalProperties": false,
+    "properties": {
+      "full_page": {
+        "default": false,
+        "type": "boolean"
+      },
+      "image_format": {
+        "default": "png",
+        "type": "string"
+      },
+      "instance": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "instance"
+    ],
+    "type": "object"
+  },
+  "browser_select_option": {
+    "additionalProperties": false,
+    "properties": {
+      "instance": {
+        "type": "string"
+      },
+      "ref": {
+        "type": "string"
+      },
+      "value": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        ]
+      }
+    },
+    "required": [
+      "instance",
+      "ref",
+      "value"
+    ],
+    "type": "object"
+  },
+  "browser_set_cookies": {
+    "additionalProperties": false,
+    "properties": {
+      "cookies": {
+        "items": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "instance": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "instance",
+      "cookies"
+    ],
+    "type": "object"
+  },
+  "browser_set_local_storage": {
+    "additionalProperties": false,
+    "properties": {
+      "instance": {
+        "type": "string"
+      },
+      "items": {
+        "additionalProperties": {
+          "type": "string"
+        },
+        "type": "object"
+      },
+      "origin": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "instance",
+      "origin",
+      "items"
+    ],
+    "type": "object"
+  },
+  "browser_snapshot": {
+    "additionalProperties": false,
+    "properties": {
+      "instance": {
+        "type": "string"
+      },
+      "selector": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "required": [
+      "instance"
+    ],
+    "type": "object"
+  },
+  "browser_tabs": {
+    "additionalProperties": false,
+    "properties": {
+      "action": {
+        "type": "string"
+      },
+      "index": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "instance": {
+        "type": "string"
+      },
+      "url": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "required": [
+      "instance",
+      "action"
+    ],
+    "type": "object"
+  },
+  "browser_type": {
+    "additionalProperties": false,
+    "properties": {
+      "clear_first": {
+        "default": true,
+        "type": "boolean"
+      },
+      "instance": {
+        "type": "string"
+      },
+      "ref": {
+        "type": "string"
+      },
+      "submit": {
+        "default": false,
+        "type": "boolean"
+      },
+      "text": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "instance",
+      "ref",
+      "text"
+    ],
+    "type": "object"
+  },
+  "browser_verify_element_visible": {
+    "additionalProperties": false,
+    "properties": {
+      "instance": {
+        "type": "string"
+      },
+      "ref": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "instance",
+      "ref"
+    ],
+    "type": "object"
+  },
+  "browser_verify_list_visible": {
+    "additionalProperties": false,
+    "properties": {
+      "container_ref": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "instance": {
+        "type": "string"
+      },
+      "items": {
+        "anyOf": [
+          {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "refs": {
+        "anyOf": [
+          {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "required": [
+      "instance"
+    ],
+    "type": "object"
+  },
+  "browser_verify_text_visible": {
+    "additionalProperties": false,
+    "properties": {
+      "instance": {
+        "type": "string"
+      },
+      "text": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "instance",
+      "text"
+    ],
+    "type": "object"
+  },
+  "browser_verify_value": {
+    "additionalProperties": false,
+    "properties": {
+      "element_type": {
+        "default": "text",
+        "type": "string"
+      },
+      "expected_value": {
+        "type": "string"
+      },
+      "instance": {
+        "type": "string"
+      },
+      "ref": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "instance",
+      "ref",
+      "expected_value"
+    ],
+    "type": "object"
+  },
+  "browser_wait_for": {
+    "additionalProperties": false,
+    "properties": {
+      "instance": {
+        "type": "string"
+      },
+      "text": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "text_gone": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "time": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "required": [
+      "instance"
+    ],
+    "type": "object"
+  }
+}

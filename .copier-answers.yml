@@ -1,0 +1,10 @@
+# Managed by Copier. Change answers through Copier rather than editing this file.
+# Quote strings so YAML formatters cannot interpret revisions as numbers.
+"_commit": "v0.3.1"
+"_src_path": "gh:justpenkit/justpen-mcp-dev-template"
+"author": "justmumu"
+"copyright_year": 2026
+"description": "Camoufox-based MCP server with multi-context browser session isolation"
+"initial_version": "0.0.0"
+"project_name": "justpen-browser-mcp"
+"repo_owner": "justpenkit"
