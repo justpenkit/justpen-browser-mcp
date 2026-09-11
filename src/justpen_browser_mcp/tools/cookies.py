@@ -181,6 +181,8 @@ def _register_browser_get_local_storage(mcp: FastMCP, mgr: InstanceManager) -> N
 
         Opens a temporary page that navigates to origin, reads localStorage,
         then closes — the instance's active page is not disturbed.
+        Storage is accessed after the document commits, without waiting for
+        DOMContentLoaded or site initialization scripts.
         origin must be a fully-qualified URL including scheme (e.g. "https://example.com").
         When ``key`` is provided, only the value for that key is returned
         (``None`` if the key does not exist).
@@ -201,7 +203,7 @@ def _register_browser_get_local_storage(mcp: FastMCP, mgr: InstanceManager) -> N
             async with mgr.lock_for(instance):
                 page = await ctx.new_page()
                 try:
-                    await page.goto(origin, wait_until="domcontentloaded")
+                    await page.goto(origin, wait_until="commit")
                     _verify_origin(page.url, origin)
                     if key is not None:
                         value = await page.evaluate("(k) => localStorage.getItem(k)", key)
@@ -233,6 +235,8 @@ def _register_browser_set_local_storage(mcp: FastMCP, mgr: InstanceManager) -> N
 
         Opens a temporary page that navigates to origin, sets each item via
         localStorage.setItem, then closes — the instance's active page is not disturbed.
+        Storage is accessed after the document commits, without waiting for
+        DOMContentLoaded or site initialization scripts.
         All values must be strings (localStorage only stores strings).
 
         Returns on success:
@@ -248,7 +252,7 @@ def _register_browser_set_local_storage(mcp: FastMCP, mgr: InstanceManager) -> N
             async with mgr.lock_for(instance):
                 page = await ctx.new_page()
                 try:
-                    await page.goto(origin, wait_until="domcontentloaded")
+                    await page.goto(origin, wait_until="commit")
                     _verify_origin(page.url, origin)
                     await page.evaluate(
                         "(items) => { Object.entries(items).forEach(([k, v]) => localStorage.setItem(k, v)); }",
@@ -280,6 +284,8 @@ def _register_browser_clear_local_storage(mcp: FastMCP, mgr: InstanceManager) ->
         to origin, calls localStorage.clear(), then closes — the instance's
         active page is not disturbed. ``origin`` must be a fully-qualified
         URL including scheme.
+        Storage is accessed after the document commits, without waiting for
+        DOMContentLoaded or site initialization scripts.
 
         When ``origin`` is omitted, localStorage is cleared on the active
         page directly (no temp page, no navigation). Use this shortcut when
@@ -302,7 +308,7 @@ def _register_browser_clear_local_storage(mcp: FastMCP, mgr: InstanceManager) ->
                     return success_response(instance, data={"cleared": True, "origin": page.url})
                 page = await ctx.new_page()
                 try:
-                    await page.goto(origin, wait_until="domcontentloaded")
+                    await page.goto(origin, wait_until="commit")
                     _verify_origin(page.url, origin)
                     await page.evaluate("() => localStorage.clear()")
                 finally:

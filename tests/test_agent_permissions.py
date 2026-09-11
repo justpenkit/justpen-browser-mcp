@@ -318,9 +318,13 @@ def test_claude_imports_shared_rules():
 @pytest.mark.skipif(not os.environ.get("CODEX_TEST_BINARY"), reason="opt-in: needs an installed Codex sandbox")
 def test_real_codex_sandbox_enforces_protected_files(tmp_path):
     """Exercise OS permissions against disposable files, without a model call."""
+    # Hook-provided Git variables override cwd and can reinitialize the caller's
+    # shared repository. Keep both child processes inside the disposable fixture.
+    environment = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
     fixture = tmp_path / "permission-fixture"
     fixture.mkdir()
-    subprocess.run(["git", "init", "-q", str(fixture)], check=True)
+    subprocess.run(["git", "init", "-q", str(fixture)], env=environment, check=True)
+    assert (fixture / ".git").is_dir()
     (fixture / ".codex").mkdir()
     shutil.copyfile(ROOT / ".codex/config.toml", fixture / ".codex/config.toml")
     for name in ("pyproject.toml", "uv.lock"):
@@ -357,9 +361,49 @@ Path("source.py").write_text("# ordinary edits work\\n")
             "-c",
             probe,
         ],
+        env=environment,
         check=False,
         capture_output=True,
         text=True,
     )
     assert result.returncode == 0, result.stderr
     assert (fixture / "source.py").is_file()
+
+
+@pytest.mark.skipif(not os.environ.get("CODEX_TEST_BINARY"), reason="opt-in: needs an installed Codex sandbox")
+def test_real_codex_sandbox_ignores_inherited_worktree(tmp_path, monkeypatch):
+    """A pre-push GIT_DIR must not redirect the probe into the shared repository."""
+    environment = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+    repository = tmp_path / "repository"
+    linked = tmp_path / "linked"
+    subprocess.run(["git", "init", "-q", "-b", "main", str(repository)], env=environment, check=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Sandbox Test",
+            "-c",
+            "user.email=sandbox@example.invalid",
+            "-c",
+            "commit.gpgsign=false",
+            "commit",
+            "--allow-empty",
+            "-qm",
+            "test: initialize isolated repository",
+        ],
+        cwd=repository,
+        env=environment,
+        check=True,
+    )
+    subprocess.run(["git", "worktree", "add", "-qb", "probe", str(linked)], cwd=repository, env=environment, check=True)
+    git_dir = subprocess.check_output(
+        ["git", "rev-parse", "--absolute-git-dir"], cwd=linked, env=environment, text=True
+    ).strip()
+    config = repository / ".git/config"
+    original_config = config.read_bytes()
+    monkeypatch.setenv("GIT_DIR", git_dir)
+
+    test_real_codex_sandbox_enforces_protected_files(tmp_path)
+
+    assert config.read_bytes() == original_config
+    assert (tmp_path / "permission-fixture/.git").is_dir()

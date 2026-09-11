@@ -252,7 +252,7 @@ class TestBrowserGetLocalStorage:
         )
         assert result.data["status"] == "success"
         assert result.data["data"]["items"] == {"auth_token": "xyz", "theme": "dark"}
-        page.goto.assert_awaited_once_with("https://app.example.com", wait_until="domcontentloaded")
+        page.goto.assert_awaited_once_with("https://app.example.com", wait_until="commit")
 
     async def test_get_local_storage_key(self, mcp_client, mock_ctx_mgr):
         _ctx, page = make_ctx_with_page(mock_ctx_mgr, eval_result="dark")
@@ -316,7 +316,7 @@ class TestBrowserClearLocalStorage:
             {"instance": "admin", "origin": "https://app.example.com"},
         )
         assert result.data["status"] == "success"
-        page.goto.assert_awaited_once_with("https://app.example.com", wait_until="domcontentloaded")
+        page.goto.assert_awaited_once_with("https://app.example.com", wait_until="commit")
         page.evaluate.assert_awaited_once()
         eval_arg = page.evaluate.call_args[0][0]
         assert "localStorage.clear" in eval_arg

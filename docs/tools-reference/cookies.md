@@ -268,6 +268,8 @@ Response:
 
 **Notes** — Opens a temporary page that navigates to the origin, reads localStorage, then closes the page — the instance's active page is not disturbed. `origin` must be a fully-qualified URL including scheme; partial URLs or paths are not accepted.
 
+Storage is accessed after the document commits, without waiting for DOMContentLoaded or site initialization scripts.
+
 ## browser_set_local_storage { #browser_set_local_storage }
 
 Set localStorage key-value pairs for the given origin.
@@ -323,6 +325,8 @@ Response:
 ```
 
 **Notes** — Opens a temporary page that navigates to the origin, sets each item via `localStorage.setItem`, then closes the page — the instance's active page is not disturbed. All values must be strings because localStorage only stores strings.
+
+Storage is accessed after the document commits, without waiting for DOMContentLoaded or site initialization scripts.
 
 ## browser_clear_local_storage { #browser_clear_local_storage }
 
@@ -390,3 +394,5 @@ Response:
 ```
 
 **Notes** — When `origin` is provided, a temporary page navigates to that origin, clears localStorage, then closes — the instance's active page is not disturbed. When `origin` is omitted, localStorage is cleared on the active page directly with no navigation (a shortcut for when you are already on the origin whose storage you want to clear). The `origin` field in the response always reflects which origin's storage was actually cleared.
+
+For an explicit origin, storage is accessed after the document commits, without waiting for DOMContentLoaded or site initialization scripts.
