@@ -18,7 +18,7 @@ async def real_manager():
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-@pytest.mark.filterwarnings("ignore::camoufox.warnings.LeakWarning")
+@pytest.mark.filterwarnings("ignore::camoufox._warnings.LeakWarning")
 async def test_two_ephemeral_instances_are_isolated(real_manager):
     a = await real_manager.create("alice")
     b = await real_manager.create("bob")
@@ -33,7 +33,7 @@ async def test_two_ephemeral_instances_are_isolated(real_manager):
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-@pytest.mark.filterwarnings("ignore::camoufox.warnings.LeakWarning")
+@pytest.mark.filterwarnings("ignore::camoufox._warnings.LeakWarning")
 async def test_persistent_instance_survives_destroy_create_cycle(tmp_path):
     cfg = BrowserServerConfig(log_level="INFO", max_instances=5)
     mgr = InstanceManager(cfg)
@@ -58,7 +58,7 @@ async def test_persistent_instance_survives_destroy_create_cycle(tmp_path):
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-@pytest.mark.filterwarnings("ignore::camoufox.warnings.LeakWarning")
+@pytest.mark.filterwarnings("ignore::camoufox._warnings.LeakWarning")
 async def test_shutdown_all_closes_multiple_live_instances(real_manager):
     await real_manager.create("a")
     await real_manager.create("b")

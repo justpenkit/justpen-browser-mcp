@@ -2,11 +2,11 @@
 
 Microsoft Playwright MCP exposes element references via YAML aria
 snapshots with [ref=eN] annotations. Playwright's bundled server
-implements the `snapshotForAI` protocol method that emits these refs,
-but the Python high-level API does NOT expose it (as of playwright 1.58).
+implements the `Frame.ariaSnapshot` protocol method with `mode="ai"`
+to emit these refs, but the Python high-level API does not expose AI mode.
 
-We work around this by calling the underlying protocol channel directly
-via `page._impl_obj._channel.send("snapshotForAI", ...)`. See
+The `_playwright_internal` facade calls this method through the main frame's
+underlying protocol channel. It replaced `Page.snapshotForAI` in Playwright 1.59. See
 https://github.com/microsoft/playwright-python/issues/2867 for the
 upstream tracking issue and discussion of this workaround.
 
@@ -15,7 +15,7 @@ uses the standard public Playwright selector engine which is registered
 server-side.
 
 This module exists to:
-  - Centralize the protocol-channel hack so it has exactly one call site
+  - Capture snapshots through the private-protocol facade
   - Centralize the locator construction
   - Translate Playwright's "ref not found" errors into our StaleRefError
 """
@@ -30,15 +30,15 @@ from .errors import StaleRefError
 
 logger = logging.getLogger(__name__)
 
-# Default timeout for snapshotForAI protocol calls (milliseconds).
+# Default timeout for AI ariaSnapshot protocol calls (milliseconds).
 SNAPSHOT_TIMEOUT_MS = 5000
 
 
 async def capture_snapshot(page: Page) -> str:
     """Capture an aria snapshot with [ref=eN] annotations. Returns YAML string.
 
-    Calls Playwright's `snapshotForAI` protocol method via the raw channel
-    because the high-level Python API does not expose it.
+    Calls Playwright's `Frame.ariaSnapshot` protocol method with `mode="ai"`
+    through the private-protocol facade because the public API omits AI mode.
     See https://github.com/microsoft/playwright-python/issues/2867
     """
     return await snapshot_for_ai(page, SNAPSHOT_TIMEOUT_MS)

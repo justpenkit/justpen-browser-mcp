@@ -1,13 +1,12 @@
 """Entrypoint for `python -m justpen_browser_mcp`.
 
 Performs one-time Camoufox binary check, builds an InstanceManager, registers
-all tools, and runs the FastMCP server on stdio. SIGTERM / SIGINT trigger a
+all tools, and runs the FastMCP server on stdio or HTTP. SIGTERM / SIGINT trigger a
 graceful shutdown that closes every live instance in parallel before the
 process exits.
 """
 
 import asyncio
-import contextlib
 import logging
 import os
 import signal
@@ -43,7 +42,7 @@ async def _ensure_camoufox_binary() -> None:
     else:
         return
 
-    logger.warning("Camoufox binary not found, fetching (one-time download ~150MB)...")
+    logger.warning("Camoufox binary not found, fetching (one-time download)...")
     proc = await asyncio.create_subprocess_exec(
         sys.executable,
         "-m",
@@ -66,7 +65,7 @@ def _run_kwargs(config: BrowserServerConfig) -> dict[str, Any]:
 
 
 async def main() -> None:
-    """Launch the browser MCP server and keep it running on stdio."""
+    """Launch the browser MCP server using the configured transport."""
     config = build_config(sys.argv[1:], os.environ)
     _setup_logging(config.log_level)
 
@@ -92,11 +91,19 @@ async def main() -> None:
         if stop_task in done and not server_task.done():
             logger.info("Received shutdown signal, stopping MCP server...")
             server_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await server_task
+            # Wait for shutdown without suppressing cancellation of main itself.
+            await asyncio.wait({server_task})
+            if server_task.cancelled():
+                return
+        await server_task
     finally:
-        await mgr.stop_reaper()
-        await mgr.shutdown_all()
+        server_task.cancel()
+        stop_task.cancel()
+        try:
+            await asyncio.gather(server_task, stop_task, return_exceptions=True)
+        finally:
+            await mgr.stop_reaper()
+            await mgr.shutdown_all()
 
 
 def cli() -> None:
