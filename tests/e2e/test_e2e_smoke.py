@@ -9,7 +9,7 @@ from .conftest import call
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-@pytest.mark.filterwarnings("ignore::camoufox.warnings.LeakWarning")
+@pytest.mark.filterwarnings("ignore::camoufox._warnings.LeakWarning")
 async def test_harness_navigates(e2e_client, test_site):
     created = await call(e2e_client, "browser_create_instance", {"name": "s1"})
     assert created["status"] == "success"

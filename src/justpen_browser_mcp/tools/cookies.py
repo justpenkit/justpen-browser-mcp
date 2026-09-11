@@ -22,8 +22,12 @@ logger = logging.getLogger(__name__)
 def _extract_origin(url: str) -> str:
     """Extract scheme://host[:port] origin from a URL."""
     parsed = urlparse(url)
-    origin = f"{parsed.scheme}://{parsed.hostname}"
-    if parsed.port and parsed.port not in (80, 443):
+    hostname = parsed.hostname
+    if hostname is not None and ":" in hostname:
+        hostname = f"[{hostname}]"
+    origin = f"{parsed.scheme}://{hostname}"
+    default_port = {"http": 80, "https": 443}.get(parsed.scheme)
+    if parsed.port is not None and parsed.port != default_port:
         origin += f":{parsed.port}"
     return origin
 

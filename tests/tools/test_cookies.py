@@ -2,7 +2,46 @@
 
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
 from justpen_browser_mcp.errors import InstanceNotFoundError
+from justpen_browser_mcp.tools.cookies import _extract_origin, _verify_origin
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        ("http://example.com/path?query=value#fragment", "http://example.com"),
+        ("http://example.com:80/path", "http://example.com"),
+        ("https://example.com:443/path", "https://example.com"),
+        ("http://example.com:443/path", "http://example.com:443"),
+        ("https://example.com:80/path", "https://example.com:80"),
+        ("https://example.com:8443/path", "https://example.com:8443"),
+        ("http://example.com:0/path", "http://example.com:0"),
+        ("https://user:password@EXAMPLE.COM:443/path", "https://example.com"),
+        ("https://[::1]/path", "https://[::1]"),
+        ("http://[::1]:80/path", "http://[::1]"),
+        ("https://[::1]:443/path", "https://[::1]"),
+        ("https://[::1]:80/path", "https://[::1]:80"),
+        ("https://[::1]:8080/path", "https://[::1]:8080"),
+        ("https://[::1:8080]/path", "https://[::1:8080]"),
+    ],
+)
+def test_extract_origin_preserves_host_and_nondefault_port(url, expected):
+    assert _extract_origin(url) == expected
+
+
+@pytest.mark.parametrize(
+    ("page_url", "requested_origin"),
+    [
+        ("http://example.com/path", "http://example.com:80"),
+        ("https://example.com/path", "https://example.com:443"),
+        ("https://[::1]:443/path", "https://[::1]"),
+        ("https://example.com:80/path", "https://example.com:80"),
+    ],
+)
+def test_verify_origin_accepts_same_origin(page_url, requested_origin):
+    _verify_origin(page_url, requested_origin)
 
 
 def make_ctx_with_page(mock_ctx_mgr, cookies=None, eval_result=None):
@@ -29,6 +68,48 @@ def make_ctx_with_page(mock_ctx_mgr, cookies=None, eval_result=None):
     mock_ctx_mgr.get.return_value = rec
     mock_ctx_mgr.active_page.return_value = page
     return ctx, page
+
+
+@pytest.mark.parametrize(
+    ("tool_name", "extra_args"),
+    [
+        ("browser_get_local_storage", {}),
+        ("browser_set_local_storage", {"items": {"secret": "value"}}),
+        ("browser_clear_local_storage", {}),
+    ],
+)
+@pytest.mark.parametrize(
+    ("requested_origin", "redirected_url"),
+    [
+        ("http://example.com", "http://example.com:443/path"),
+        ("http://example.com:443", "http://example.com/path"),
+        ("https://example.com", "https://example.com:80/path"),
+        ("https://example.com:80", "https://example.com/path"),
+        ("https://example.com", "http://example.com/path"),
+        ("https://example.com", "https://other.example/path"),
+        ("https://[::1]", "https://[::1]:80/path"),
+        ("https://[::1]:8080", "https://[::1:8080]/path"),
+    ],
+)
+async def test_local_storage_rejects_different_origin_redirect(
+    mcp_client, mock_ctx_mgr, tool_name, extra_args, requested_origin, redirected_url
+):
+    _ctx, page = make_ctx_with_page(mock_ctx_mgr)
+
+    async def redirect(_url, **_kwargs):
+        page.url = redirected_url
+
+    page.goto.side_effect = redirect
+    result = await mcp_client.call_tool(
+        tool_name,
+        {"instance": "admin", "origin": requested_origin, **extra_args},
+    )
+
+    assert result.data["status"] == "error"
+    assert result.data["error_type"] == "invalid_params"
+    assert "Origin mismatch" in result.data["message"]
+    page.evaluate.assert_not_awaited()
+    page.close.assert_awaited_once_with()
 
 
 class TestBrowserGetCookies:

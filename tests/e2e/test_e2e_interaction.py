@@ -54,7 +54,7 @@ from .conftest import call
 pytestmark = [
     pytest.mark.e2e,
     pytest.mark.asyncio,
-    pytest.mark.filterwarnings("ignore::camoufox.warnings.LeakWarning"),
+    pytest.mark.filterwarnings("ignore::camoufox._warnings.LeakWarning"),
 ]
 
 _LINE_RE = re.compile(r"^(?P<indent>\s*)-\s*(?P<rest>.*)$")

@@ -66,8 +66,9 @@ def _register_browser_pdf_save(mcp: FastMCP, mgr: InstanceManager) -> None:
         """Render the active page as a PDF and save it to the given file path.
 
         file_path is optional — when omitted, a file named ``page-{timestamp}.pdf``
-        is written in the current working directory. paper_format is a paper
-        size string: "A4" (default), "Letter", "A3", etc. landscape rotates the
+        is written under ``$JUSTPEN_WORKSPACE/output/evidence`` (default:
+        ``/workspace/output/evidence``). paper_format is a paper size string:
+        "A4" (default), "Letter", "A3", etc. landscape rotates the
         page to landscape orientation. print_background includes CSS
         backgrounds in the rendered output (off by default to match browser
         print behavior). Parent directories of file_path are created
