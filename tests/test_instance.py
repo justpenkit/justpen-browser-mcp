@@ -4,6 +4,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from camoufox import DefaultAddons
 
 from justpen_browser_mcp.instance import InstanceState, launch_instance
 
@@ -42,6 +43,7 @@ async def test_launch_persistent_sets_user_data_dir(mock_camoufox, tmp_path):
     )
     assert mock_camoufox["captured"]["kwargs"]["persistent_context"] is True
     assert mock_camoufox["captured"]["kwargs"]["user_data_dir"] == str(tmp_path)
+    assert mock_camoufox["captured"]["kwargs"]["exclude_addons"] == [DefaultAddons.UBO]
     assert ctx is mock_camoufox["ctx"]
     assert browser is None
     await stack.aclose()
@@ -126,6 +128,7 @@ async def test_launch_hardcoded_defaults(mock_camoufox):
     assert kwargs["block_webrtc"] is True
     assert kwargs["block_images"] is False
     assert kwargs["disable_coop"] is True
+    assert kwargs["exclude_addons"] == [DefaultAddons.UBO]
     await stack.aclose()
 
 

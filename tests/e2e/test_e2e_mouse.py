@@ -8,6 +8,8 @@ outcomes are verified via browser_evaluate reading page/DOM state (e.g.
 scrollY after a wheel event, the click landing on a real link and navigating).
 """
 
+import json
+
 import pytest
 
 from .conftest import call
@@ -28,10 +30,11 @@ async def test_mouse_move_xy_returns_target_position(e2e_client, test_site):
     assert r["data"]["moved_to"] == [10, 12]
 
 
-async def test_mouse_click_xy_on_link_navigates(e2e_client, test_site):
+@pytest.mark.parametrize("source_page", ["index.html", "delayed-link.html"])
+async def test_mouse_click_xy_on_link_navigates(e2e_client, test_site, source_page, tmp_path):
     """Clicking directly at the pixel position of the #to-form link follows it."""
     await call(e2e_client, "browser_create_instance", {"name": "m2"})
-    await call(e2e_client, "browser_navigate", {"instance": "m2", "url": f"{test_site}/index.html"})
+    await call(e2e_client, "browser_navigate", {"instance": "m2", "url": f"{test_site}/{source_page}"})
 
     box = await call(
         e2e_client,
@@ -39,24 +42,70 @@ async def test_mouse_click_xy_on_link_navigates(e2e_client, test_site):
         {
             "instance": "m2",
             "selector": "#to-form",
-            "expression": "el => { const r = el.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; }",
+            "expression": """el => {
+                window.mouseClickEvents = [];
+                sessionStorage.removeItem("mouse-click-events");
+                const save = () => sessionStorage.setItem("mouse-click-events", JSON.stringify(window.mouseClickEvents));
+                for (const type of ["pointermove", "pointerdown", "pointerup", "click"]) {
+                    document.addEventListener(type, event => {
+                        window.mouseClickEvents.push({
+                            type, x: event.clientX, y: event.clientY, buttons: event.buttons,
+                            target: event.target.id || event.target.tagName, trusted: event.isTrusted,
+                            time: performance.now()
+                        });
+                        if (type !== "pointermove") save();
+                    }, true);
+                }
+                window.addEventListener("pagehide", save);
+                const r = el.getBoundingClientRect();
+                const point = [Math.round(r.x + r.width / 2), Math.round(r.y + r.height / 2)];
+                return {point, box: r.toJSON(), hit: document.elementFromPoint(...point)?.id};
+            }""",
         },
     )
     assert box["status"] == "success"
-    x, y = box["data"]["result"]
+    assert box["data"]["result"]["hit"] == "to-form", box
+    x, y = box["data"]["result"]["point"]
 
     r = await call(e2e_client, "browser_mouse_click_xy", {"instance": "m2", "x": round(x), "y": round(y)})
     assert r["status"] == "success"
     assert r["data"]["clicked_at"] == [round(x), round(y)]
     assert r["data"]["button"] == "left"
 
-    # The click triggers a real navigation; give it a moment to land before
-    # reading page state — a bare browser_evaluate immediately afterwards
-    # can race the navigation and hit "execution context was destroyed".
-    await call(e2e_client, "browser_wait_for", {"instance": "m2", "time": 0.5})
+    # The source document is already loaded even when navigation is scheduled
+    # after the click handler returns. Wait for content unique to the destination.
+    waited = await call(e2e_client, "browser_wait_for", {"instance": "m2", "text": "Send"})
     snap = await call(e2e_client, "browser_snapshot", {"instance": "m2"})
-    assert snap["status"] == "success"
-    assert snap["data"]["url"] == f"{test_site}/form.html"
+    observed = await call(
+        e2e_client,
+        "browser_evaluate",
+        {
+            "instance": "m2",
+            "expression": """() => ({
+                url: location.href,
+                events: window.mouseClickEvents || JSON.parse(sessionStorage.getItem("mouse-click-events") || "[]"),
+                formReady: Boolean(document.querySelector("form#f input#name"))
+            })""",
+        },
+    )
+    diagnostics = {"measured": box, "click": r, "wait": waited, "snapshot": snap, "observed": observed}
+    (tmp_path / "mouse-click.json").write_text(json.dumps(diagnostics, indent=2))
+    try:
+        assert waited["status"] == "success", waited
+        assert snap["status"] == "success", snap
+        assert snap["data"]["url"] == f"{test_site}/form.html"
+        assert observed["status"] == "success", observed
+        assert observed["data"]["result"]["formReady"]
+        assert any(
+            event["type"] == "click"
+            and event["target"] == "to-form"
+            and event["trusted"]
+            and [event["x"], event["y"]] == [x, y]
+            for event in observed["data"]["result"]["events"]
+        )
+    except AssertionError:
+        print("Mouse click diagnostics: " + json.dumps(diagnostics))
+        raise
 
 
 async def test_mouse_down_move_up_drags(e2e_client, test_site):
