@@ -24,7 +24,7 @@ for platform requirements, or [clone the repository](docs/contributing/getting-s
 to contribute.
 
 ```bash
-uv add "justpen-browser-mcp @ git+https://github.com/justpenkit/justpen-browser-mcp@v0.5.0"
+uv add "justpen-browser-mcp @ git+https://github.com/justpenkit/justpen-browser-mcp@v0.6.0"
 ```
 
 Run the server (stdio transport); startup fetches Camoufox if needed:
