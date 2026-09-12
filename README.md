@@ -1,3 +1,5 @@
+<img src="docs/assets/logo.svg" alt="justpen-browser-mcp logo" width="144" height="144">
+
 # justpen-browser-mcp
 
 Camoufox-based MCP server with multi-instance browser isolation.

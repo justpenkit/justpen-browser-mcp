@@ -2,6 +2,8 @@
 description: Camoufox-based MCP server with multi-instance browser session isolation.
 ---
 
+![justpen-browser-mcp logo](assets/logo.svg){ width="128" height="128" }
+
 # justpen-browser-mcp { #_top }
 
 Stealth-patched Firefox via Camoufox, exposed as MCP browser tools with per-instance session isolation.
