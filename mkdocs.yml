@@ -1,4 +1,5 @@
 site_name: justpen-browser-mcp
+site_url: https://justpen-browser-mcp.justpenkit.justmumu.com/
 site_description: Camoufox-based MCP server with multi-instance browser session isolation
 repo_url: https://github.com/justpenkit/justpen-browser-mcp
 repo_name: justpenkit/justpen-browser-mcp
