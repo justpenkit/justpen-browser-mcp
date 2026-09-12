@@ -50,6 +50,11 @@ Python 3.11/3.12/3.13 typing and the fast tests once in the active interpreter.
 validation. CI builds documentation on Python 3.13. The pre-push hook runs both
 gates for early feedback; CI verifies the PR independently.
 
+After every `main` push, the complete quality and browser matrices must pass
+before CI publishes the documentation to Cloudflare Pages. Pull requests build
+and validate the docs without publishing. See [documentation deployment](documentation-deployment.md)
+for the one-time account setup and deployment recovery.
+
 Use `make lint-fix`, `make format` and `make typecheck` for individual checks.
 `make test-one TEST=tests/test_file.py::test_name` provides focused feedback; it
 does not replace the full `make check` coverage gate.

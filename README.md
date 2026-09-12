@@ -33,9 +33,11 @@ uv run justpen-browser-mcp
 
 ## Documentation
 
-Read the [documentation](docs/index.md) in this repository, or run `make docs-serve`
-after `make setup` to browse the MkDocs site locally. `make docs-build` creates
-the static site in `site/` for deployment to a host of your choice.
+Read the [online documentation](https://justpen-browser-mcp.justpenkit.justmumu.com/)
+or its [source in this repository](docs/index.md). Run `make docs-serve` after
+`make setup` to browse the MkDocs site locally. `make docs-build` creates the
+static site in `site/`. Successful `main` CI runs publish it to Cloudflare Pages;
+see [documentation deployment](docs/contributing/documentation-deployment.md).
 
 - [Install](docs/getting-started/install.md) · [Run the server](docs/getting-started/run-server.md) · [Configuration](docs/getting-started/configuration.md)
 - Client setup: [Codex](docs/client-setup/codex.md) · [Claude Code](docs/client-setup/claude-code.md) · [Copilot CLI](docs/client-setup/copilot-cli.md) · [Gemini CLI](docs/client-setup/gemini-cli.md)
