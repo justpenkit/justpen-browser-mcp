@@ -75,6 +75,9 @@ jobs:
     name: Publish documentation
     needs: [check, browser]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://justpen-browser-mcp.justpenkit.justmumu.com/
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -115,7 +118,6 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
           command: pages deploy site --project-name=justpen-browser-mcp --branch=main --commit-hash=${{ github.sha }}
       - name: Verify production deployment
         env:
