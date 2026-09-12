@@ -72,7 +72,6 @@ nav:
       - PR checklist: contributing/pr-checklist.md
       - Lint & typing: contributing/lint-typing.md
       - Release process: contributing/release-process.md
-      - Documentation deployment: contributing/documentation-deployment.md
 
 plugins:
   - search
