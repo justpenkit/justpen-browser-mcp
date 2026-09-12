@@ -1,3 +1,10 @@
+## v0.6.0 (2026-09-12)
+
+### Feat
+
+- add project logo and custom deployment URL
+- harden browser lifecycle, recovery and evidence
+
 ## v0.5.0 (2026-09-11)
 
 ### BREAKING CHANGE
