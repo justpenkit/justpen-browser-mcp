@@ -1,5 +1,10 @@
 ## v0.6.1 (2026-09-13)
 
+### Maintenance
+
+- Align development hooks, CI, Commitizen validation, release tooling and common documentation with template v0.4.0.
+- Keep routine local verification in Git hooks and browser/integration/installed-package scenarios in CI.
+
 ## v0.6.0 (2026-09-12)
 
 ### Feat
