@@ -28,6 +28,9 @@ pytestmark = [
     pytest.mark.filterwarnings("ignore::camoufox._warnings.LeakWarning"),
 ]
 
+# Direct navigation/content calls prepare evidence; tool deadlines stay separate.
+SETUP_TIMEOUT_MS = 30_000
+
 
 @pytest.fixture
 async def hardening_browser():
@@ -102,7 +105,9 @@ async def test_download_event_after_redirect_is_success(hardening_browser, downl
 
 async def test_duplicate_text_visibility_and_disappearance(hardening_browser):
     _, page, client = hardening_browser
-    await page.set_content('<section aria-label="Items"><span hidden>Done</span><span>Done</span></section>')
+    await page.set_content(
+        '<section aria-label="Items"><span hidden>Done</span><span>Done</span></section>', timeout=SETUP_TIMEOUT_MS
+    )
     for name, arguments in [
         ("browser_wait_for", {"text": "Done"}),
         ("browser_verify_text_visible", {"text": "Done"}),
@@ -127,7 +132,7 @@ async def test_duplicate_text_visibility_and_disappearance(hardening_browser):
 
 async def test_storage_dump_preserves_proto_key(hardening_browser, test_site):
     _, page, client = hardening_browser
-    await page.goto(test_site)
+    await page.goto(test_site, timeout=SETUP_TIMEOUT_MS)
     await page.evaluate("() => {localStorage.clear(); localStorage.setItem('__proto__', 'evidence');}")
     result = await call(client, "browser_get_local_storage", {"instance": "review", "origin": test_site})
     assert result["data"]["items"] == {"__proto__": "evidence"}
@@ -180,13 +185,13 @@ async def test_storage_rejects_cross_origin_redirect_before_write(hardening_brow
         {"instance": "review", "origin": f"{download_site}/other-origin", "items": {"secret": "value"}},
     )
     assert result["error_type"] == "invalid_params", result
-    await page.goto(download_site.replace("127.0.0.1", "localhost") + "/child")
+    await page.goto(download_site.replace("127.0.0.1", "localhost") + "/child", timeout=SETUP_TIMEOUT_MS)
     assert await page.evaluate("localStorage.getItem('secret')") is None
 
 
 async def test_generated_locator_preserves_nth_semantics(hardening_browser):
     _, page, client = hardening_browser
-    await page.set_content("<button>Same</button><button>Same</button>")
+    await page.set_content("<button>Same</button><button>Same</button>", timeout=SETUP_TIMEOUT_MS)
     snapshot = await call(client, "browser_snapshot", {"instance": "review"})
     line = next(line for line in snapshot["data"]["snapshot"].splitlines() if 'button "Same"' in line)
     match = re.search(r"\[ref=(\w+)\]", line)
@@ -202,7 +207,9 @@ async def test_generated_locator_preserves_nth_semantics(hardening_browser):
 
 async def test_new_tab_popup_and_stable_id(hardening_browser, download_site):
     manager, original, client = hardening_browser
-    await original.set_content(f'<a href="{download_site}/child" target="_blank">Open popup</a>')
+    await original.set_content(
+        f'<a href="{download_site}/child" target="_blank">Open popup</a>', timeout=SETUP_TIMEOUT_MS
+    )
 
     async def open_popup_during_navigation(route):
         async with original.context.expect_page() as popup:
