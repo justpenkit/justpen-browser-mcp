@@ -34,8 +34,12 @@ Clone the repository to develop the server. Contributors can run `make setup`, w
 installs the locked dev and docs groups through `uv`, fetches the Camoufox binary, and
 installs the project's git hooks (pre-commit / pre-push / commit-msg).
 
-Every server startup resolves the latest official Camoufox release for this platform,
-reuses or downloads it, activates it, and verifies the selection before serving
+Every server startup resolves the newest compatible official Camoufox release for
+this platform, including prereleases. While upstream is older than the fixed
+beta.31 CI build, it selects a SHA256-pinned mirror of that unchanged official build.
+Equal or newer official releases automatically take priority at the next startup,
+even when the mirror is cached. See [browser selection](run-server.md#latest-build-compatibility).
+The server reuses or downloads the selected browser, activates it, and verifies it before serving
 browser operations. Startup fails if that preparation cannot complete; it does not
 fall back to an unverified older browser. Playwright 1.61.x and Camoufox SDK 0.5.6 or newer are required. The process
 retains the exact resolved SDK browser selector for all its launches even if another SDK process

@@ -1259,6 +1259,7 @@ dependencies = [
     { name = "fastmcp" },
     { name = "pillow" },
     { name = "playwright" },
+    { name = "requests" },
     { name = "tldextract" },
     { name = "typing-extensions" },
 ]
@@ -1295,6 +1296,7 @@ requires-dist = [
     { name = "fastmcp", specifier = ">=4.0.3" },
     { name = "pillow", specifier = ">=11" },
     { name = "playwright", specifier = ">=1.61,<1.62" },
+    { name = "requests", specifier = ">=2.33.1" },
     { name = "tldextract", specifier = ">=5.3" },
     { name = "typing-extensions", specifier = ">=4.4" },
 ]

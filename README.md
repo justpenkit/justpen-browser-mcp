@@ -28,7 +28,10 @@ to contribute.
 uv add "justpen-browser-mcp @ git+https://github.com/justpenkit/justpen-browser-mcp@v0.6.1"
 ```
 
-Run the server (stdio transport); every startup checks and activates the latest official Camoufox release before serving, downloading it when needed:
+Run the server (stdio transport); every startup checks for the newest compatible
+official Camoufox release. A temporary mirror supplies the fixed beta.31 CI build
+while upstream is older; equal or newer official releases automatically take priority.
+See [browser selection](docs/getting-started/run-server.md#latest-build-compatibility).
 
 ```bash
 uv run justpen-browser-mcp

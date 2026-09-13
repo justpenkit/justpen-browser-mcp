@@ -26,7 +26,11 @@ Git hooks. `make install` installs dependencies only. Run setup again after
 cloning onto another computer or when hooks need reinstalling.
 
 Setup, `make browser-fetch`, and every server startup resolve, install if needed,
-activate, and verify the latest official Camoufox release. The application requires
+activate, and verify the newest compatible official Camoufox release, including
+prereleases. A temporary mirror supplies the fixed official beta.31 CI build while
+upstream is older; an equal or newer official release automatically supersedes it.
+See [browser selection](../getting-started/run-server.md#latest-build-compatibility).
+The application requires
 Playwright 1.61.x and retains that startup's exact SDK browser selector for all
 instance launches. See [installation](../getting-started/install.md).
 

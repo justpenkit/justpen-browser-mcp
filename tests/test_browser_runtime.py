@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import logging
 import subprocess
 import sys
 from pathlib import Path
@@ -9,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from camoufox.multiversion import InstalledVersion
-from camoufox.pkgman import AvailableVersion, Version
+from camoufox.pkgman import AvailableVersion, RepoConfig, Version
 
 import justpen_browser_mcp.__main__ as entrypoint
 import justpen_browser_mcp.browser_runtime as runtime
@@ -19,15 +20,16 @@ from justpen_browser_mcp.errors import BinaryNotFoundError
 
 @pytest.fixture
 def prepared_install(tmp_path, monkeypatch):
-    version = Version(version="152.0.4", build="beta.30")
+    version = Version(version="152.0.4", build="beta.32")
     release = AvailableVersion(version=version, url="https://example.test/browser.zip", is_prerelease=False)
     install_path = tmp_path / version.full_string
     install_path.mkdir()
     installed = InstalledVersion(repo_name="official", version=version, path=install_path)
     executable = install_path / "browser"
     executable.touch()
-    repo = MagicMock(name="official")
-    repo.name = "Official"
+    repo = RepoConfig.from_dict(
+        {"name": "Official", "repo": "daijro/camoufox", "pattern": "{name}-{version}-{build}-{os}.{arch}.zip"}
+    )
     catalog = MagicMock(return_value=[release])
     monkeypatch.setattr(runtime, "list_available_versions", catalog, raising=False)
     monkeypatch.setattr(runtime, "list_installed", lambda: [installed], raising=False)
@@ -47,10 +49,138 @@ def test_cached_latest_is_resolved_and_activated_on_every_start(prepared_install
     assert first.firefox_major == 152
     assert Path(first.executable_path).is_file()
     assert catalog.call_count == 2
-    assert catalog.call_args.kwargs["include_prerelease"] is False
+    assert catalog.call_args.kwargs["include_prerelease"] is True
     assert isinstance(runtime.set_active, MagicMock)
     assert runtime.set_active.call_args.args == (installed.relative_path,)
     assert first.installation == installed.relative_path
+
+
+@pytest.fixture
+def mirror_install(prepared_install, tmp_path, monkeypatch):
+    """Keep real selection and cache matching; replace only catalog/disk side effects."""
+    _release, official, _catalog = prepared_install
+    mirror_repo = RepoConfig.from_dict(
+        {
+            "name": "JustpenKit",
+            "repo": "justpenkit/justpen-browser-mcp",
+            "pattern": "{name}-{version}-{build}-{os}.{arch}.zip",
+        }
+    )
+    version = Version(version="152.0.4", build="beta.31")
+    mirror = AvailableVersion(version, "https://example.test/mirror.zip", is_prerelease=True, sha256="1" * 64)
+    path = tmp_path / "mirror" / "152.0.4-beta.31-11111111"
+    path.mkdir(parents=True)
+    (path / "browser").touch()
+    installed = InstalledVersion(repo_name="justpenkit", version=version, path=path, sha256="1" * 64)
+    monkeypatch.setattr(runtime, "mirror_candidate", lambda: (mirror_repo, mirror), raising=False)
+    monkeypatch.setattr(
+        runtime, "CamoufoxFetcher", MagicMock(side_effect=AssertionError("Unexpected download for cached release"))
+    )
+    monkeypatch.setattr(runtime, "list_installed", lambda: [installed, official])
+    monkeypatch.setattr(runtime, "launch_path", lambda folder: str(folder / "browser"))
+    active = [installed.path]
+
+    def activate(selector):
+        active[0] = next(item.path for item in (installed, official) if item.relative_path == selector)
+
+    monkeypatch.setattr(runtime, "set_active", activate)
+    monkeypatch.setattr(runtime, "get_active_path", lambda: active[0])
+    return mirror, installed
+
+
+def _set_official_version(release, installed, firefox, build):
+    release.version = installed.version = Version(version=firefox, build=build)
+    installed.path = installed.path.parent / release.version.full_string
+    installed.path.mkdir(exist_ok=True)
+    (installed.path / "browser").touch()
+
+
+@pytest.mark.parametrize(
+    ("firefox", "build", "source", "expected"),
+    [
+        ("152.0.4", "beta.30", "mirror", "152.0.4-beta.31"),
+        ("152.0.4", "beta.9", "mirror", "152.0.4-beta.31"),
+        ("152.0.4", "beta.31", "official", "152.0.4-beta.31"),
+        ("152.0.4", "beta.32", "official", "152.0.4-beta.32"),
+        ("152.0.5", "beta.30", "official", "152.0.5-beta.30"),
+        ("153.0.0", "beta.30", "official", "153.0.0-beta.30"),
+        ("151.0.4", "beta.99", "mirror", "152.0.4-beta.31"),
+    ],
+)
+def test_full_version_selection_prioritizes_official_on_ties(
+    prepared_install, mirror_install, firefox, build, source, expected
+):
+    release, official, _catalog = prepared_install
+    _mirror, mirrored = mirror_install
+    _set_official_version(release, official, firefox, build)
+    result = runtime.prepare_runtime()
+    assert result.version == expected
+    selected = official if source == "official" else mirrored
+    assert result.installation == selected.relative_path
+    assert runtime.get_active_path() == selected.path
+
+
+def test_cached_mirror_automatically_yields_when_official_advances(prepared_install, mirror_install):
+    release, official, catalog = prepared_install
+    _mirror, mirrored = mirror_install
+    _set_official_version(release, official, "152.0.4", "beta.30")
+    first = runtime.prepare_runtime()
+    assert first.installation == mirrored.relative_path
+
+    # A later startup sees a newly published prerelease, without any config change.
+    _set_official_version(release, official, "152.0.4", "beta.32")
+    release.is_prerelease = True
+    second = runtime.prepare_runtime()
+    assert second.installation == official.relative_path
+    assert second.version == "152.0.4-beta.32"
+    assert catalog.call_count == 2
+    assert catalog.call_args.kwargs["include_prerelease"] is True
+
+
+def test_catalog_order_and_build_suffix_cannot_hide_newer_firefox(prepared_install, mirror_install):
+    release, official, catalog = prepared_install
+    _set_official_version(release, official, "153.0.0", "beta.30")
+    older = AvailableVersion(
+        Version(version="152.0.4", build="beta.99"), "https://example.test/older.zip", is_prerelease=False
+    )
+    catalog.return_value = [older, release]
+    result = runtime.prepare_runtime()
+    assert result.version == "153.0.0-beta.30"
+    assert result.installation == official.relative_path
+
+
+def test_newer_official_does_not_need_a_mirror_for_this_platform(prepared_install, monkeypatch):
+    monkeypatch.setattr(
+        runtime, "mirror_candidate", MagicMock(side_effect=AssertionError("Mirror must not be accessed"))
+    )
+    assert runtime.prepare_runtime().version == "152.0.4-beta.32"
+
+
+def test_older_official_without_platform_mirror_fails_before_activation(prepared_install, monkeypatch):
+    release, official, _catalog = prepared_install
+    _set_official_version(release, official, "152.0.4", "beta.30")
+    monkeypatch.setattr(runtime, "mirror_candidate", lambda: None)
+    with pytest.raises(BinaryNotFoundError, match="platform"):
+        runtime.prepare_runtime()
+    assert isinstance(runtime.set_active, MagicMock)
+    runtime.set_active.assert_not_called()
+
+
+def test_newer_but_sdk_incompatible_release_does_not_replace_usable_mirror(prepared_install, mirror_install):
+    release, official, _catalog = prepared_install
+    _mirror, mirrored = mirror_install
+    _set_official_version(release, official, "153.0.0", "beta.1")
+    result = runtime.prepare_runtime()
+    assert result.installation == mirrored.relative_path
+
+
+def test_incompatible_mirror_cannot_be_activated(prepared_install, mirror_install, monkeypatch):
+    release, official, _catalog = prepared_install
+    _mirror, _mirrored = mirror_install
+    _set_official_version(release, official, "152.0.4", "beta.30")
+    monkeypatch.setattr(Version, "is_supported", lambda _self: False)
+    with pytest.raises(BinaryNotFoundError, match="compatible"):
+        runtime.prepare_runtime()
 
 
 def test_missing_latest_is_installed_before_activation(prepared_install, monkeypatch):
@@ -125,13 +255,15 @@ def browser_fetch(monkeypatch, tmp_path):
     return launch, process
 
 
-async def test_preparation_returns_concrete_runtime(browser_fetch):
+async def test_preparation_returns_concrete_runtime(browser_fetch, caplog):
     launch, _process = browser_fetch
+    caplog.set_level(logging.INFO, logger=runtime.__name__)
     result = await runtime.ensure_camoufox_binary()
     assert result.version == "152.0.4-beta.30"
     assert result.firefox_major == 152
     assert await asyncio.to_thread(Path(result.executable_path).is_file)
     assert "--prepare" in launch.call_args.args
+    assert "browsers/official/latest-asset" in caplog.text
 
 
 async def test_worker_failure_prevents_success(browser_fetch):

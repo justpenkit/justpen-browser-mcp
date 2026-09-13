@@ -4,8 +4,10 @@ description: Start the MCP server over stdio or HTTP and connect a client.
 
 # Run the server { #_top }
 
-Every startup checks the latest official Camoufox release, downloads it when needed,
-activates it, and verifies readiness before serving browser operations. A failed
+Every startup checks compatible official Camoufox releases, including prereleases,
+and prefers the newest complete browser version. While upstream is older than
+152.0.4-beta.31, it uses the temporary mirror described below. It downloads the
+selected browser when needed, activates it, and verifies readiness. A failed
 update check or verification stops startup rather than selecting an unverified older
 browser. The resolved SDK browser selector is retained for this process's launches.
 Playwright 1.61.x and Camoufox SDK 0.5.6 or newer are installed through uv.
@@ -77,15 +79,34 @@ Server-side logs go to stderr. See [Configuration](configuration.md) for the
 
 ## Latest-build compatibility { #latest-build-compatibility }
 
-Real-browser validation of Camoufox 152.0.4-beta.30 with Playwright 1.61 found
-timeouts in short humanized coordinate movements, initial mouse-down, and
-coordinate drag. These reproduce below the MCP layer; browser-side handling of
-repeated trajectory coordinates appears to wait for an acknowledgement that
-never arrives. Camoufox's [no-op mousemove fix](https://github.com/daijro/camoufox/pull/707)
-addresses the outer endpoint, while repeated intermediate points remain a
-limitation in this build. The MCP keeps the configured humanization behavior and
-reports operation timeouts; it does not silently retry mouse mutations, patch
-the official browser, or fall back to an older release.
+Published Camoufox 152.0.4-beta.30 can hang on short humanized movements, initial
+mouse-down, and coordinate drag. Upstream fixed content-edge coordinate rounding
+and unbounded input acknowledgement waits in the official beta.31 CI build; see
+[Camoufox #751](https://github.com/daijro/camoufox/issues/751#issuecomment-5556020736).
+
+Until a fixed official release is published, the MCP uses
+[Justpen's temporary mirror](https://github.com/justpenkit/justpen-browser-mcp/releases/tag/camoufox-ci-152.0.4-beta.31-eb5dc3b)
+of the **unchanged official beta.31 binaries** from
+[upstream run 34003878009](https://github.com/daijro/camoufox/actions/runs/34003878009).
+The package contains platform-specific download URLs and SHA256 digests; the SDK
+verifies downloads before installation. Normal installations need no GitHub token
+to download these public release assets. Native humanization remains enabled.
+
+Selection is automatic on **every server startup**, including when a browser is
+cached. The complete Firefox version is compared first, then the Camoufox build:
+
+| Newest compatible official release | Selected source                               |
+| ---------------------------------- | --------------------------------------------- |
+| 152.0.4-beta.30                    | Temporary beta.31 mirror                      |
+| 152.0.4-beta.31                    | Official release, even with the mirror cached |
+| 152.0.4-beta.32                    | Official release                              |
+| 153.0.0-beta.30                    | Official release                              |
+
+An equal or newer official build, including a published prerelease, immediately
+takes priority at the next startup without updating this package or removing the
+workaround. The mirror catalog is not needed on that path. Logs identify the
+selected source and version. Failed verification stops startup. Python packages,
+including fingerprint data, are not updated at runtime.
 
 ## Next steps { #next-steps }
 

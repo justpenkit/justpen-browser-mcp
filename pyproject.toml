@@ -32,6 +32,7 @@ dependencies = [
   # Camoufox 0.5.6 supports the Playwright 1.61 driver protocol.
   # Review compatibility before advancing the driver minor version.
   "playwright>=1.61,<1.62",
+  "requests>=2.33.1",
   "tldextract>=5.3",
   "typing-extensions>=4.4",
 ]

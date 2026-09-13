@@ -87,7 +87,8 @@ jobs:
         uses: actions/cache@v6.1.0
         with:
           path: ~/.cache/camoufox
-          key: camoufox-${{ runner.os }}-${{ hashFiles('src/justpen_browser_mcp/browser_runtime.py') }}
+          key: camoufox-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('src/justpen_browser_mcp/browser_runtime.py', 'src/justpen_browser_mcp/browser_mirror.py',
+            'src/justpen_browser_mcp/browser_releases.py') }}
       - name: Fetch the tested Camoufox browser
         run: make browser-fetch
       - name: Test all browser tools and installed transports
