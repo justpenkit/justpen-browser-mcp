@@ -6,6 +6,8 @@ import pytest
 
 from .conftest import call
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.mark.e2e
 @pytest.mark.asyncio

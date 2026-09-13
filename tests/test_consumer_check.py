@@ -19,6 +19,7 @@ consumer = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(consumer)
 
 
+@pytest.mark.integration
 @pytest.mark.skipif(os.name == "nt", reason="The browser consumer runs on POSIX/WSL.")
 def test_timeout_terminates_the_check_and_its_grandchild(tmp_path):
     lockfile = tmp_path / "held.lock"

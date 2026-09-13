@@ -4,7 +4,9 @@
 [`justpen-mcp-dev-template`](https://github.com/justpenkit/justpen-mcp-dev-template)
 through a reviewed migration from the v0.3.1 template reference. Its browser
 implementation, 43 tools, product documentation and existing application release
-history remain application-owned.
+history remain application-owned. The current development baseline is template
+v0.4.0, commit `2b9f8a3167e1910f5cc95c18a03f7aaf842db099`, rendered separately
+with the recorded project answers before adapting its development files.
 
 ## Enrollment and history
 
@@ -17,7 +19,7 @@ application version. Run `make version` to read the current server version.
 Keep `.copier-answers.yml` committed after enrollment. Let Copier maintain its
 source, revision and answers; never fabricate earlier answers to make an update
 appear automatic. Preserve the actual Git history and the explicit changelog
-boundary, including the application's v0.1.0 through v0.4.0 releases. Do not run
+boundary (`changelog_start_rev = ""`) and all existing application releases. Do not run
 a first-run template bootstrap on this established project.
 
 ## Update on a feature branch
@@ -51,24 +53,22 @@ Changes on the same lines can produce conflicts. Inspect `git status` and every
 diff, resolve all conflict markers, and preserve:
 
 - The `justpen_browser_mcp` package and browser tool registrations.
-- Camoufox setup, Playwright compatibility bounds and separate end-to-end tests.
+- Camoufox setup, Playwright compatibility bounds and real end-to-end tests in CI.
+- Installed-wheel consumer checks with locked and minimum runtime dependencies.
 - The product guides, tool references, URLs, anchors and branding.
 - The actual application version, historical release notes and changelog boundary.
 - Local permission policy and the project's formatting, lint and typing gates.
 
-Then run, separately, from the project root:
+Use uv for any required dependency resolution, then run `make setup` to refresh
+changed tooling and installed hooks. While developing an integration test or its
+harness, select the relevant scenario with `make test-one TEST=...`. Commit and
+push hooks provide the routine unit and strict-docs gates; do not repeat a passing
+gate manually. CI runs the supported Python matrix and real tool/browser/consumer
+integrations.
 
-```bash
-uv lock
-make setup
-make check
-make docs-build
-```
-
-Run `make test-e2e` when the update affects browser behavior. Review and commit
-through a PR, merge with a regular merge commit, and do not bump the application
-version merely because the framework changed. Do not use `copier recopy` as an
-update shortcut: it can overwrite application changes.
+Review and commit through a PR, merge with a regular merge commit, and do not
+bump the application version merely because the framework changed. Do not use
+`copier recopy` as an update shortcut: it can overwrite application changes.
 
 ## When a coding agent performs the update
 

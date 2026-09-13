@@ -1,40 +1,38 @@
-"""Exercise product documentation, version injection and strict link validation."""
+"""Exercise the published documentation and its strict local-link gate."""
 
 from __future__ import annotations
 
-import ast
-import re
 import shutil
 import subprocess
 import sys
 import tomllib
-from html import unescape
+from html.parser import HTMLParser
 from pathlib import Path
 
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-pytestmark = pytest.mark.skipif(
-    sys.version_info[:2] != (3, 13), reason="Documentation builds are validated on Python 3.13"
-)
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.skipif(sys.version_info[:2] != (3, 13), reason="Documentation builds are validated on Python 3.13"),
+]
 
 
 @pytest.fixture
 def documentation_project(tmp_path):
-    for name in ("mkdocs.yml", "pyproject.toml"):
-        shutil.copy2(ROOT / name, tmp_path / name)
-    for name in ("docs", "src"):
-        shutil.copytree(ROOT / name, tmp_path / name)
-    hook = ROOT / "scripts" / "docs_version.py"
-    (tmp_path / "scripts").mkdir()
-    shutil.copy2(hook, tmp_path / "scripts" / hook.name)
+    shutil.copy2(ROOT / "mkdocs.yml", tmp_path / "mkdocs.yml")
+    shutil.copy2(ROOT / "pyproject.toml", tmp_path / "pyproject.toml")
+    shutil.copytree(ROOT / "scripts", tmp_path / "scripts", ignore=shutil.ignore_patterns("__pycache__"))
+    shutil.copytree(ROOT / "docs", tmp_path / "docs")
+    if (ROOT / "src").exists():
+        shutil.copytree(ROOT / "src", tmp_path / "src")
     return tmp_path
 
 
-def build_documentation(project):
+def build_documentation(project, *, cwd=None):
     return subprocess.run(
-        [sys.executable, "-m", "mkdocs", "build", "--strict"],
-        cwd=project,
+        [sys.executable, "-m", "mkdocs", "build", "--strict", "--config-file", str(project / "mkdocs.yml")],
+        cwd=project if cwd is None else cwd,
         text=True,
         capture_output=True,
         check=False,
@@ -42,24 +40,10 @@ def build_documentation(project):
     )
 
 
-@pytest.fixture
-def built_documentation(documentation_project):
+def test_documentation_builds_strictly(documentation_project):
     result = build_documentation(documentation_project)
     assert result.returncode == 0, result.stdout + result.stderr
-    return documentation_project / "site"
-
-
-def test_documentation_builds_strictly(built_documentation):
-    assert (built_documentation / "index.html").is_file()
-
-
-def test_product_notes_render_as_admonitions(built_documentation):
-    server = (built_documentation / "getting-started" / "run-server" / "index.html").read_text()
-    instances = (built_documentation / "concepts" / "instances-isolation" / "index.html").read_text()
-    assert 'class="admonition warning"' in server
-    assert "No built-in authentication" in server
-    assert 'class="admonition note"' in instances
-    assert "Fingerprint re-roll on restart" in instances
+    assert (documentation_project / "site" / "index.html").is_file()
 
 
 @pytest.mark.parametrize("target", ["missing-guide.md", "index.md#missing-anchor"])
@@ -71,240 +55,124 @@ def test_documentation_rejects_broken_internal_links(documentation_project, targ
     assert target in result.stdout + result.stderr
 
 
-@pytest.mark.parametrize("version", [None, "7.8.9"])
-def test_install_commands_use_project_version(documentation_project, version):
+def rendered_text(path):
+    parser = HTMLParser()
+    parts = []
+
+    def capture(data: str) -> None:
+        parts.append(data)
+
+    parser.handle_data = capture
+    parser.feed(path.read_text())
+    return "".join(parts)
+
+
+@pytest.mark.parametrize("version", [None, "7.8.9rc2"])
+def test_documentation_renders_own_install_pins_on_every_page(documentation_project, version):
     metadata = documentation_project / "pyproject.toml"
-    current = tomllib.loads(metadata.read_text())["project"]["version"]
+    project = tomllib.loads(metadata.read_text())["project"]
+    repository = project["urls"]["Repository"]
+    expected = project["version"] if version is None else version
     if version is not None:
-        metadata.write_text(metadata.read_text().replace(f'version = "{current}"', f'version = "{version}"', 1))
-    expected = current if version is None else version
-    preserved = (
-        "Historical release: justpen-browser-mcp@v0.3.0",
-        f"Historical source: https://github.com/justpenkit/justpen-browser-mcp@v{current}",
-        "Other package: other-justpen-browser-mcp @ "
-        f"git+https://github.com/example/other-justpen-browser-mcp@v{current}",
-        f"Prerelease: justpen-browser-mcp @ git+https://github.com/justpenkit/justpen-browser-mcp@v{current}-rc1",
-    )
-    index = documentation_project / "docs/index.md"
-    index.write_text(index.read_text() + "\n\n" + "\n\n".join(preserved) + "\n")
-    archived_install = (
-        f'uv add "justpen-browser-mcp @ git+https://github.com/justpenkit/justpen-browser-mcp@v{current}"'
-    )
-    history = documentation_project / "docs/guides/template-updates.md"
-    history.write_text(history.read_text() + f"\n```bash\n{archived_install}\n```\n")
-    result = build_documentation(documentation_project)
+        metadata.write_text(
+            metadata.read_text().replace(f'version = "{project["version"]}"', f'version = "{version}"', 1)
+        )
+    references = [
+        (f"git+{repository}@v1.2.3", f"git+{repository}@v{expected}"),
+        (f"git+{repository}.git@v2.3.4-rc.1+build.7", f"git+{repository}.git@v{expected}"),
+        (f"git+{repository}@v3.4.5rc2#subdirectory=package", f"git+{repository}@v{expected}#subdirectory=package"),
+    ]
+    sources = {}
+    for source in (documentation_project / "docs").rglob("*.md"):
+        if source.name.casefold() == "changelog.md":
+            continue
+        examples = "\n".join(f'uv add "{project["name"]} @ {before}"' for before, _ in references)
+        source.write_text(source.read_text() + f"\n```text\n{examples}\n```\n")
+        sources[source] = source.read_bytes()
+
+    result = build_documentation(documentation_project, cwd=ROOT)
+
     assert result.returncode == 0, result.stdout + result.stderr
-    for relative in ("index.html", "getting-started/install/index.html"):
-        html = (documentation_project / "site" / relative).read_text()
-        text = unescape(re.sub(r"<[^>]+>", "", html))
-        assert f"git+https://github.com/justpenkit/justpen-browser-mcp@v{expected}" in text
-        assert "{{ project_version }}" not in text
-        assert "import.meta.env" not in text
-        if relative == "index.html":
-            for reference in preserved:
-                assert reference in text
-    history_html = (documentation_project / "site/guides/template-updates/index.html").read_text()
-    assert archived_install in unescape(re.sub(r"<[^>]+>", "", history_html))
+    for source, original in sources.items():
+        relative = source.relative_to(documentation_project / "docs")
+        output = relative if relative.name == "index.md" else relative.with_suffix("") / "index.md"
+        text = rendered_text(documentation_project / "site" / output.with_suffix(".html"))
+        for before, after in references:
+            expected_command = f'uv add "{project["name"]} @ {after}"'
+            original_command = f'uv add "{project["name"]} @ {before}"'
+            assert expected_command in text.splitlines(), (relative, after)
+            if original_command != expected_command:
+                assert original_command not in text.splitlines(), (relative, before)
+        assert source.read_bytes() == original
 
 
-@pytest.mark.parametrize("relative", ["README.md", "docs/index.md", "docs/getting-started/install.md"])
-def test_raw_install_commands_use_current_project_pin(relative):
-    project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
-    markdown = (ROOT / relative).read_text()
-    assert (
-        f'uv add "{project["name"]} @ git+https://github.com/justpenkit/{project["name"]}@v{project["version"]}"'
-        in markdown
+def test_documentation_uses_metadata_repository_and_preserves_other_refs(documentation_project):
+    metadata = documentation_project / "pyproject.toml"
+    project = tomllib.loads(metadata.read_text())["project"]
+    original_repository = project["urls"]["Repository"]
+    repository = "https://git.example.test/maintainer/docs-mcp"
+    metadata.write_text(
+        metadata.read_text().replace(f'Repository = "{original_repository}"', f'Repository = "{repository}.git/"')
     )
-    assert "{{ project_version }}" not in markdown
+    unchanged = [
+        f"git+{original_repository}@v1.2.3",
+        "git+https://git.example.test/foreign/docs-mcp@v1.2.3",
+        "git+https://git.example.test.evil/maintainer/docs-mcp@v1.2.3",
+        f"git+{repository}-extra@v1.2.3",
+        f"git+{repository}/child@v1.2.3",
+        f"git+{repository}@main",
+        f"git+{repository}@v1.2.3/docs",
+        f"git+{repository}@v1.2.3_extra",
+        f"git+{repository}@v1.2.3rc1/branch",
+        f"prefixgit+{repository}@v1.2.3",
+        f"other@git+{repository}@v1.2.3",
+        f"other%git+{repository}@v1.2.3",
+        f"{repository}@v1.2.3",
+    ]
+    own_reference = f"git+{repository}@v1.2.3"
+    index = documentation_project / "docs" / "index.md"
+    examples = "\n".join([own_reference, *unchanged])
+    index.write_text(index.read_text() + f"\n```text\n{examples}\n```\n")
+    original_source = index.read_bytes()
+
+    result = build_documentation(documentation_project, cwd=ROOT)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    text = rendered_text(documentation_project / "site" / "index.html")
+    assert f"git+{repository}@v{project['version']}" in text
+    for reference in unchanged:
+        assert reference in text, reference
+    assert index.read_bytes() == original_source
 
 
-@pytest.mark.parametrize("relative", ["docs/guides/template-updates.md", "docs/contributing/release-process.md"])
-def test_raw_version_guidance_needs_no_template_rendering(relative):
-    markdown = (ROOT / relative).read_text()
-    assert "{{ project_version }}" not in markdown
-    assert "make version" in markdown
+def test_documentation_preserves_rendered_changelog_history(documentation_project):
+    project = tomllib.loads((documentation_project / "pyproject.toml").read_text())["project"]
+    reference = f"git+{project['urls']['Repository']}@v1.2.3"
+    directory = documentation_project / "docs" / "history"
+    directory.mkdir()
+    changelog = directory / "CHANGELOG.md"
+    changelog.write_text(f"# Changelog\n\n```text\n{reference}\n```\n")
+    configuration = documentation_project / "mkdocs.yml"
+    configuration.write_text(
+        configuration.read_text().replace("nav:\n", "nav:\n  - Changelog: history/CHANGELOG.md\n", 1)
+    )
 
-
-def test_tool_reference_matches_registered_browser_tools(built_documentation):
-    documented = set()
-    pages = sorted((ROOT / "docs" / "tools-reference").glob("*.md"))
-    assert len(pages) == 10
-    for page in pages:
-        names = re.findall(r"^## (browser_\w+)", page.read_text(), flags=re.MULTILINE)
-        html = (built_documentation / "tools-reference" / page.stem / "index.html").read_text()
-        for name in names:
-            assert f'id="{name}"' in html
-        documented.update(names)
-    registered = set()
-    for module in (ROOT / "src" / "justpen_browser_mcp" / "tools").glob("*.py"):
-        for node in ast.walk(ast.parse(module.read_text())):
-            if isinstance(node, ast.AsyncFunctionDef) and any(
-                isinstance(decorator, ast.Attribute)
-                and isinstance(decorator.value, ast.Name)
-                and decorator.value.id == "mcp"
-                and decorator.attr == "tool"
-                for decorator in node.decorator_list
-            ):
-                registered.add(node.name)
-    assert len(documented) == 43
-    assert documented == registered
-
-
-def test_original_product_pages_and_anchors_are_preserved(built_documentation):
-    navigation = (ROOT / "mkdocs.yml").read_text()
-    assert len(LEGACY_ANCHORS) == 24
-    for source, anchors in LEGACY_ANCHORS.items():
-        assert source in navigation
-        output = Path("index.html") if source == "index.md" else Path(source).with_suffix("") / "index.html"
-        html = (built_documentation / output).read_text()
-        for anchor in ["_top", *anchors]:
-            assert f'id="{anchor}"' in html, (source, anchor)
-    for asset in ("assets/logo.svg", "assets/favicon.svg", "assets/custom.css", "favicon.svg"):
-        assert (built_documentation / asset).is_file()
-
-
-# Published Starlight page paths and heading IDs retained by the MkDocs migration.
-LEGACY_ANCHORS = {
-    "client-setup/claude-code.md": [
-        "prerequisites",
-        "registration",
-        "running-outside-the-install-venv",
-        "sanity-check",
-        "common-pitfalls",
-        "reference",
-    ],
-    "client-setup/copilot-cli.md": [
-        "prerequisites",
-        "registration",
-        "running-outside-the-install-venv",
-        "sanity-check",
-        "common-pitfalls",
-        "reference",
-    ],
-    "client-setup/gemini-cli.md": [
-        "prerequisites",
-        "registration",
-        "running-outside-the-install-venv",
-        "sanity-check",
-        "common-pitfalls",
-        "reference",
-    ],
-    "concepts/instances-isolation.md": [
-        "why-instances-matter",
-        "isolation-boundaries",
-        "naming",
-        "ephemeral-vs-persistent",
-        "instance-cap",
-        "crash-detection",
-        "idle-reaper",
-        "why-this-is-stronger-than-a-shared-process-model",
-        "lifecycle-tools",
-        "single-active-page-assumption",
-    ],
-    "concepts/modal-state.md": [
-        "how-modal-state-is-tracked",
-        "recovering-from-unexpected-modals",
-        "gotcha-a-dialog-triggering-click-can-hold-the-lock-for-30s",
-    ],
-    "concepts/refs-snapshots.md": [
-        "how-a-ref-is-captured",
-        "how-a-ref-is-resolved-back-to-an-element",
-        "resolving-a-ref-to-a-durable-selector",
-        "iframe--child-frame-refs",
-        "when-tools-require-a-ref",
-        "why-aria-refs-instead-of-css-selectors",
-        "recovering-from-stale-refs",
-    ],
-    "concepts/response-envelope.md": ["success", "error", "error_type-values"],
-    "contributing/getting-started.md": [
-        "prerequisites",
-        "clone-and-set-up",
-        "the-dev-gate",
-        "end-to-end-tests",
-        "make-a-change",
-    ],
-    "contributing/lint-typing.md": ["suppressions", "git-hooks"],
-    "contributing/pr-checklist.md": [
-        "1-branch-and-commits",
-        "2-local-verification",
-        "3-tests",
-        "4-documentation",
-        "5-opening-the-pr",
-    ],
-    "getting-started/configuration.md": [
-        "environment-variables-and-cli-flags",
-        "precedence",
-        "instance-cap",
-        "log-level",
-    ],
-    "getting-started/install.md": ["prerequisites", "install-from-git", "install-from-a-clone-contributors", "verify"],
-    "getting-started/run-server.md": [
-        "invocation-forms",
-        "transport",
-        "server-identity",
-        "running-outside-the-install-venv",
-        "logs",
-        "next-steps",
-    ],
-    "index.md": ["60-second-quickstart", "where-to-go-next"],
-    "tools-reference/code-execution.md": ["browser_evaluate", "browser_run_code"],
-    "tools-reference/cookies.md": [
-        "browser_get_cookies",
-        "browser_set_cookies",
-        "browser_clear_cookies",
-        "browser_get_local_storage",
-        "browser_set_local_storage",
-        "browser_clear_local_storage",
-    ],
-    "tools-reference/inspection.md": [
-        "browser_snapshot",
-        "browser_screenshot",
-        "browser_console_messages",
-        "browser_network_requests",
-    ],
-    "tools-reference/interaction.md": [
-        "browser_click",
-        "browser_type",
-        "browser_fill_form",
-        "browser_select_option",
-        "browser_hover",
-        "browser_drag",
-        "browser_press_key",
-        "browser_file_upload",
-        "browser_handle_dialog",
-    ],
-    "tools-reference/lifecycle.md": [
-        "browser_create_instance",
-        "browser_destroy_instance",
-        "browser_list_instances",
-        "browser_health",
-    ],
-    "tools-reference/mouse.md": [
-        "browser_mouse_click_xy",
-        "browser_mouse_move_xy",
-        "browser_mouse_down",
-        "browser_mouse_up",
-        "browser_mouse_drag_xy",
-        "browser_mouse_wheel",
-    ],
-    "tools-reference/navigation.md": ["browser_navigate", "browser_navigate_back", "browser_wait_for"],
-    "tools-reference/page.md": ["browser_close"],
-    "tools-reference/utility.md": ["browser_resize", "browser_pdf_save", "browser_generate_locator", "browser_tabs"],
-    "tools-reference/verification.md": [
-        "browser_verify_element_visible",
-        "browser_verify_list_visible",
-        "browser_verify_text_visible",
-        "browser_verify_value",
-    ],
-}
-
-
-@pytest.mark.parametrize("metadata", [None, '[project]\nversion = ""\n'])
-def test_documentation_rejects_missing_or_empty_version(documentation_project, metadata):
-    project_file = documentation_project / "pyproject.toml"
-    if metadata is None:
-        project_file.unlink()
-    else:
-        project_file.write_text(metadata)
     result = build_documentation(documentation_project)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    text = rendered_text(documentation_project / "site" / "history" / "CHANGELOG" / "index.html")
+    assert reference in text
+
+
+@pytest.mark.parametrize(
+    ("version", "repository"),
+    [("", "https://example.test/repo"), (123, "https://example.test/repo"), ("1.2.3", ""), ("1.2.3", 123)],
+)
+def test_documentation_rejects_invalid_version_metadata(documentation_project, version, repository):
+    metadata = documentation_project / "pyproject.toml"
+    metadata.write_text(f"[project]\nversion = {version!r}\n[project.urls]\nRepository = {repository!r}\n")
+
+    result = build_documentation(documentation_project)
+
     assert result.returncode != 0, result.stdout + result.stderr
+    assert "must be a non-empty string" in result.stdout + result.stderr

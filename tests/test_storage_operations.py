@@ -9,6 +9,8 @@ from fastmcp.client import Client
 from justpen_browser_mcp.operation_context import current_operation
 from justpen_browser_mcp.tools import register_all
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.mark.parametrize(
     ("tool", "arguments"),

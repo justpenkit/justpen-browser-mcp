@@ -12,6 +12,8 @@ from PIL import Image
 
 from justpen_browser_mcp.events import EventBuffer
 
+pytestmark = pytest.mark.integration
+
 
 def _events(entries):
     result = EventBuffer()

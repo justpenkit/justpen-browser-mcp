@@ -13,6 +13,28 @@ permissions:
   contents: read
 
 jobs:
+  quality:
+    name: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      UV_PYTHON: "3.13"
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+      - name: Install Python
+        run: uv python install "$UV_PYTHON"
+      - name: Require the committed lockfile
+        run: make lock-check
+      - name: make install
+        run: make install
+      - name: Shared formatting and lint
+        run: make check-static
+      - name: Strict documentation build
+        run: make docs-build
+
   check:
     name: check (py${{ matrix.python-version }})
     runs-on: ubuntu-latest
@@ -30,16 +52,16 @@ jobs:
           enable-cache: true
       - name: Install Python
         run: uv python install "$UV_PYTHON"
+      - name: Require the committed lockfile
+        run: make lock-check
       - name: make install
         run: make install
-      - name: make check
-        run: make check
-      - name: make docs-build
-        if: matrix.python-version == '3.13'
-        run: make docs-build
+      - name: Active Python typing and unit tests
+        run: make check-python
 
   browser:
     name: browser (py${{ matrix.python-version }})
+    needs: quality
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
@@ -55,6 +77,8 @@ jobs:
           enable-cache: true
       - name: Install Python
         run: uv python install "$UV_PYTHON"
+      - name: Require the committed lockfile
+        run: make lock-check
       - name: Install locked dependencies
         run: make install
       - name: Install Firefox system libraries
@@ -67,13 +91,17 @@ jobs:
       - name: Fetch the tested Camoufox browser
         run: make browser-fetch
       - name: Test all browser tools and installed transports
+        if: matrix.python-version != '3.13'
         run: make test-e2e
+      - name: Real tool, browser, release and documentation scenarios
+        if: matrix.python-version == '3.13'
+        run: make test-integration
       - name: Verify locked and minimum consumer wheel installations
         run: make test-consumer
 
   deploy-docs:
     name: Publish documentation
-    needs: [check, browser]
+    needs: [quality, check, browser]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment:
       name: production

@@ -9,8 +9,6 @@ import subprocess
 import tomllib
 from pathlib import Path
 
-INSTALL_PIN_FILES = ("README.md", "docs/index.md", "docs/getting-started/install.md")
-
 
 def _run(repo: Path, *arguments: str) -> str:
     """Stop on the first failed command and keep its diagnostics visible."""
@@ -51,13 +49,13 @@ def _require_clean_tree(repo: Path) -> None:
 
 
 def changelog(repo: Path, version: str | None = None) -> None:
-    """Generate configured history through Commitizen, then format Markdown."""
+    """Generate configured application history, then format Markdown."""
     _require_root(repo)
     arguments = ["uv", "run", "--group", "dev", "cz", "changelog"]
     metadata = tomllib.loads((repo / "pyproject.toml").read_text())
     settings = metadata.get("tool", {}).get("commitizen", {})
-    # Existing applications can retain their history with an explicit boundary,
-    # including an empty string for full history. Let Commitizen read that value.
+    # Commitizen reads explicit boundaries itself, including an empty string for
+    # full history. Later Copier enrollment must not override that choice.
     if "changelog_start_rev" not in settings and (repo / ".copier-answers.yml").is_file():
         introductions = _run(
             repo, "git", "log", "--first-parent", "--diff-filter=A", "--format=%H", "--", ".copier-answers.yml"
@@ -83,12 +81,42 @@ def _section(text: str, tag: str) -> str:
     return "\n".join(lines[start:end]).strip() + "\n"
 
 
+def _sync_install_pins(repo: Path, version: str) -> list[str]:
+    """Update this repository's tracked README and docs installation references."""
+    metadata = tomllib.loads((repo / "pyproject.toml").read_text())
+    repository = metadata["project"].get("urls", {}).get("Repository")
+    if not isinstance(repository, str) or not repository:
+        return []
+    repository = repository.rstrip("/").removesuffix(".git")
+    pattern = re.compile(
+        rf"(?<![\w+./:@%-])(?P<source>git\+{re.escape(repository)}(?:\.git)?@v)"
+        r"\d+\.\d+\.\d+(?:(?:a|b|rc)\d+)?"
+        r"(?:[.-][0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?"
+        r"(?:\+[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?(?![\w.+/-])"
+    )
+    changed: list[str] = []
+    for relative in _run(repo, "git", "ls-files", "-z", "--", "README.md", "docs/").split("\0"):
+        page = repo / relative
+        if (
+            not relative.endswith(".md")
+            or page.name.casefold() == "changelog.md"
+            or not page.is_file()
+            or page.is_symlink()
+        ):
+            continue
+        original = page.read_text()
+        updated = pattern.sub(lambda match: f"{match['source']}{version}", original)
+        if updated != original:
+            page.write_text(updated)
+            changed.append(relative)
+    return changed
+
+
 def bump(repo: Path, segment: str) -> None:
     """Use uv for metadata and commit the release for review, with hooks active."""
     if segment not in {"patch", "minor", "major"}:
         raise ValueError("Choose a patch, minor or major version bump.")
     branch = _require_clean(repo)
-    project = tomllib.loads((repo / "pyproject.toml").read_text())["project"]
     version = _run(repo, "uv", "version", "--bump", segment, "--dry-run", "--short")
     tag = f"v{version}"
     if tag in _run(repo, "git", "tag", "--list").splitlines():
@@ -96,17 +124,7 @@ def bump(repo: Path, segment: str) -> None:
     _run(repo, "uv", "version", "--bump", segment)
     changelog(repo, version)
     _section((repo / "CHANGELOG.md").read_text(), tag)
-    release_files = ["pyproject.toml", "uv.lock", "CHANGELOG.md"]
-    previous_pin = re.escape(f"{project['name']}@v{project['version']}")
-    for relative in INSTALL_PIN_FILES:
-        page = repo / relative
-        if not page.is_file():
-            continue
-        original = page.read_text()
-        updated = re.sub(rf"(?<![\w.-]){previous_pin}(?![\w.+-])", f"{project['name']}@v{version}", original)
-        if updated != original:
-            page.write_text(updated)
-            release_files.append(relative)
+    release_files = ["pyproject.toml", "uv.lock", "CHANGELOG.md", *_sync_install_pins(repo, version)]
     _run(repo, "git", "add", "--", *release_files)
     _run(repo, "git", "commit", "-m", f"chore: bump version to {tag}")
     _require_clean(repo)

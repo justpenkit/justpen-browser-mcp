@@ -122,6 +122,7 @@ async def test_browser_failure_prevents_mcp_start(monkeypatch):
     run_server.assert_not_awaited()
 
 
+@pytest.mark.integration
 def test_browser_helper_cli_exits_nonzero_on_failure():
     probe = """
 from unittest.mock import AsyncMock

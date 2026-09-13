@@ -192,6 +192,7 @@ async def test_cancelling_task_drain_still_stops_manager(monkeypatch, main_runti
     assert asyncio.all_tasks() == before
 
 
+@pytest.mark.integration
 def test_cli_exits_with_failure_when_server_crashes():
     probe = """
 from unittest.mock import AsyncMock

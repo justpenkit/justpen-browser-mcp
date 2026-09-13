@@ -56,6 +56,7 @@
       "Bash(make setup)",
       "Bash(make check)",
       "Bash(make test)",
+      "Bash(make test-integration)",
       "Bash(make test-e2e)",
       "Bash(make test-permissions)",
       "Bash(make lint)",

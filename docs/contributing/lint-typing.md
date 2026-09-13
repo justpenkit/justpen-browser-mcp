@@ -22,6 +22,16 @@ for JSON it uses Python's `json.tool`, while Make uses `pretty-format-json`.
 Both preserve key order and Unicode, with two-space indentation. JSON formatting
 applies to standard JSON; JSON with comments is not supported.
 
+The MkDocs Markdown plugin preserves admonitions and other MkDocs syntax during
+formatting, so callout contents keep their structure in the rendered website.
+
+HTML and CSS formatting also runs through the existing Make, pre-commit,
+pre-push and CI gates. djlint formats HTML and inline CSS/JavaScript;
+cssbeautifier formats standalone CSS. Both use two-space indentation and are
+Python packages installed by `make install` or `make setup`, with no separate
+Node/npm installation. Use `make format-html-check` or `make format-css-check`
+to check files without rewriting them.
+
 **Fix the root cause, do not silence warnings.**
 
 ## Auto-fix first
@@ -62,37 +72,74 @@ Never modify `pyproject.toml` ruff or pyright rules unilaterally to make warning
 
 Raise the concern with the user first and only edit after explicit approval. Do not sprinkle suppressions across the codebase as a substitute for fixing the underlying issue.
 
-## Verification gate after every edit
+## Focused development and automatic gates
 
-After each coherent change, run `make lint` and `make typecheck`; use `make check` for the complete gate before claiming completion. When the host provides diagnostic reminders, treat errors as blockers.
+Use `make test-one TEST=tests/test_file.py::test_name` for feedback while
+implementing a behavior. It accepts one test file/node under `tests/`, not
+arbitrary pytest flags, and does not apply the suite-wide coverage threshold.
+Host diagnostic errors remain blockers when provided.
 
-Use `make test-one TEST=tests/test_file.py::test_name` for focused test feedback.
-This accepts one test file/node under `tests/`, not arbitrary pytest flags. It
-does not replace `make check`, which still runs the full fast suite and coverage
-threshold. For browser behavior changes, run `make test-e2e` separately against a fetched
-Camoufox binary. The fast suite and `make check` exclude end-to-end tests.
+Git hooks own routine verification; do not manually repeat a passing gate after
+every edit or before a PR. Run an individual Make target when diagnosing a
+failure or when earlier feedback is useful.
 
-taplo may format Python metadata through `make format`; uv may manage the
-lockfile. These trusted tool outputs are allowed. Direct AI metadata rewrites
-and unilateral changes to lint/type/coverage policy still require approval.
+Classify tests by the behavior and component boundary they verify, never by
+elapsed time. Unit tests check one component with its external collaborators
+isolated; integration tests check real components working together. A short
+integration test still belongs in CI.
+
+For example, Make recipes with a stubbed uv and the publication script with a
+stubbed GitHub CLI check isolated command routing and decisions. Reading workflow
+permissions is a static configuration check. These do not validate the real
+tool integrations. Running Python or a shell as the component's interpreter does
+not by itself make a test an integration test.
+
+Registered hook launchers, real Commitizen, formatters, release tooling and docs
+builds exercise integrations. Browser scenarios using a real FastMCP client,
+MCP stdio or Camoufox also belong in integration, including every `e2e` test.
+Direct tool-function tests with isolated browser collaborators remain unit tests.
+CI runs the integration and installed-wheel consumer suites separately from the
+unit matrix. The actual Codex sandbox probes additionally require an explicit
+`CODEX_TEST_BINARY` and remain skipped in normal CI. Local integration execution
+is only needed while developing that test or its harness: select the relevant
+scenario with `make test-one` instead of repeating the entire browser matrix.
+
+TOML formatting of Python metadata through Make and uv-managed lockfile changes
+remain trusted tool operations. Direct AI metadata rewrites and unilateral
+changes to lint/type/coverage policy still require approval.
 
 ## Git hooks
 
-`make setup` installs all dependencies through uv and three Git hook stages:
+`make setup` installs dependencies through uv and all three Git hook stages:
 
-- `pre-commit` — `make lint-fix` for Python changes, `make format` for text
-    changes including Markdown/YAML, and `make lock-check` when `pyproject.toml`
-    or `uv.lock` changes.
-- `pre-push` — `make check` and `make docs-build`. Formatting checks cover every
-    supported language; the strict MkDocs build checks internal links and anchors.
-- `commit-msg` — Conventional Commits format (the `type(scope): subject` rule
-    from `AGENTS.md`), implemented in `scripts/hooks/check_conventional_commit.py`.
+- `pre-commit` — conflict/whitespace checks, `make lint-fix` and active-Python
+    `make typecheck` for Python changes, `make format` for text changes, and
+    `make lock-check` when `pyproject.toml` or `uv.lock` changes.
+- `pre-push` — `make check` and `make docs-build`. The first runs all formatting
+    checks, lint, active-Python typing and unit tests with 80% branch coverage.
+    The second builds this project's docs once with strict link/anchor checks.
+    Neither starts the integration suite.
+- `commit-msg` — uv runs Commitizen's `cz check` with the project schema,
+    including its allowed types, optional scope, 72-character subject limit and
+    prohibition on a trailing period. The default changelog plugin remains
+    `cz_conventional_commits`; only validation selects `cz_customize`.
 
-CI independently runs the checks on Python 3.11, 3.12 and 3.13, with the docs
-build in the 3.13 job. Locally, `make typecheck` checks all three target versions;
-`make test` runs the fast suite once in the selected interpreter with 80% branch
-coverage. End-to-end browser tests remain a separate `make test-e2e` gate.
+Commitizen handles Git comment/scissor sections and normalizes surrounding
+message whitespace before validation. The project schema does not require a
+blank line before the body. Generated merge/revert/autosquash messages retain
+the existing explicit prefix exemptions.
+Unlike the previous script, a comment must start with `#` in column zero;
+an indented `#` line is message content. Leading blank lines and trailing spaces
+are normalized, so a period followed only by whitespace is still rejected.
+Git's scissors marker ends the message; text below it cannot supply a subject.
 
-Local hooks provide earlier feedback and must also pass. Run `make setup` to
-install/reinstall them and `make pre-commit` to exercise them on all files. If a
-hook fails, diagnose its reported error. Never bypass it with `--no-verify`.
+CI's shared job runs formatting, lint and the docs build once. Each Python matrix
+job runs strict typing and unit tests only for its selected interpreter. Real
+integration scenarios run separately. Browser CI covers Camoufox on all three
+Python versions and runs the shared integrations once on 3.13, alongside the
+locked and minimum-dependency installed-wheel consumer checks.
+
+Use `make setup` to install/reinstall hooks after configuration changes.
+`make pre-commit` is available for deliberate all-file hook diagnostics, not an
+additional routine gate. Diagnose hook failures and fix their cause; never
+bypass hooks with `--no-verify`.

@@ -23,6 +23,12 @@ repos:
         language: system
         types: [text]
         pass_filenames: false
+      - id: typecheck
+        name: make typecheck (active Python)
+        entry: make typecheck
+        language: system
+        types: [python]
+        pass_filenames: false
       - id: lock-check
         name: make lock-check
         entry: make lock-check
@@ -46,7 +52,7 @@ repos:
         pass_filenames: false
 
       - id: conventional-commit
-        name: Conventional Commits (project rules)
-        entry: uv run python scripts/hooks/check_conventional_commit.py
+        name: Conventional Commits (Commitizen)
+        entry: uv run --locked --group dev cz -n cz_customize check --commit-msg-file
         language: system
         stages: [commit-msg]

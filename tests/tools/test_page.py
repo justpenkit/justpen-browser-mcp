@@ -2,7 +2,11 @@
 
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
 from justpen_browser_mcp.errors import InstanceNotFoundError
+
+pytestmark = pytest.mark.integration
 
 
 class TestBrowserClose:

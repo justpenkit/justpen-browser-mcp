@@ -14,17 +14,32 @@ install project dependencies into system Python.
 The stdlib-only permission hook is the sole exception: it runs with
 `/usr/bin/python3 -I -B` (Python 3.9+) independently of project dependencies.
 
-- `make check`: lock consistency, formatting, lint, strict type checks for Python
-    3.11/3.12/3.13, and fast tests once in the active interpreter.
+- `make check`: lock consistency, formatting, lint, strict typing and unit tests
+    once in the active interpreter. The pre-push hook runs this gate.
 - `make lint-fix`, `make format`, `make typecheck`: individual development checks/fixes.
 - `make test-one TEST=tests/test_file.py::test_name`: focused feedback; it does
     not replace the full `make check` gate or apply its suite-wide coverage threshold.
 - `make test-permissions`: policy tests plus the real Codex sandbox probe;
     set `CODEX_TEST_BINARY` to an installed CLI first.
+- `make browser-fetch`: install the pinned Camoufox binary. `make setup` includes it.
+- `make test-e2e`: real browser scenarios; `make test-consumer`: isolated locked and
+    minimum dependency wheel checks. CI owns these; use focused local feedback
+    when developing the corresponding scenario or harness.
 - `make docs-build`: build MkDocs with strict link and anchor checks.
-- `make test-e2e`: run the real Camoufox browser suite separately from fast checks.
-- `make test-consumer`: build and exercise the wheel outside the checkout with locked and minimum runtime dependencies.
-- `make setup` also installs the Camoufox browser; `make install` installs Python dependencies only.
+- `make test-integration`: real tool, release, documentation and, in the generator,
+    Copier scenarios. CI runs these; local execution is only needed when developing
+    an integration test or its harness. Select the relevant scenario with
+    `make test-one`, rather than rerunning the entire generation matrix.
+
+Classify tests by their scope and real component interactions, not their runtime.
+A short integration test still belongs in the integration suite.
+
+Git hooks own routine verification: pre-commit formats and lints changed file
+types, checks Python changes with the active interpreter, and checks metadata
+lock consistency. Commit-msg uses Commitizen. Pre-push runs `make check` and
+`make docs-build`, excluding integration tests. CI tests Python 3.11–3.13.
+Do not repeat a passing hook gate manually before a PR or after each edit.
+Use focused checks when developing or diagnosing a change.
 
 Do not replace these targets with ad hoc pytest/ruff/pyright commands, alternate
 configs or flags that weaken checks. If a routine action lacks a Make target,
@@ -70,12 +85,13 @@ See [agent setup and limitations](docs/contributing/agents.md).
 ## Quality and code navigation
 
 Use focused regression tests for behavior changes. Fix root causes; try ruff's
-safe fixes before manual changes. Run lint, type checks, and relevant tests after
-each coherent change. Full details, including the suppression protocol, live in
+safe fixes before manual changes. Use focused tests while developing; commit and
+push hooks provide the routine gates. Full details, including the suppression protocol, live in
 [Lint & typing](docs/contributing/lint-typing.md).
 
 Prefer LSP for definitions, references, and renames when the current host exposes
-it. Otherwise use `rg`, inspect the relevant files and call sites, and run `make typecheck`.
+it. Otherwise use `rg` and inspect the relevant files and call sites; the commit
+hook runs `make typecheck` for Python changes.
 Never claim an LSP check ran when the tool is unavailable. Before changing a
 signature or renaming a symbol, find and inspect its usages. Host diagnostic
 errors are blockers when provided; explicit checks work on both hosts.
@@ -88,7 +104,7 @@ to `main`. Use `codex/short-description` for Codex branches; otherwise use
 most 72 characters. Do not bypass Git hooks with `--no-verify`.
 
 Before a PR, follow the [checklist](docs/contributing/pr-checklist.md)
-and run `make check` plus `make docs-build`. Merge with a regular merge commit,
+and ensure the pre-push gates passed; no duplicate manual run is required. Merge with a regular merge commit,
 never squash. Version bumps also use a PR. `make bump-{patch,minor,major}` prepares
 the release commit without a tag. After review and merge, update main and run
 `make release-tag` to annotate the reviewed merge; then push that tag. The whole release

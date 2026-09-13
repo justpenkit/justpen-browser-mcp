@@ -3,12 +3,15 @@
 import json
 from pathlib import Path
 
+import pytest
 from fastmcp import FastMCP
 from fastmcp.client import Client
 
 from justpen_browser_mcp.config import BrowserServerConfig
 from justpen_browser_mcp.instance_manager import InstanceManager
 from justpen_browser_mcp.tools import register_all
+
+pytestmark = pytest.mark.integration
 
 
 async def test_all_43_tool_input_schemas_match_the_existing_application():
