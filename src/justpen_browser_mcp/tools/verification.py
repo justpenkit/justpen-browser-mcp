@@ -4,7 +4,7 @@ import logging
 from typing import Any
 
 from fastmcp import FastMCP
-from playwright.async_api import Error as PlaywrightError, Locator, Page
+from playwright.async_api import Error as PlaywrightError, Frame, Locator, Page
 
 from ..coercion import coerce_bool
 from ..errors import (
@@ -18,7 +18,7 @@ from ..responses import error_response, success_response
 logger = logging.getLogger(__name__)
 
 
-async def _resolve_ref_in_any_frame(page: Page, ref: str) -> Locator:
+async def _resolve_ref_in_any_frame(page: Page | Frame, ref: str) -> Locator:
     """Resolve a ref against the main frame first, then any child frame.
 
     Microsoft Playwright MCP's refs are page-scoped but elements can live in
@@ -28,6 +28,8 @@ async def _resolve_ref_in_any_frame(page: Page, ref: str) -> Locator:
 
     Raises StaleRefError if the ref is not found in any frame.
     """
+    if isinstance(page, Frame):
+        return await resolve_ref(page, ref)
     try:
         return await resolve_ref(page, ref)
     except StaleRefError:
@@ -67,7 +69,7 @@ def _validate_list_visible_params(
     return None
 
 
-async def _verify_refs_visible(page: Page, refs: list[str]) -> list[str]:
+async def _verify_refs_visible(page: Page | Frame, refs: list[str]) -> list[str]:
     """Return list of refs that are not visible (empty on full success)."""
     missing: list[str] = []
     for ref in refs:
@@ -78,7 +80,7 @@ async def _verify_refs_visible(page: Page, refs: list[str]) -> list[str]:
 
 
 async def _verify_items_in_container(
-    page: Page,
+    page: Page | Frame,
     container_ref: str,
     items: list[str],
 ) -> list[str]:
@@ -95,7 +97,9 @@ async def _verify_items_in_container(
 def _register_browser_verify_element_visible(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_verify_element_visible(instance: str, ref: str) -> dict[str, Any]:
+    async def browser_verify_element_visible(
+        instance: str, ref: str, *, page_id: str | None = None, frame_id: str | None = None
+    ) -> dict[str, Any]:
         """Verify that the element identified by ref is currently visible on the page.
 
         ref is a [ref=eN] value from browser_snapshot. The check is synchronous
@@ -117,8 +121,10 @@ def _register_browser_verify_element_visible(mcp: FastMCP, mgr: InstanceManager)
             mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
-                page = await mgr.active_page(instance)
-                locator = await _resolve_ref_in_any_frame(page, ref)
+                page = await mgr.target_page(instance, page_id)
+                resolved_frame = mgr.target_frame(instance, page, frame_id)
+                scope = resolved_frame if frame_id is not None else page
+                locator = await _resolve_ref_in_any_frame(scope, ref)
                 visible = await locator.is_visible()
         except BrowserMcpError as e:
             return error_response(instance, e.error_type, str(e))
@@ -138,6 +144,9 @@ def _register_browser_verify_list_visible(mcp: FastMCP, mgr: InstanceManager) ->
         refs: list[str] | None = None,
         container_ref: str | None = None,
         items: list[str] | None = None,
+        *,
+        page_id: str | None = None,
+        frame_id: str | None = None,
     ) -> dict[str, Any]:
         """Verify visibility of multiple elements in either refs or container mode.
 
@@ -170,10 +179,12 @@ def _register_browser_verify_list_visible(mcp: FastMCP, mgr: InstanceManager) ->
             mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
-                page = await mgr.active_page(instance)
+                page = await mgr.target_page(instance, page_id)
+                resolved_frame = mgr.target_frame(instance, page, frame_id)
+                scope = resolved_frame if frame_id is not None else page
 
                 if refs is not None:
-                    missing = await _verify_refs_visible(page, refs)
+                    missing = await _verify_refs_visible(scope, refs)
                     if missing:
                         return error_response(
                             instance,
@@ -184,7 +195,7 @@ def _register_browser_verify_list_visible(mcp: FastMCP, mgr: InstanceManager) ->
 
                 if container_ref is None or items is None:
                     return error_response(instance, "invalid_params", "container_ref and items are required")
-                missing_items = await _verify_items_in_container(page, container_ref, items)
+                missing_items = await _verify_items_in_container(scope, container_ref, items)
                 if missing_items:
                     return error_response(
                         instance,
@@ -208,7 +219,9 @@ def _register_browser_verify_list_visible(mcp: FastMCP, mgr: InstanceManager) ->
 def _register_browser_verify_text_visible(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_verify_text_visible(instance: str, text: str) -> dict[str, Any]:
+    async def browser_verify_text_visible(
+        instance: str, text: str, *, page_id: str | None = None, frame_id: str | None = None
+    ) -> dict[str, Any]:
         """Verify that the given text is currently visible somewhere on the active page.
 
         The check is synchronous — the text must be visible at the moment of the call.
@@ -230,11 +243,17 @@ def _register_browser_verify_text_visible(mcp: FastMCP, mgr: InstanceManager) ->
             mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
-                page = await mgr.active_page(instance)
-                frames = [
-                    page.main_frame,
-                    *(f for f in page.frames if f != page.main_frame),
-                ]
+                page = await mgr.target_page(instance, page_id)
+                resolved_frame = mgr.target_frame(instance, page, frame_id)
+                scope = resolved_frame if frame_id is not None else page
+                frames = (
+                    [scope]
+                    if frame_id is not None
+                    else [
+                        page.main_frame,
+                        *(f for f in page.frames if f != page.main_frame),
+                    ]
+                )
                 found = False
                 for frame in frames:
                     locator = frame.get_by_text(text).filter(visible=True).first
@@ -262,6 +281,9 @@ def _register_browser_verify_value(mcp: FastMCP, mgr: InstanceManager) -> None:
         ref: str,
         expected_value: str,
         element_type: str = "text",
+        *,
+        page_id: str | None = None,
+        frame_id: str | None = None,
     ) -> dict[str, Any]:
         """Verify the value (or checked state) of an input element.
 
@@ -295,8 +317,10 @@ def _register_browser_verify_value(mcp: FastMCP, mgr: InstanceManager) -> None:
             mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
-                page = await mgr.active_page(instance)
-                locator = await _resolve_ref_in_any_frame(page, ref)
+                page = await mgr.target_page(instance, page_id)
+                resolved_frame = mgr.target_frame(instance, page, frame_id)
+                scope = resolved_frame if frame_id is not None else page
+                locator = await _resolve_ref_in_any_frame(scope, ref)
                 if element_type == "text":
                     actual = await locator.input_value()
                     if actual != expected_value:

@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 def _register_browser_resize(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_resize(instance: str, width: int, height: int) -> dict[str, Any]:
+    async def browser_resize(instance: str, width: int, height: int, *, page_id: str | None = None) -> dict[str, Any]:
         """Resize the viewport of the active page to the given pixel dimensions.
 
         Affects only the active page; other tabs in the instance are unchanged.
@@ -41,7 +41,7 @@ def _register_browser_resize(mcp: FastMCP, mgr: InstanceManager) -> None:
             mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
-                page = await mgr.active_page(instance)
+                page = await mgr.target_page(instance, page_id)
                 await page.set_viewport_size({"width": width, "height": height})
             return success_response(instance, data={"width": width, "height": height})
         except BrowserMcpError as e:
@@ -94,6 +94,9 @@ def _register_browser_generate_locator(mcp: FastMCP, mgr: InstanceManager) -> No
         ref: str | None = None,
         selector: str | None = None,
         element: str | None = None,
+        *,
+        page_id: str | None = None,
+        frame_id: str | None = None,
     ) -> dict[str, Any]:
         """Generate a stable, durable Playwright locator for an element.
 
@@ -119,7 +122,7 @@ def _register_browser_generate_locator(mcp: FastMCP, mgr: InstanceManager) -> No
 
         Two representations are returned:
           - internal_selector: a Playwright selector string usable directly
-            with page.locator(internal_selector). Durable at runtime.
+            with scope.locator(internal_selector). Durable at runtime.
           - python_syntax: a human-readable Python API call string like
             'get_by_role("button", name="Submit")' — for codegen output
             when saving a flow to a file.
@@ -161,9 +164,11 @@ def _register_browser_generate_locator(mcp: FastMCP, mgr: InstanceManager) -> No
             mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
-                page = await mgr.active_page(instance)
+                page = await mgr.target_page(instance, page_id)
+                resolved_frame = mgr.target_frame(instance, page, frame_id)
+                scope = resolved_frame if frame_id is not None else page
                 if ref is not None:
-                    result = await resolve_selector_to_stable(page, ref)
+                    result = await resolve_selector_to_stable(scope, ref)
                 else:
                     result = {
                         "internal_selector": selector,
@@ -172,6 +177,8 @@ def _register_browser_generate_locator(mcp: FastMCP, mgr: InstanceManager) -> No
             return success_response(
                 instance,
                 data={
+                    "page_id": mgr.page_id(instance, page),
+                    "frame_id": mgr.frame_id(instance, resolved_frame),
                     "ref": ref,
                     "selector": selector,
                     "internal_selector": result["internal_selector"],
@@ -199,6 +206,7 @@ async def _tabs_new(
     page = await ctx.new_page()
     try:
         mark_operation_started(mgr.get(instance).instance_id, page_id=mgr.page_id(instance, page))
+        await mgr.ensure_page_headers(mgr.get(instance), page)
         if url:
             await page.goto(canonicalize_browser_url(url))
         index = ctx.pages.index(page)
@@ -321,8 +329,43 @@ def _register_browser_tabs(mcp: FastMCP, mgr: InstanceManager) -> None:
             return error_response(instance, "internal_error", str(e))
 
 
+def _register_browser_frames(mcp: FastMCP, mgr: InstanceManager) -> None:
+    @mcp.tool
+    async def browser_frames(instance: str, *, page_id: str | None = None) -> dict[str, Any]:
+        """List attached frames and stable identities for the target page."""
+        try:
+            async with mgr.lock_for(instance):
+                page = await mgr.target_page(instance, page_id)
+                main = mgr.target_frame(instance, page)
+                frames = [
+                    {
+                        "frame_id": mgr.frame_id(instance, frame),
+                        "is_main": frame is main,
+                        "parent_frame_id": mgr.frame_id(instance, frame.parent_frame) if frame.parent_frame else None,
+                        "name": frame.name,
+                        "url": frame.url,
+                    }
+                    for frame in page.frames
+                    if not frame.is_detached()
+                ]
+                return success_response(
+                    instance,
+                    data={
+                        "page_id": mgr.page_id(instance, page),
+                        "main_frame_id": mgr.frame_id(instance, main),
+                        "frames": frames,
+                    },
+                )
+        except BrowserMcpError as error:
+            return error_response(instance, error.error_type, str(error))
+        except Exception as error:
+            logger.exception("browser_frames failed")
+            return error_response(instance, "internal_error", str(error))
+
+
 def register(mcp: FastMCP, mgr: InstanceManager) -> None:
     """Register miscellaneous utility tools on the MCP server."""
+    _register_browser_frames(mcp, mgr)
     _register_browser_resize(mcp, mgr)
     _register_browser_pdf_save(mcp, mgr)
     _register_browser_generate_locator(mcp, mgr)

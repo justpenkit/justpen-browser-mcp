@@ -10,6 +10,11 @@ JavaScript evaluations use Camoufox's **isolated JS world**: `window.*` globals 
 
 Examples below focus on tool-specific data. Registered tools also return the shared [operation metadata and error fields](../concepts/response-envelope.md).
 
+Optional `page_id` selects a live page without changing the selected tab; an invalid
+explicit target returns `page_not_found`. Frame-capable calls also accept `frame_id`
+and return `frame_not_found` for a detached or foreign frame. Omitted targets retain
+existing behavior. See [explicit targeting](../concepts/instances-isolation.md#explicit-page-targets).
+
 ## browser_evaluate { #browser_evaluate }
 
 Evaluate a JavaScript expression on the active page and return its result.
@@ -17,7 +22,15 @@ Evaluate a JavaScript expression on the active page and return its result.
 **Signature**
 
 ```python
-async def browser_evaluate(instance: str, expression: str, ref: str | None = None, selector: str | None = None) -> dict[str, Any]
+async def browser_evaluate(
+    instance: str,
+    expression: str,
+    ref: str | None = None,
+    selector: str | None = None,
+    *,
+    page_id: str | None = None,
+    frame_id: str | None = None,
+) -> dict[str, Any]
 ```
 
 **Parameters**
@@ -28,6 +41,8 @@ async def browser_evaluate(instance: str, expression: str, ref: str | None = Non
 | `expression` | `str`         | —       | JavaScript expression (not a statement) to evaluate. Arrow functions are supported.                                                                                          |
 | `ref`        | `str \| None` | `None`  | Optional accessibility ref from `browser_snapshot`; runs the expression via `locator.evaluate()` with the element as the first argument. Mutually exclusive with `selector`. |
 | `selector`   | `str \| None` | `None`  | Optional CSS/aria selector; same semantics as `ref`. Mutually exclusive with `ref`.                                                                                          |
+| `page_id`    | `str \| None` | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs.                                                          |
+| `frame_id`   | `str \| None` | `None`  | Attached frame ID from `browser_frames`; explicit scope never falls back to another frame.                                                                                   |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -69,15 +84,16 @@ Execute a Python async code snippet with full Playwright access.
 **Signature**
 
 ```python
-async def browser_run_code(instance: str, code: str) -> dict[str, Any]
+async def browser_run_code(instance: str, code: str, *, page_id: str | None = None) -> dict[str, Any]
 ```
 
 **Parameters**
 
-| Name       | Type  | Default | Description                                                                                                                                                        |
-| ---------- | ----- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `instance` | `str` | —       | Instance name.                                                                                                                                                     |
-| `code`     | `str` | —       | Python code body. Runs as the body of an async function with `page`, `context` (Playwright BrowserContext), and `mgr` in scope. Use `return` to send a value back. |
+| Name       | Type          | Default | Description                                                                                                                                                        |
+| ---------- | ------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `instance` | `str`         | —       | Instance name.                                                                                                                                                     |
+| `code`     | `str`         | —       | Python code body. Runs as the body of an async function with `page`, `context` (Playwright BrowserContext), and `mgr` in scope. Use `return` to send a value back. |
+| `page_id`  | `str \| None` | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs.                                                |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 

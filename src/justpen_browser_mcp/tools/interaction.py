@@ -10,12 +10,14 @@ import logging
 from typing import Any
 
 from fastmcp import FastMCP
-from playwright.async_api import Error as PlaywrightError, Page, TimeoutError as PWTimeout
+from playwright.async_api import Error as PlaywrightError, Frame, Page, TimeoutError as PWTimeout
 
 from ..coercion import coerce_bool
-from ..errors import BrowserMcpError
+from ..errors import BrowserMcpError, InvalidParamsError
 from ..instance_manager import InstanceManager, assert_no_modal
-from ..operation_context import mark_operation_started
+from ..observation_models import WaitForSpec
+from ..observations import run_observed_action
+from ..operation_context import mark_action_completed, mark_operation_started
 from ..ref_resolver import resolve_ref
 from ..responses import error_response, success_response
 
@@ -48,6 +50,9 @@ def _register_browser_click(mcp: FastMCP, mgr: InstanceManager) -> None:
         double_click: bool = False,
         button: str = "left",
         modifiers: list[str] | None = None,
+        page_id: str | None = None,
+        frame_id: str | None = None,
+        wait_for: WaitForSpec | None = None,
     ) -> dict[str, Any]:
         """Click an element by its accessibility ref from browser_snapshot.
 
@@ -80,16 +85,31 @@ def _register_browser_click(mcp: FastMCP, mgr: InstanceManager) -> None:
             mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
-                page = await mgr.active_page(instance)
-                locator = await resolve_ref(page, ref)
+                page = await mgr.target_page(instance, page_id)
+                resolved_frame = mgr.target_frame(instance, page, frame_id)
+                scope = resolved_frame if frame_id is not None else page
+                locator = await resolve_ref(scope, ref)
                 options: dict[str, Any] = {"button": button}
                 if modifiers:
                     options["modifiers"] = modifiers
-                if double_click:
-                    await locator.dblclick(**options)
-                else:
-                    await locator.click(**options)
-            return success_response(instance, data={"clicked": ref})
+
+                async def action() -> dict[str, Any]:
+                    if double_click:
+                        await locator.dblclick(**options)
+                    else:
+                        await locator.click(**options)
+                    return {"clicked": ref}
+
+                return await run_observed_action(
+                    instance,
+                    mgr,
+                    page,
+                    resolved_frame,
+                    action,
+                    wait_for,
+                    explicit_frame=frame_id is not None,
+                    on_action_completed=mark_action_completed,
+                )
         except BrowserMcpError as e:
             return error_response(instance, e.error_type, str(e))
         except Exception as e:
@@ -107,6 +127,9 @@ def _register_browser_type(mcp: FastMCP, mgr: InstanceManager) -> None:
         *,
         clear_first: bool = True,
         submit: bool = False,
+        page_id: str | None = None,
+        frame_id: str | None = None,
+        wait_for: WaitForSpec | None = None,
     ) -> dict[str, Any]:
         """Type text into an editable element identified by its accessibility ref.
 
@@ -131,17 +154,33 @@ def _register_browser_type(mcp: FastMCP, mgr: InstanceManager) -> None:
             mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
-                page = await mgr.active_page(instance)
-                locator = await resolve_ref(page, ref)
-                if clear_first:
-                    await locator.fill(text)
-                else:
-                    await locator.type(text)
-                if submit:
-                    await locator.press("Enter")
-                    with contextlib.suppress(PWTimeout):
-                        await page.wait_for_load_state("domcontentloaded", timeout=2000)
-            return success_response(instance, data={"typed_into": ref})
+                page = await mgr.target_page(instance, page_id)
+                resolved_frame = mgr.target_frame(instance, page, frame_id)
+                scope = resolved_frame if frame_id is not None else page
+                locator = await resolve_ref(scope, ref)
+
+                async def action() -> dict[str, Any]:
+                    if clear_first:
+                        await locator.fill(text)
+                    else:
+                        await locator.type(text)
+                    if submit:
+                        await locator.press("Enter")
+                        if wait_for is None:
+                            with contextlib.suppress(PWTimeout):
+                                await page.wait_for_load_state("domcontentloaded", timeout=2000)
+                    return {"typed_into": ref}
+
+                return await run_observed_action(
+                    instance,
+                    mgr,
+                    page,
+                    resolved_frame,
+                    action,
+                    wait_for,
+                    explicit_frame=frame_id is not None,
+                    on_action_completed=mark_action_completed,
+                )
         except BrowserMcpError as e:
             return error_response(instance, e.error_type, str(e))
         except Exception as e:
@@ -149,7 +188,7 @@ def _register_browser_type(mcp: FastMCP, mgr: InstanceManager) -> None:
             return error_response(instance, "internal_error", str(e))
 
 
-async def _fill_form_field(page: Page, field: dict[str, Any]) -> str | None:
+async def _fill_form_field(page: Page | Frame, field: dict[str, Any]) -> str | None:
     """Fill one form field; return None on success or an error message on validation failure."""
     if "ref" not in field:
         return "field is missing required 'ref' key"
@@ -169,10 +208,26 @@ async def _fill_form_field(page: Page, field: dict[str, Any]) -> str | None:
     return None
 
 
+async def _fill_form_fields(scope: Page | Frame, fields: list[dict[str, Any]]) -> dict[str, Any]:
+    """Preserve ordered partial-fill behavior while reporting validation failures."""
+    for field in fields:
+        error = await _fill_form_field(scope, field)
+        if error is not None:
+            raise InvalidParamsError(error)
+    return {"filled_count": len(fields)}
+
+
 def _register_browser_fill_form(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_fill_form(instance: str, fields: list[dict[str, Any]]) -> dict[str, Any]:
+    async def browser_fill_form(
+        instance: str,
+        fields: list[dict[str, Any]],
+        *,
+        page_id: str | None = None,
+        frame_id: str | None = None,
+        wait_for: WaitForSpec | None = None,
+    ) -> dict[str, Any]:
         """Fill multiple form fields in one call, in the order provided.
 
         fields is a list of {"ref": str, "value": any, "type": str?} dicts.
@@ -207,12 +262,23 @@ def _register_browser_fill_form(mcp: FastMCP, mgr: InstanceManager) -> None:
             mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
-                page = await mgr.active_page(instance)
-                for field in fields:
-                    error = await _fill_form_field(page, field)
-                    if error is not None:
-                        return error_response(instance, "invalid_params", error)
-            return success_response(instance, data={"filled_count": len(fields)})
+                page = await mgr.target_page(instance, page_id)
+                resolved_frame = mgr.target_frame(instance, page, frame_id)
+                scope = resolved_frame if frame_id is not None else page
+
+                async def action() -> dict[str, Any]:
+                    return await _fill_form_fields(scope, fields)
+
+                return await run_observed_action(
+                    instance,
+                    mgr,
+                    page,
+                    resolved_frame,
+                    action,
+                    wait_for,
+                    explicit_frame=frame_id is not None,
+                    on_action_completed=mark_action_completed,
+                )
         except BrowserMcpError as e:
             return error_response(instance, e.error_type, str(e))
         except Exception as e:
@@ -223,7 +289,15 @@ def _register_browser_fill_form(mcp: FastMCP, mgr: InstanceManager) -> None:
 def _register_browser_select_option(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_select_option(instance: str, ref: str, value: str | list[str]) -> dict[str, Any]:
+    async def browser_select_option(
+        instance: str,
+        ref: str,
+        value: str | list[str],
+        *,
+        page_id: str | None = None,
+        frame_id: str | None = None,
+        wait_for: WaitForSpec | None = None,
+    ) -> dict[str, Any]:
         """Select an option in a <select> dropdown by its value attribute.
 
         ref is the [ref=eN] of the <select> element from browser_snapshot.
@@ -246,10 +320,25 @@ def _register_browser_select_option(mcp: FastMCP, mgr: InstanceManager) -> None:
             mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
-                page = await mgr.active_page(instance)
-                locator = await resolve_ref(page, ref)
-                await locator.select_option(value)
-            return success_response(instance, data={"selected": value})
+                page = await mgr.target_page(instance, page_id)
+                resolved_frame = mgr.target_frame(instance, page, frame_id)
+                scope = resolved_frame if frame_id is not None else page
+                locator = await resolve_ref(scope, ref)
+
+                async def action() -> dict[str, Any]:
+                    await locator.select_option(value)
+                    return {"selected": value}
+
+                return await run_observed_action(
+                    instance,
+                    mgr,
+                    page,
+                    resolved_frame,
+                    action,
+                    wait_for,
+                    explicit_frame=frame_id is not None,
+                    on_action_completed=mark_action_completed,
+                )
         except BrowserMcpError as e:
             return error_response(instance, e.error_type, str(e))
         except Exception as e:
@@ -260,7 +349,14 @@ def _register_browser_select_option(mcp: FastMCP, mgr: InstanceManager) -> None:
 def _register_browser_hover(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_hover(instance: str, ref: str) -> dict[str, Any]:
+    async def browser_hover(
+        instance: str,
+        ref: str,
+        *,
+        page_id: str | None = None,
+        frame_id: str | None = None,
+        wait_for: WaitForSpec | None = None,
+    ) -> dict[str, Any]:
         """Hover the mouse over an element identified by its accessibility ref.
 
         ref is the [ref=eN] value from browser_snapshot. The element is scrolled
@@ -279,10 +375,25 @@ def _register_browser_hover(mcp: FastMCP, mgr: InstanceManager) -> None:
             mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
-                page = await mgr.active_page(instance)
-                locator = await resolve_ref(page, ref)
-                await locator.hover()
-            return success_response(instance, data={"hovered": ref})
+                page = await mgr.target_page(instance, page_id)
+                resolved_frame = mgr.target_frame(instance, page, frame_id)
+                scope = resolved_frame if frame_id is not None else page
+                locator = await resolve_ref(scope, ref)
+
+                async def action() -> dict[str, Any]:
+                    await locator.hover()
+                    return {"hovered": ref}
+
+                return await run_observed_action(
+                    instance,
+                    mgr,
+                    page,
+                    resolved_frame,
+                    action,
+                    wait_for,
+                    explicit_frame=frame_id is not None,
+                    on_action_completed=mark_action_completed,
+                )
         except BrowserMcpError as e:
             return error_response(instance, e.error_type, str(e))
         except Exception as e:
@@ -293,7 +404,15 @@ def _register_browser_hover(mcp: FastMCP, mgr: InstanceManager) -> None:
 def _register_browser_drag(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_drag(instance: str, source_ref: str, target_ref: str) -> dict[str, Any]:
+    async def browser_drag(
+        instance: str,
+        source_ref: str,
+        target_ref: str,
+        *,
+        page_id: str | None = None,
+        frame_id: str | None = None,
+        wait_for: WaitForSpec | None = None,
+    ) -> dict[str, Any]:
         """Drag an element to a target element using accessibility refs.
 
         Both source_ref and target_ref are [ref=eN] values from browser_snapshot.
@@ -313,11 +432,26 @@ def _register_browser_drag(mcp: FastMCP, mgr: InstanceManager) -> None:
             mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
-                page = await mgr.active_page(instance)
-                source = await resolve_ref(page, source_ref)
-                target = await resolve_ref(page, target_ref)
-                await source.drag_to(target)
-            return success_response(instance, data={"dragged": source_ref, "to": target_ref})
+                page = await mgr.target_page(instance, page_id)
+                resolved_frame = mgr.target_frame(instance, page, frame_id)
+                scope = resolved_frame if frame_id is not None else page
+                source = await resolve_ref(scope, source_ref)
+                target = await resolve_ref(scope, target_ref)
+
+                async def action() -> dict[str, Any]:
+                    await source.drag_to(target)
+                    return {"dragged": source_ref, "to": target_ref}
+
+                return await run_observed_action(
+                    instance,
+                    mgr,
+                    page,
+                    resolved_frame,
+                    action,
+                    wait_for,
+                    explicit_frame=frame_id is not None,
+                    on_action_completed=mark_action_completed,
+                )
         except BrowserMcpError as e:
             return error_response(instance, e.error_type, str(e))
         except Exception as e:
@@ -328,7 +462,9 @@ def _register_browser_drag(mcp: FastMCP, mgr: InstanceManager) -> None:
 def _register_browser_press_key(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_press_key(instance: str, key: str) -> dict[str, Any]:
+    async def browser_press_key(
+        instance: str, key: str, *, page_id: str | None = None, wait_for: WaitForSpec | None = None
+    ) -> dict[str, Any]:
         """Press a keyboard key on the active page (sent to whatever has focus).
 
         key follows Playwright key naming: simple keys like "Enter", "Tab",
@@ -347,12 +483,25 @@ def _register_browser_press_key(mcp: FastMCP, mgr: InstanceManager) -> None:
             mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
-                page = await mgr.active_page(instance)
-                await page.keyboard.press(key)
-                if key.lower() == "enter":
-                    with contextlib.suppress(PWTimeout):
-                        await page.wait_for_load_state("domcontentloaded", timeout=2000)
-            return success_response(instance, data={"pressed": key})
+                page = await mgr.target_page(instance, page_id)
+
+                async def action() -> dict[str, Any]:
+                    await page.keyboard.press(key)
+                    if key.lower() == "enter" and wait_for is None:
+                        with contextlib.suppress(PWTimeout):
+                            await page.wait_for_load_state("domcontentloaded", timeout=2000)
+                    return {"pressed": key}
+
+                return await run_observed_action(
+                    instance,
+                    mgr,
+                    page,
+                    page.main_frame,
+                    action,
+                    wait_for,
+                    explicit_frame=False,
+                    on_action_completed=mark_action_completed,
+                )
         except BrowserMcpError as e:
             return error_response(instance, e.error_type, str(e))
         except Exception as e:
@@ -363,7 +512,9 @@ def _register_browser_press_key(mcp: FastMCP, mgr: InstanceManager) -> None:
 def _register_browser_file_upload(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_file_upload(instance: str, paths: list[str] | None = None) -> dict[str, Any]:
+    async def browser_file_upload(
+        instance: str, paths: list[str] | None = None, *, page_id: str | None = None
+    ) -> dict[str, Any]:
         """Resolve a pending native file-chooser dialog.
 
         Consumes a pending file-chooser captured by the modal-state listener
@@ -383,8 +534,10 @@ def _register_browser_file_upload(mcp: FastMCP, mgr: InstanceManager) -> None:
         try:
             mgr.get(instance)
             async with mgr.modal_lock_for(instance):
+                if page_id is not None:
+                    await mgr.target_page(instance, page_id)
                 instance_state = mgr.state(instance)
-                state = mgr.consume_modal_state(instance, "filechooser")
+                state = mgr.consume_modal_state(instance, "filechooser", page_id=page_id)
                 if state is None:
                     return error_response(
                         instance,
@@ -420,7 +573,9 @@ def _register_browser_file_upload(mcp: FastMCP, mgr: InstanceManager) -> None:
 def _register_browser_handle_dialog(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_handle_dialog(instance: str, *, accept: bool, prompt_text: str | None = None) -> dict[str, Any]:
+    async def browser_handle_dialog(
+        instance: str, *, accept: bool, prompt_text: str | None = None, page_id: str | None = None
+    ) -> dict[str, Any]:
         """Resolve a pending JavaScript dialog (alert/confirm/prompt).
 
         Consumes a pending dialog captured by the modal-state listener. The
@@ -445,8 +600,10 @@ def _register_browser_handle_dialog(mcp: FastMCP, mgr: InstanceManager) -> None:
         try:
             mgr.get(instance)
             async with mgr.modal_lock_for(instance):
+                if page_id is not None:
+                    await mgr.target_page(instance, page_id)
                 instance_state = mgr.state(instance)
-                state = mgr.consume_modal_state(instance, "dialog")
+                state = mgr.consume_modal_state(instance, "dialog", page_id=page_id)
                 if state is None:
                     return error_response(
                         instance,

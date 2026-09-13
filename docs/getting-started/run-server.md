@@ -4,6 +4,12 @@ description: Start the MCP server over stdio or HTTP and connect a client.
 
 # Run the server { #_top }
 
+Every startup checks the latest official Camoufox release, downloads it when needed,
+activates it, and verifies readiness before serving browser operations. A failed
+update check or verification stops startup rather than selecting an unverified older
+browser. The resolved SDK browser selector is retained for this process's launches.
+Playwright 1.61.x and Camoufox SDK 0.5.6 or newer are installed through uv.
+
 ## Invocation forms { #invocation-forms }
 
 The install exposes two equivalent invocations — the `justpen-browser-mcp`
@@ -68,6 +74,18 @@ path instead.
 
 Server-side logs go to stderr. See [Configuration](configuration.md) for the
 `BROWSER_MCP_LOG_LEVEL` variable.
+
+## Latest-build compatibility { #latest-build-compatibility }
+
+Real-browser validation of Camoufox 152.0.4-beta.30 with Playwright 1.61 found
+timeouts in short humanized coordinate movements, initial mouse-down, and
+coordinate drag. These reproduce below the MCP layer; browser-side handling of
+repeated trajectory coordinates appears to wait for an acknowledgement that
+never arrives. Camoufox's [no-op mousemove fix](https://github.com/daijro/camoufox/pull/707)
+addresses the outer endpoint, while repeated intermediate points remain a
+limitation in this build. The MCP keeps the configured humanization behavior and
+reports operation timeouts; it does not silently retry mouse mutations, patch
+the official browser, or fall back to an older release.
 
 ## Next steps { #next-steps }
 

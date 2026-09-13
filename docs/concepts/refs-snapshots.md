@@ -18,8 +18,8 @@ When `browser_snapshot` is called with `selector=<css-or-aria>`, it returns a sc
 ## How a ref is captured { #how-a-ref-is-captured }
 
 The full-page (`selector=None`) snapshot uses Playwright's internal
-`Frame.ariaSnapshot` protocol method with `mode="ai"` on the main frame.
-The pinned Playwright 1.59 driver exposes this AI mode through its private
+`Frame.ariaSnapshot` protocol method with `mode="ai"` on the resolved frame (the main frame by default).
+The required Playwright 1.61 driver exposes this AI mode through its private
 protocol, so `_playwright_internal.py` centralizes the channel access.
 `ref_resolver.py` calls that facade to obtain the ref-annotated YAML.
 
@@ -58,16 +58,23 @@ for the full parameter and error reference.
 
 ## iframe / child-frame refs { #iframe--child-frame-refs }
 
-Snapshot refs may include a frame-qualified prefix, such as `f1e2`. The pinned
-Playwright driver's `aria-ref` engine can resolve these refs through child frames;
-ordinary interaction tools therefore work with native frame-qualified refs too.
-Verification also includes a child-frame fallback for a ref that is not found by
-the main-frame path. Keep the complete ref string returned by the snapshot.
+Call [`browser_frames`](../tools-reference/utility.md#browser_frames) with the desired
+`page_id` to enumerate main, child, and nested frames. Capture a snapshot with that
+`page_id` and `frame_id`, then pass both IDs unchanged to ref-based actions,
+verification, evaluation, waits, and locator generation. Equal-looking refs from
+different frames are not interchangeable. An explicit frame is strict: an invalid,
+detached, or foreign frame returns `frame_not_found` rather than searching elsewhere.
 
-Generated selectors preserve `internal:control=enter-frame` segments. The Python
-representation retains that full selector when translating individual components
-would lose frame boundaries or other selection constraints. A reusable selector
-still needs matching frames and DOM structure in the future session.
+A frame UUID survives navigation of the same attached Frame, while its snapshot
+refs must be refreshed. Detachment expires the UUID; a replacement gets a new UUID.
+Omitting `frame_id` keeps existing main-frame behavior, except verification retains
+its existing any-frame fallback. Coordinates and keyboard focus remain page-level.
+
+Snapshots and generated locators include `page_id` and `frame_id`. A locator generated
+inside an explicit frame is frame-local: select the corresponding frame before
+replaying `python_syntax` or `internal_selector`. Keep the complete opaque ref string,
+including any native frame prefix. Generated selectors preserve native frame-boundary
+segments when present.
 
 ## When tools require a ref { #when-tools-require-a-ref }
 

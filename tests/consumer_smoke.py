@@ -29,7 +29,7 @@ async def smoke(source_root: Path, *, browser: bool) -> None:
         async with asyncio.timeout(60), Client(server) as client:
             schemas = {tool.name: tool.model_dump(by_alias=True)["inputSchema"] for tool in await client.list_tools()}
             assert schemas == expected
-            assert len(schemas) == 43
+            assert len(schemas) == 46
             health = (await client.call_tool("browser_health", {})).data
             assert health["status"] == "success", health
             assert health["data"]["instance_count"] == 0

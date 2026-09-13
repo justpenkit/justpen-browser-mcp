@@ -23,12 +23,15 @@ from typing import TYPE_CHECKING, Any, Literal, TypeVar, cast
 from camoufox import DefaultAddons
 from camoufox.async_api import AsyncCamoufox
 
+from .downloads import DownloadRegistry
 from .events import EventBuffer
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from playwright.async_api import Browser, BrowserContext, Page
+    from playwright.async_api import Browser, BrowserContext, Frame, Page
+
+    from .browser_runtime import BrowserRuntime
 
 
 def _utcnow() -> datetime:
@@ -40,11 +43,14 @@ def _utcnow() -> datetime:
 class InstanceState:
     """Per-instance bookkeeping (console, network, modal state, active tab index)."""
 
+    downloads: DownloadRegistry = field(default_factory=lambda: DownloadRegistry(1000))
+    page_header_tasks: dict[Page, asyncio.Task[None]] = field(default_factory=dict["Page", asyncio.Task[None]])
     console_messages: EventBuffer = field(default_factory=EventBuffer)
     network_requests: EventBuffer = field(default_factory=EventBuffer)
     network_request_index: dict[int, dict[str, Any]] = field(default_factory=dict[int, dict[str, Any]])
     active_page_index: int = 0
     active_page: Page | None = None
+    frame_ids: dict[Frame, str] = field(default_factory=dict["Frame", str])
     page_ids: dict[Page, str] = field(default_factory=dict["Page", str])
     modal_states: list[dict[str, Any]] = field(default_factory=list[dict[str, Any]])
     status: Literal["live", "crashed", "closing", "close_failed"] = "live"
@@ -113,6 +119,8 @@ async def launch_instance(
     camoufox_args: tuple[str, ...] | None = None,
     enable_cache: bool | None = None,
     ff_version: int | None = None,
+    browser_runtime: BrowserRuntime | None = None,
+    extra_http_headers: dict[str, str] | None = None,
 ) -> tuple[AsyncExitStack, BrowserContext, Browser | None]:
     """Launch a Camoufox instance and return its exit stack + normalized BrowserContext.
 
@@ -152,7 +160,15 @@ async def launch_instance(
     _set_optional(kwargs, "firefox_user_prefs", firefox_user_prefs, transform=dict, require_truthy=True)
     _set_optional(kwargs, "args", camoufox_args, transform=list, require_truthy=True)
     _set_optional(kwargs, "enable_cache", enable_cache)
+    if browser_runtime is not None:
+        # Use the exact installed selector, including its asset hash. Passing
+        # executable_path bypasses the SDK's macOS bundle resource lookup.
+        kwargs["browser"] = browser_runtime.installation
+        # The SDK derives its fingerprint from global active state otherwise.
+        ff_version = ff_version if ff_version is not None else browser_runtime.firefox_major
     _set_optional(kwargs, "ff_version", ff_version)
+    if profile_dir is not None and extra_http_headers is not None:
+        kwargs["extra_http_headers"] = extra_http_headers
 
     owns_stack = stack is None
     stack = stack if stack is not None else AsyncExitStack()
@@ -164,7 +180,11 @@ async def launch_instance(
             ctx = cast("BrowserContext", obj)
         else:
             browser_handle = cast("Browser", obj)
-            ctx = await browser_handle.new_context()
+            ctx = (
+                await browser_handle.new_context(extra_http_headers=extra_http_headers)
+                if extra_http_headers is not None
+                else await browser_handle.new_context()
+            )
     except BaseException:
         if owns_stack:
             await stack.aclose()

@@ -13,6 +13,11 @@ For localStorage calls with an explicit `origin`, the browser compares its canon
 
 Operation metadata identifies the temporary page that accesses storage, while the selected active page remains unchanged. Cleanup attempts to close the temporary page within a bounded, shielded period, including after cancellation. A cleanup failure is reported if the storage operation otherwise succeeded; if an earlier error or cancellation occurred, that original result is preserved and the cleanup failure is logged. Inspect tabs after a failure if cleanup could not finish.
 
+Optional `page_id` selects a live page without changing the selected tab; an invalid
+explicit target returns `page_not_found`. Frame-capable calls also accept `frame_id`
+and return `frame_not_found` for a detached or foreign frame. Omitted targets retain
+existing behavior. See [explicit targeting](../concepts/instances-isolation.md#explicit-page-targets).
+
 ## browser_get_cookies { #browser_get_cookies }
 
 Return cookies stored in the instance, optionally filtered by URL and name.
@@ -20,7 +25,11 @@ Return cookies stored in the instance, optionally filtered by URL and name.
 **Signature**
 
 ```python
-async def browser_get_cookies(instance: str, urls: list[str] | None = None, name: str | None = None) -> dict[str, Any]
+async def browser_get_cookies(
+    instance: str,
+    urls: list[str] | None = None,
+    name: str | None = None,
+) -> dict[str, Any]
 ```
 
 **Parameters**
@@ -97,7 +106,9 @@ Add or update cookies on the instance using Playwright cookie format.
 **Signature**
 
 ```python
-async def browser_set_cookies(instance: str, cookies: list[dict[str, Any]]) -> dict[str, Any]
+async def browser_set_cookies(
+    instance: str, cookies: list[dict[str, Any]], *, page_id: str | None = None
+) -> dict[str, Any]
 ```
 
 **Parameters**
@@ -106,6 +117,7 @@ async def browser_set_cookies(instance: str, cookies: list[dict[str, Any]]) -> d
 | ---------- | ---------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `instance` | `str`                  | —       | Instance name.                                                                                                                                                                                                                                                    |
 | `cookies`  | `list[dict[str, Any]]` | —       | List of cookie dicts. Each must have at minimum `name` and `value`. Must also include either (`domain` + `path`) or `url`. Optional fields: `path` (default `"/"`), `expires` (Unix timestamp), `httpOnly`, `secure`, `sameSite` (`"Strict"`, `"Lax"`, `"None"`). |
+| `page_id`  | `str \| None`          | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs.                                                                                                                                               |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -199,7 +211,11 @@ Read localStorage for the given origin.
 **Signature**
 
 ```python
-async def browser_get_local_storage(instance: str, origin: str, key: str | None = None) -> dict[str, Any]
+async def browser_get_local_storage(
+    instance: str,
+    origin: str,
+    key: str | None = None,
+) -> dict[str, Any]
 ```
 
 **Parameters**
@@ -350,7 +366,12 @@ Clear localStorage entries for an origin or for the currently active page.
 **Signature**
 
 ```python
-async def browser_clear_local_storage(instance: str, origin: str | None = None) -> dict[str, Any]
+async def browser_clear_local_storage(
+    instance: str,
+    origin: str | None = None,
+    *,
+    page_id: str | None = None,
+) -> dict[str, Any]
 ```
 
 **Parameters**
@@ -359,6 +380,7 @@ async def browser_clear_local_storage(instance: str, origin: str | None = None) 
 | ---------- | ------------- | ------- | ----------------------------------------------------------------------------------------------------------------------- |
 | `instance` | `str`         | —       | Instance name.                                                                                                          |
 | `origin`   | `str \| None` | `None`  | Fully-qualified URL including scheme to clear. When omitted, clears localStorage on the currently active page directly. |
+| `page_id`  | `str \| None` | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs.     |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -413,3 +435,12 @@ Response:
 **Notes** — When `origin` is provided, a temporary page navigates to that origin, clears localStorage, then closes — the instance's active page is not disturbed. When `origin` is omitted, localStorage is cleared on the active page directly with no navigation (a shortcut for when you are already on the origin whose storage you want to clear). The response's `origin` field echoes the supplied URL, or the active page's full URL when no origin was supplied.
 
 For an explicit origin, storage is accessed after the document commits, without waiting for DOMContentLoaded or site initialization scripts.
+
+For `browser_clear_local_storage`, supplying both `origin` and `page_id` returns
+`invalid_params`. Origin-explicit storage operations retain their temporary-page
+behavior. `browser_set_cookies` validates an explicit page even when cookies already
+provide their own URL/domain; the page supplies an inferred domain only when needed.
+
+Temporary origin-storage pages await automatic header setup before their first
+navigation. Setup failure prevents navigation/storage access and still closes the
+temporary page.

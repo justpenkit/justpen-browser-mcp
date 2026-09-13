@@ -30,6 +30,8 @@ _READ_TOOLS = frozenset(
         "browser_health",
         "browser_list_instances",
         "browser_snapshot",
+        "browser_frames",
+        "browser_downloads",
         "browser_get_cookies",
         "browser_generate_locator",
         "browser_console_messages",
@@ -53,6 +55,7 @@ def _metadata(operation: Operation, payload: dict[str, Any]) -> dict[str, Any]:
         "tool": operation.tool,
         "instance_id": operation.instance_id,
         "page_id": operation.page_id,
+        "frame_id": operation.frame_id,
         "started_at": operation.started_at.isoformat(),
         "finished_at": datetime.now(UTC).isoformat(),
         "duration_ms": round((time.monotonic() - operation.started_clock) * 1000, 3),
@@ -76,7 +79,10 @@ class OperationMiddleware(Middleware):
         instance = arguments.get("instance", arguments.get("name"))
         target = self.manager.target_snapshot(instance) if isinstance(instance, str) else {}
         operation = Operation(
-            tool=context.message.name, instance_id=target.get("instance_id"), page_id=target.get("page_id")
+            tool=context.message.name,
+            instance_id=target.get("instance_id"),
+            # Explicit targets are untrusted until the manager resolves them.
+            page_id=target.get("page_id") if arguments.get("page_id") is None else None,
         )
         token = current_operation.set(operation)
         deadline = asyncio.timeout(self.manager.operation_timeout_seconds)
@@ -120,6 +126,12 @@ class OperationMiddleware(Middleware):
         if result.structured_content is None:
             return result
         payload = dict(result.structured_content)
+        if payload.get("error_type") == "operation_timeout" and operation.action_result is not None:
+            payload["data"] = {
+                **operation.action_result,
+                "action_completed": True,
+                "observation": {"kind": operation.observation_kind, "matched": False},
+            }
         metadata = _metadata(operation, payload)
         payload["operation"] = metadata
         size = len(json.dumps(payload, ensure_ascii=False).encode("utf-8"))

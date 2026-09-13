@@ -233,12 +233,21 @@ async def test_dialog_recovery_unblocks_pending_evaluation(hardening_browser):
     dialog_seen = asyncio.Event()
     page.on("dialog", lambda _dialog: dialog_seen.set())
     evaluation = asyncio.create_task(
-        call(client, "browser_evaluate", {"instance": "review", "expression": "alert('recover me')"})
+        call(
+            client,
+            "browser_evaluate",
+            {"instance": "review", "page_id": manager.page_id("review", page), "expression": "alert('recover me')"},
+        )
     )
     try:
         await asyncio.wait_for(dialog_seen.wait(), timeout=2)
         recovered = await asyncio.wait_for(
-            call(client, "browser_handle_dialog", {"instance": "review", "accept": False}), timeout=2
+            call(
+                client,
+                "browser_handle_dialog",
+                {"instance": "review", "page_id": manager.page_id("review", page), "accept": False},
+            ),
+            timeout=2,
         )
         assert recovered["status"] == "success", recovered
         result = await asyncio.wait_for(evaluation, timeout=2)

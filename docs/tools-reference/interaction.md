@@ -8,6 +8,11 @@ Interaction tools let an agent act on the page — clicking, typing, filling for
 
 Examples below focus on tool-specific data. Registered tools also return the shared [operation metadata and error fields](../concepts/response-envelope.md). Page actions check for blocking modals after acquiring the instance's action lock. Dialog and upload recovery use a separate lock so they can resolve a modal while its triggering action is still waiting.
 
+Optional `page_id` selects a live page without changing the selected tab; an invalid
+explicit target returns `page_not_found`. Frame-capable calls also accept `frame_id`
+and return `frame_not_found` for a detached or foreign frame. Omitted targets retain
+existing behavior. See [explicit targeting](../concepts/instances-isolation.md#explicit-page-targets).
+
 ## browser_click { #browser_click }
 
 Click an element by its accessibility ref from `browser_snapshot`.
@@ -22,18 +27,24 @@ async def browser_click(
     double_click: bool = False,
     button: str = "left",
     modifiers: list[str] | None = None,
+    page_id: str | None = None,
+    frame_id: str | None = None,
+    wait_for: WaitForSpec | None = None,
 ) -> dict[str, Any]
 ```
 
 **Parameters**
 
-| Name           | Type                | Default  | Description                                                                                                           |
-| -------------- | ------------------- | -------- | --------------------------------------------------------------------------------------------------------------------- |
-| `instance`     | `str`               | —        | Instance name.                                                                                                        |
-| `ref`          | `str`               | —        | Element ref from `browser_snapshot` (e.g. `"e5"`). See [Refs & snapshots](../concepts/refs-snapshots.md).             |
-| `double_click` | `bool`              | `False`  | Perform a double-click instead of a single click.                                                                     |
-| `button`       | `str`               | `"left"` | Mouse button: `"left"`, `"right"`, or `"middle"`.                                                                     |
-| `modifiers`    | `list[str] \| None` | `None`   | Keyboard modifiers held during the click. Valid values: `"Alt"`, `"Control"`, `"ControlOrMeta"`, `"Meta"`, `"Shift"`. |
+| Name           | Type                  | Default  | Description                                                                                                               |
+| -------------- | --------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `instance`     | `str`                 | —        | Instance name.                                                                                                            |
+| `ref`          | `str`                 | —        | Element ref from `browser_snapshot` (e.g. `"e5"`). See [Refs & snapshots](../concepts/refs-snapshots.md).                 |
+| `double_click` | `bool`                | `False`  | Perform a double-click instead of a single click.                                                                         |
+| `button`       | `str`                 | `"left"` | Mouse button: `"left"`, `"right"`, or `"middle"`.                                                                         |
+| `modifiers`    | `list[str] \| None`   | `None`   | Keyboard modifiers held during the click. Valid values: `"Alt"`, `"Control"`, `"ControlOrMeta"`, `"Meta"`, `"Shift"`.     |
+| `page_id`      | `str \| None`         | `None`   | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs.       |
+| `frame_id`     | `str \| None`         | `None`   | Attached frame ID from `browser_frames`; explicit scope never falls back to another frame.                                |
+| `wait_for`     | `WaitForSpec \| None` | `None`   | One condition armed before the action; see [action observations](../guides/framework-integration.md#action-observations). |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -79,18 +90,24 @@ async def browser_type(
     *,
     clear_first: bool = True,
     submit: bool = False,
+    page_id: str | None = None,
+    frame_id: str | None = None,
+    wait_for: WaitForSpec | None = None,
 ) -> dict[str, Any]
 ```
 
 **Parameters**
 
-| Name          | Type   | Default | Description                                                                                                                |
-| ------------- | ------ | ------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `instance`    | `str`  | —       | Instance name.                                                                                                             |
-| `ref`         | `str`  | —       | Element ref from `browser_snapshot`. See [Refs & snapshots](../concepts/refs-snapshots.md).                                |
-| `text`        | `str`  | —       | Text to type.                                                                                                              |
-| `clear_first` | `bool` | `True`  | Clear the existing value before typing (uses `fill`, which is instant). Set to `False` to append via simulated keystrokes. |
-| `submit`      | `bool` | `False` | Press Enter after typing and wait up to 2 s for `domcontentloaded` (useful for forms that navigate on submit).             |
+| Name          | Type                  | Default | Description                                                                                                                |
+| ------------- | --------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `instance`    | `str`                 | —       | Instance name.                                                                                                             |
+| `ref`         | `str`                 | —       | Element ref from `browser_snapshot`. See [Refs & snapshots](../concepts/refs-snapshots.md).                                |
+| `text`        | `str`                 | —       | Text to type.                                                                                                              |
+| `clear_first` | `bool`                | `True`  | Clear the existing value before typing (uses `fill`, which is instant). Set to `False` to append via simulated keystrokes. |
+| `submit`      | `bool`                | `False` | Press Enter after typing and wait up to 2 s for `domcontentloaded` (useful for forms that navigate on submit).             |
+| `page_id`     | `str \| None`         | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs.        |
+| `frame_id`    | `str \| None`         | `None`  | Attached frame ID from `browser_frames`; explicit scope never falls back to another frame.                                 |
+| `wait_for`    | `WaitForSpec \| None` | `None`  | One condition armed before the action; see [action observations](../guides/framework-integration.md#action-observations).  |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -129,15 +146,25 @@ Fill multiple form fields in one call, in the order provided.
 **Signature**
 
 ```python
-async def browser_fill_form(instance: str, fields: list[dict[str, Any]]) -> dict[str, Any]
+async def browser_fill_form(
+    instance: str,
+    fields: list[dict[str, Any]],
+    *,
+    page_id: str | None = None,
+    frame_id: str | None = None,
+    wait_for: WaitForSpec | None = None,
+) -> dict[str, Any]
 ```
 
 **Parameters**
 
-| Name       | Type         | Default | Description                                                                                                                                                                                                                                                |
-| ---------- | ------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `instance` | `str`        | —       | Instance name.                                                                                                                                                                                                                                             |
-| `fields`   | `list[dict]` | —       | Ordered list of field descriptors. Each dict must have `"ref"` (from `browser_snapshot`) and `"value"`, plus an optional `"type"`: `"textbox"` (default), `"checkbox"`, `"radio"`, or `"combobox"`. See [Refs & snapshots](../concepts/refs-snapshots.md). |
+| Name       | Type                  | Default | Description                                                                                                                                                                                                                                                |
+| ---------- | --------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `instance` | `str`                 | —       | Instance name.                                                                                                                                                                                                                                             |
+| `fields`   | `list[dict]`          | —       | Ordered list of field descriptors. Each dict must have `"ref"` (from `browser_snapshot`) and `"value"`, plus an optional `"type"`: `"textbox"` (default), `"checkbox"`, `"radio"`, or `"combobox"`. See [Refs & snapshots](../concepts/refs-snapshots.md). |
+| `page_id`  | `str \| None`         | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs.                                                                                                                                        |
+| `frame_id` | `str \| None`         | `None`  | Attached frame ID from `browser_frames`; explicit scope never falls back to another frame.                                                                                                                                                                 |
+| `wait_for` | `WaitForSpec \| None` | `None`  | One condition armed before the action; see [action observations](../guides/framework-integration.md#action-observations).                                                                                                                                  |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -186,16 +213,27 @@ Select an option in a `<select>` dropdown by its HTML `value` attribute.
 **Signature**
 
 ```python
-async def browser_select_option(instance: str, ref: str, value: str | list[str]) -> dict[str, Any]
+async def browser_select_option(
+    instance: str,
+    ref: str,
+    value: str | list[str],
+    *,
+    page_id: str | None = None,
+    frame_id: str | None = None,
+    wait_for: WaitForSpec | None = None,
+) -> dict[str, Any]
 ```
 
 **Parameters**
 
-| Name       | Type               | Default | Description                                                                                                    |
-| ---------- | ------------------ | ------- | -------------------------------------------------------------------------------------------------------------- |
-| `instance` | `str`              | —       | Instance name.                                                                                                 |
-| `ref`      | `str`              | —       | Ref of the `<select>` element from `browser_snapshot`. See [Refs & snapshots](../concepts/refs-snapshots.md).  |
-| `value`    | `str \| list[str]` | —       | HTML `value` attribute of the option to select (not the display label). Pass a list for multi-select elements. |
+| Name       | Type                  | Default | Description                                                                                                               |
+| ---------- | --------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `instance` | `str`                 | —       | Instance name.                                                                                                            |
+| `ref`      | `str`                 | —       | Ref of the `<select>` element from `browser_snapshot`. See [Refs & snapshots](../concepts/refs-snapshots.md).             |
+| `value`    | `str \| list[str]`    | —       | HTML `value` attribute of the option to select (not the display label). Pass a list for multi-select elements.            |
+| `page_id`  | `str \| None`         | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs.       |
+| `frame_id` | `str \| None`         | `None`  | Attached frame ID from `browser_frames`; explicit scope never falls back to another frame.                                |
+| `wait_for` | `WaitForSpec \| None` | `None`  | One condition armed before the action; see [action observations](../guides/framework-integration.md#action-observations). |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -236,15 +274,25 @@ Hover the mouse over an element identified by its accessibility ref.
 **Signature**
 
 ```python
-async def browser_hover(instance: str, ref: str) -> dict[str, Any]
+async def browser_hover(
+    instance: str,
+    ref: str,
+    *,
+    page_id: str | None = None,
+    frame_id: str | None = None,
+    wait_for: WaitForSpec | None = None,
+) -> dict[str, Any]
 ```
 
 **Parameters**
 
-| Name       | Type  | Default | Description                                                                                 |
-| ---------- | ----- | ------- | ------------------------------------------------------------------------------------------- |
-| `instance` | `str` | —       | Instance name.                                                                              |
-| `ref`      | `str` | —       | Element ref from `browser_snapshot`. See [Refs & snapshots](../concepts/refs-snapshots.md). |
+| Name       | Type                  | Default | Description                                                                                                               |
+| ---------- | --------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `instance` | `str`                 | —       | Instance name.                                                                                                            |
+| `ref`      | `str`                 | —       | Element ref from `browser_snapshot`. See [Refs & snapshots](../concepts/refs-snapshots.md).                               |
+| `page_id`  | `str \| None`         | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs.       |
+| `frame_id` | `str \| None`         | `None`  | Attached frame ID from `browser_frames`; explicit scope never falls back to another frame.                                |
+| `wait_for` | `WaitForSpec \| None` | `None`  | One condition armed before the action; see [action observations](../guides/framework-integration.md#action-observations). |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -281,16 +329,27 @@ Drag an element to a target element using accessibility refs.
 **Signature**
 
 ```python
-async def browser_drag(instance: str, source_ref: str, target_ref: str) -> dict[str, Any]
+async def browser_drag(
+    instance: str,
+    source_ref: str,
+    target_ref: str,
+    *,
+    page_id: str | None = None,
+    frame_id: str | None = None,
+    wait_for: WaitForSpec | None = None,
+) -> dict[str, Any]
 ```
 
 **Parameters**
 
-| Name         | Type  | Default | Description                                                                                                  |
-| ------------ | ----- | ------- | ------------------------------------------------------------------------------------------------------------ |
-| `instance`   | `str` | —       | Instance name.                                                                                               |
-| `source_ref` | `str` | —       | Ref of the element to drag (from `browser_snapshot`). See [Refs & snapshots](../concepts/refs-snapshots.md). |
-| `target_ref` | `str` | —       | Ref of the drop target (from `browser_snapshot`).                                                            |
+| Name         | Type                  | Default | Description                                                                                                               |
+| ------------ | --------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `instance`   | `str`                 | —       | Instance name.                                                                                                            |
+| `source_ref` | `str`                 | —       | Ref of the element to drag (from `browser_snapshot`). See [Refs & snapshots](../concepts/refs-snapshots.md).              |
+| `target_ref` | `str`                 | —       | Ref of the drop target (from `browser_snapshot`).                                                                         |
+| `page_id`    | `str \| None`         | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs.       |
+| `frame_id`   | `str \| None`         | `None`  | Attached frame ID from `browser_frames`; explicit scope never falls back to another frame.                                |
+| `wait_for`   | `WaitForSpec \| None` | `None`  | One condition armed before the action; see [action observations](../guides/framework-integration.md#action-observations). |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -324,7 +383,7 @@ Response:
 
 **Notes** — Performs a full pointer-event drag sequence: mouse-down on the source, move to the target center, mouse-up. This supports drag-and-drop implementations that respond to pointer events.
 
-Native HTML5 `draggable` / `DataTransfer` implementations may fail or time out with the pinned Camoufox `135.0.1-beta.24` browser, even when the target accepts drops. Check the resulting page state to confirm that the intended drop occurred.
+Native HTML5 `draggable` / `DataTransfer` behavior depends on the application and browser backend. Check the resulting page state to confirm that the intended drop occurred.
 
 ## browser_press_key { #browser_press_key }
 
@@ -333,15 +392,19 @@ Press a keyboard key on the active page (sent to whatever element currently has 
 **Signature**
 
 ```python
-async def browser_press_key(instance: str, key: str) -> dict[str, Any]
+async def browser_press_key(
+    instance: str, key: str, *, page_id: str | None = None, wait_for: WaitForSpec | None = None
+) -> dict[str, Any]
 ```
 
 **Parameters**
 
-| Name       | Type  | Default | Description                                                                                            |
-| ---------- | ----- | ------- | ------------------------------------------------------------------------------------------------------ |
-| `instance` | `str` | —       | Instance name.                                                                                         |
-| `key`      | `str` | —       | Playwright key name, e.g. `"Enter"`, `"Tab"`, `"Escape"`, `"ArrowDown"`, `"Control+A"`, `"Shift+Tab"`. |
+| Name       | Type                  | Default | Description                                                                                                               |
+| ---------- | --------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `instance` | `str`                 | —       | Instance name.                                                                                                            |
+| `key`      | `str`                 | —       | Playwright key name, e.g. `"Enter"`, `"Tab"`, `"Escape"`, `"ArrowDown"`, `"Control+A"`, `"Shift+Tab"`.                    |
+| `page_id`  | `str \| None`         | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs.       |
+| `wait_for` | `WaitForSpec \| None` | `None`  | One condition armed before the action; see [action observations](../guides/framework-integration.md#action-observations). |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -378,7 +441,9 @@ Resolve a pending native file-chooser dialog by attaching files or cancelling.
 **Signature**
 
 ```python
-async def browser_file_upload(instance: str, paths: list[str] | None = None) -> dict[str, Any]
+async def browser_file_upload(
+    instance: str, paths: list[str] | None = None, *, page_id: str | None = None
+) -> dict[str, Any]
 ```
 
 **Parameters**
@@ -387,6 +452,7 @@ async def browser_file_upload(instance: str, paths: list[str] | None = None) -> 
 | ---------- | ------------------- | ------- | -------------------------------------------------------------------------------------------------------------------- |
 | `instance` | `str`               | —       | Instance name.                                                                                                       |
 | `paths`    | `list[str] \| None` | `None`  | Absolute paths of the files to attach. `None` or an empty list cancels the file chooser without attaching any files. |
+| `page_id`  | `str \| None`       | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs.  |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape (mutually exclusive):
 
@@ -427,16 +493,19 @@ Resolve a pending JavaScript dialog (alert, confirm, or prompt).
 **Signature**
 
 ```python
-async def browser_handle_dialog(instance: str, *, accept: bool, prompt_text: str | None = None) -> dict[str, Any]
+async def browser_handle_dialog(
+    instance: str, *, accept: bool, prompt_text: str | None = None, page_id: str | None = None
+) -> dict[str, Any]
 ```
 
 **Parameters**
 
-| Name          | Type          | Default | Description                                                                       |
-| ------------- | ------------- | ------- | --------------------------------------------------------------------------------- |
-| `instance`    | `str`         | —       | Instance name.                                                                    |
-| `accept`      | `bool`        | —       | `True` to accept the dialog (calls `dialog.accept`); `False` to dismiss it.       |
-| `prompt_text` | `str \| None` | `None`  | Text to submit with a `prompt` dialog. Ignored for `alert` and `confirm` dialogs. |
+| Name          | Type          | Default | Description                                                                                                         |
+| ------------- | ------------- | ------- | ------------------------------------------------------------------------------------------------------------------- |
+| `instance`    | `str`         | —       | Instance name.                                                                                                      |
+| `accept`      | `bool`        | —       | `True` to accept the dialog (calls `dialog.accept`); `False` to dismiss it.                                         |
+| `prompt_text` | `str \| None` | `None`  | Text to submit with a `prompt` dialog. Ignored for `alert` and `confirm` dialogs.                                   |
+| `page_id`     | `str \| None` | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 

@@ -218,3 +218,94 @@ async def test_external_cancellation_preserves_signal_and_resets_context():
         assert current_operation.get() is parent
     finally:
         current_operation.reset(token)
+
+
+def test_frame_identity_clears_when_page_or_instance_changes():
+    operation = Operation(tool="browser_snapshot")
+    token = current_operation.set(operation)
+    try:
+        mark_operation_started("instance-a", page_id="page-a", frame_id="frame-a")
+        assert operation.frame_id == "frame-a"
+        mark_operation_started("instance-a", page_id="page-b")
+        assert operation.frame_id is None
+        mark_operation_started("instance-a", page_id="page-b", frame_id="frame-b")
+        mark_operation_started("instance-b")
+        assert operation.frame_id is None
+        assert operation.page_id is None
+    finally:
+        current_operation.reset(token)
+
+
+@pytest.mark.parametrize("completed", [True, False])
+async def test_manager_deadline_enriches_only_completed_observed_actions(completed):
+    middleware = OperationMiddleware(InstanceManager(BrowserServerConfig()))
+    context = MiddlewareContext(message=CallToolRequestParams(name="browser_type"), method="tools/call")
+
+    async def timed_out(context):
+        operation = current_operation.get()
+        assert operation is not None
+        mark_operation_started("example")
+        if completed:
+            operation.action_result = {"typed_into": "e1"}
+            operation.observation_kind = "response"
+        return ToolResult(structured_content=error_response("example", "operation_timeout", "manager deadline"))
+
+    result = await middleware.on_call_tool(context, timed_out)
+    payload = result.structured_content
+    assert payload is not None
+    if completed:
+        assert payload["data"] == {
+            "typed_into": "e1",
+            "action_completed": True,
+            "observation": {"kind": "response", "matched": False},
+        }
+    else:
+        assert "data" not in payload
+    assert payload["operation"]["retry"] == "inspect_state"
+
+
+@pytest.mark.parametrize("tool", ["browser_click", "custom_action"])
+@pytest.mark.parametrize("result_kind", ["rejected", "timeout", "resolved"])
+async def test_explicit_target_metadata_waits_for_resolution(tool, result_kind):
+    manager = MagicMock()
+    manager.target_snapshot.return_value = {"instance_id": "instance-1", "page_id": "active-page"}
+    manager.operation_timeout_seconds = 0.01
+    manager.max_result_bytes = 100000
+    middleware = OperationMiddleware(manager)
+    context = MiddlewareContext(
+        message=CallToolRequestParams(name=tool, arguments={"instance": "example", "page_id": "requested-page"}),
+        method="tools/call",
+    )
+
+    async def perform(context):
+        if result_kind == "timeout":
+            await asyncio.Event().wait()
+        if result_kind == "resolved":
+            mark_operation_started("instance-1", page_id="requested-page")
+            return ToolResult(structured_content=success_response("example"))
+        return ToolResult(structured_content=error_response("example", "page_not_found", "Unknown page"))
+
+    result = await middleware.on_call_tool(context, perform)
+    payload = result.structured_content
+    assert payload is not None
+    assert payload["operation"]["instance_id"] == "instance-1"
+    assert payload["operation"]["page_id"] == ("requested-page" if result_kind == "resolved" else None)
+
+
+@pytest.mark.parametrize("arguments", [{"instance": "example"}, {"instance": "example", "page_id": None}])
+async def test_implicit_target_keeps_existing_active_page_metadata(arguments):
+    manager = MagicMock()
+    manager.target_snapshot.return_value = {"instance_id": "instance-1", "page_id": "active-page"}
+    manager.operation_timeout_seconds = 1
+    manager.max_result_bytes = 100000
+    middleware = OperationMiddleware(manager)
+    context = MiddlewareContext(
+        message=CallToolRequestParams(name="browser_click", arguments=arguments), method="tools/call"
+    )
+
+    async def rejected(context):
+        return ToolResult(structured_content=error_response("example", "invalid_params", "Invalid ref"))
+
+    result = await middleware.on_call_tool(context, rejected)
+    assert result.structured_content is not None
+    assert result.structured_content["operation"]["page_id"] == "active-page"

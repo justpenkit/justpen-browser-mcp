@@ -6,6 +6,11 @@ description: Snapshot, screenshot, console, and network inspection.
 
 Inspection tools let you observe the current state of a browser instance — its accessibility tree, visual appearance, console output, and network activity. `browser_snapshot` is the primary tool: it returns an LLM-friendly YAML accessibility tree where every interactive element carries a `[ref=eN]` tag that other tools consume to click, type, or drag without pixel coordinates. These refs are session-scoped and invalidated by navigation; see [Refs & snapshots](../concepts/refs-snapshots.md) for a full explanation of the ref lifecycle. Use `browser_screenshot` when visual fidelity matters, and `browser_console_messages` / `browser_network_requests` for debugging JavaScript errors and API calls.
 
+Optional `page_id` selects a live page without changing the selected tab; an invalid
+explicit target returns `page_not_found`. Frame-capable calls also accept `frame_id`
+and return `frame_not_found` for a detached or foreign frame. Omitted targets retain
+existing behavior. See [explicit targeting](../concepts/instances-isolation.md#explicit-page-targets).
+
 ## browser_snapshot { #browser_snapshot }
 
 Capture an accessibility snapshot of the active page in LLM-friendly YAML.
@@ -13,7 +18,9 @@ Capture an accessibility snapshot of the active page in LLM-friendly YAML.
 **Signature**
 
 ```python
-async def browser_snapshot(instance: str, selector: str | None = None) -> dict[str, Any]
+async def browser_snapshot(
+    instance: str, selector: str | None = None, *, page_id: str | None = None, frame_id: str | None = None
+) -> dict[str, Any]
 ```
 
 **Parameters**
@@ -22,6 +29,8 @@ async def browser_snapshot(instance: str, selector: str | None = None) -> dict[s
 | ---------- | ------------- | ------- | ------------------------------------------------------------------------------------------------------------------------- |
 | `instance` | `str`         | —       | Instance name.                                                                                                            |
 | `selector` | `str \| None` | `None`  | Optional CSS or aria selector to scope the snapshot to a subtree. When provided, refs are **not** included in the output. |
+| `page_id`  | `str \| None` | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs.       |
+| `frame_id` | `str \| None` | `None`  | Attached frame ID from `browser_frames`; explicit scope never falls back to another frame.                                |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -56,6 +65,8 @@ Response:
 }
 ```
 
+Snapshot output also includes the resolved `page_id` and `frame_id`.
+
 **Notes** — Default mode (`selector=None`) uses the internal `Frame.ariaSnapshot` channel with `mode="ai"` and annotates every interactive element with `[ref=eN]`. Pass a ref value to `browser_click`, `browser_type`, or other interaction tools to act on that element. Refs are session-scoped and invalidated by navigation or page reload — call `browser_snapshot` again after any navigation to obtain fresh refs. Selector mode calls `Locator.aria_snapshot` on the matching element and returns plain aria YAML without refs; use it for scoped inspection of a known subtree when you do not need to interact with the results.
 
 ## browser_screenshot { #browser_screenshot }
@@ -71,16 +82,20 @@ async def browser_screenshot(
     *,
     full_page: bool = False,
     path: str | None = None,
+    page_id: str | None = None,
+    original: bool = False,
 ) -> dict[str, Any]
 ```
 
 **Parameters**
 
-| Name           | Type   | Default | Description                                                              |
-| -------------- | ------ | ------- | ------------------------------------------------------------------------ |
-| `instance`     | `str`  | —       | Instance name.                                                           |
-| `image_format` | `str`  | `"png"` | `"png"` (lossless) or `"jpeg"` (lossy, smaller).                         |
-| `full_page`    | `bool` | `False` | Capture the entire scrollable page instead of just the current viewport. |
+| Name           | Type          | Default | Description                                                                                                         |
+| -------------- | ------------- | ------- | ------------------------------------------------------------------------------------------------------------------- |
+| `instance`     | `str`         | —       | Instance name.                                                                                                      |
+| `image_format` | `str`         | `"png"` | `"png"` (lossless) or `"jpeg"` (lossy, smaller).                                                                    |
+| `full_page`    | `bool`        | `False` | Capture the entire scrollable page instead of just the current viewport.                                            |
+| `page_id`      | `str \| None` | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs. |
+| `original`     | `bool`        | `False` | Save original screenshot bytes; requires an explicit `path`.                                                        |
 
 `path` is an optional string, default `None`; when supplied it replaces the inline
 image with a file artifact reference.
@@ -130,7 +145,7 @@ Response:
 }
 ```
 
-**Notes** — When PIL/Pillow is installed, oversized images are automatically downscaled so the longest side is at most 1568 px (the server's image-size convention). The `width` and `height` fields in the response reflect the final, possibly downscaled dimensions. Prefer `browser_snapshot` for most inspection tasks; screenshots are most useful for visual debugging or when the accessibility tree does not carry enough detail.
+**Notes** — With `original=False`, oversized images are automatically downscaled so the longest side is at most 1568 px (the server's image-size convention). The `width` and `height` fields reflect delivered dimensions; `source_width` and `source_height` retain the original pixel dimensions. Set `original=True` with an explicit `path` to save exact Playwright bytes without resizing or inline base64. `original=True` without a path is `invalid_params`. All outputs include `original`; image bytes are still allocated in memory before saving. Prefer `browser_snapshot` for most inspection tasks; screenshots are most useful for visual debugging or when the accessibility tree does not carry enough detail.
 
 ## browser_console_messages { #browser_console_messages }
 
@@ -140,8 +155,12 @@ Read a bounded page of recent console messages retained for the instance.
 
 ```python
 async def browser_console_messages(
-    instance: str, level: str | None = None, *,
-    after: str | None = None, limit: int = 100, path: str | None = None,
+    instance: str,
+    level: str | None = None,
+    *,
+    after: str | None = None,
+    limit: int = 100,
+    path: str | None = None,
 ) -> dict[str, Any]
 ```
 
@@ -331,3 +350,53 @@ the server; see [framework integration](../guides/framework-integration.md).
   }
 }
 ```
+
+## browser_downloads { #browser_downloads }
+
+List retained download evidence for an instance, optionally filtered by its
+originating page. This filter can refer to a closed page and does not select or
+create a page.
+
+```python
+async def browser_downloads(
+    instance: str, *, page_id: str | None = None,
+    after: str | None = None, limit: int = 100,
+) -> dict[str, Any]
+```
+
+The `data.downloads` array contains `download_id`, `page_id`, `url`,
+`suggested_filename`, `status`, `created_at`, and `available`, plus event sequence,
+timestamp, and truncation fields. Save updates can add `path` or `failure`.
+Statuses are `detected`, `saving`, `saved`, and `failed`; `detected` means the
+browser emitted a download event, not that its bytes finished downloading.
+The result includes `next_cursor`, `retention_lost`, and `dropped_count`, using the
+same pagination conventions as console/network evidence. Invalid cursors or limits
+return `invalid_params`; a missing instance returns `instance_not_found`.
+
+Handles and evidence have bounded retention using `BROWSER_MCP_EVENT_BUFFER_SIZE`.
+Persist metadata externally if needed, and save a download while `available` is
+true. Saving pins its handle against eviction. Closing its page does not itself
+remove the retained handle; destroying the instance ends access.
+
+## browser_download_save { #browser_download_save }
+
+Copy a retained browser download to an explicit server file path.
+
+```python
+async def browser_download_save(instance: str, download_id: str, path: str) -> dict[str, Any]
+```
+
+Waits for Playwright's download save to finish within the instance operation
+deadline. Returns `data: {"download_id": "...", "path": "..."}` and records the
+path in operation artifacts. It uses the download's recorded page owner, even if
+that page has closed, and never substitutes the selected page.
+
+Repeated saves to explicit paths are allowed while the handle remains available;
+existing files can be overwritten. The tool never chooses a destination from
+`suggested_filename`, and it does not upload the file to the MCP client.
+
+Errors include `instance_not_found`, `download_not_found` for a foreign or evicted
+ID, `download_failed` for saving failures, and `operation_timeout`. A failed or
+cancelled save may leave a partial file; inspect it before retrying. Browser
+teardown removes browser-managed temporary downloads, while explicitly saved
+files remain the framework's responsibility.

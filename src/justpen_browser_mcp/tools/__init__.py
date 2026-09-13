@@ -13,6 +13,7 @@ from ..operations import OperationMiddleware
 from . import (
     code_execution,
     cookies,
+    downloads,
     inspection,
     interaction,
     lifecycle,
@@ -39,3 +40,4 @@ def register_all(mcp: FastMCP, mgr: InstanceManager) -> None:
     code_execution.register(mcp, mgr)
     utility.register(mcp, mgr)
     page.register(mcp, mgr)
+    downloads.register(mcp, mgr)

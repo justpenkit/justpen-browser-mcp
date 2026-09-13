@@ -1,6 +1,6 @@
 # Codex
 
-Connect Codex to the 43 browser tools after completing
+Connect Codex to the 46 browser tools after completing
 [installation](../getting-started/install.md) and fetching Camoufox.
 
 ## Registration

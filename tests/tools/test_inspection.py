@@ -47,6 +47,13 @@ def _pil_png_bytes(width: int, height: int) -> bytes:
     return buf.getvalue()
 
 
+def _pil_jpeg_bytes(width: int, height: int) -> bytes:
+    img = Image.new("RGB", (width, height), color=(32, 64, 128))
+    buf = BytesIO()
+    img.save(buf, format="JPEG")
+    return buf.getvalue()
+
+
 class TestBrowserSnapshot:
     async def test_no_selector_uses_capture_snapshot(self, mcp_client, mock_ctx_mgr):
         make_page(mock_ctx_mgr)
@@ -80,6 +87,92 @@ class TestBrowserSnapshot:
 
 
 class TestBrowserScreenshot:
+    async def test_original_file_preserves_exact_bytes(self, mcp_client, mock_ctx_mgr, tmp_path):
+        page = make_page(mock_ctx_mgr)
+        raw = _pil_png_bytes(1800, 3600)
+        page.screenshot.return_value = raw
+        target = tmp_path / "original.png"
+
+        result = await mcp_client.call_tool(
+            "browser_screenshot", {"instance": "admin", "path": str(target), "original": True}
+        )
+
+        assert result.data["status"] == "success"
+        assert target.read_bytes() == raw
+        assert result.data["data"]["width"] == 1800
+        assert result.data["data"]["height"] == 3600
+        assert result.data["data"]["source_width"] == 1800
+        assert result.data["data"]["source_height"] == 3600
+        assert result.data["data"]["original"] is True
+        assert "image_base64" not in result.data["data"]
+
+    async def test_original_jpeg_preserves_exact_bytes_and_full_page(self, mcp_client, mock_ctx_mgr, tmp_path):
+        page = make_page(mock_ctx_mgr)
+        raw = _pil_jpeg_bytes(900, 1900)
+        page.screenshot.return_value = raw
+        target = tmp_path / "original.jpg"
+
+        result = await mcp_client.call_tool(
+            "browser_screenshot",
+            {
+                "instance": "admin",
+                "image_format": "jpeg",
+                "full_page": True,
+                "path": str(target),
+                "original": True,
+            },
+        )
+
+        assert result.data["status"] == "success"
+        assert target.read_bytes() == raw
+        page.screenshot.assert_awaited_once_with(type="jpeg", full_page=True)
+        assert (result.data["data"]["width"], result.data["data"]["height"]) == (900, 1900)
+
+    async def test_original_requires_path_before_page_access(self, mcp_client, mock_ctx_mgr):
+        page = make_page(mock_ctx_mgr)
+
+        result = await mcp_client.call_tool("browser_screenshot", {"instance": "admin", "original": True})
+
+        assert result.data["error_type"] == "invalid_params"
+        page.screenshot.assert_not_awaited()
+        mock_ctx_mgr.target_page.assert_not_awaited()
+
+    async def test_original_reports_invalid_parent_without_changing_captured_bytes(
+        self, mcp_client, mock_ctx_mgr, tmp_path
+    ):
+        page = make_page(mock_ctx_mgr)
+        raw = _pil_png_bytes(1800, 3600)
+        page.screenshot.return_value = raw
+
+        result = await mcp_client.call_tool(
+            "browser_screenshot",
+            {
+                "instance": "admin",
+                "path": str(tmp_path / "missing" / "original.png"),
+                "original": True,
+            },
+        )
+
+        assert result.data["error_type"] == "internal_error"
+        page.screenshot.assert_awaited_once_with(type="png", full_page=False)
+
+    async def test_original_saves_exact_bytes_when_dimensions_are_unreadable(self, mcp_client, mock_ctx_mgr, tmp_path):
+        page = make_page(mock_ctx_mgr)
+        page.screenshot.return_value = b"unreadable image bytes"
+        target = tmp_path / "raw.png"
+
+        result = await mcp_client.call_tool(
+            "browser_screenshot",
+            {"instance": "admin", "path": str(target), "original": True},
+        )
+
+        assert result.data["status"] == "success"
+        assert target.read_bytes() == b"unreadable image bytes"
+        assert result.data["data"]["width"] is None
+        assert result.data["data"]["height"] is None
+        assert result.data["data"]["source_width"] is None
+        assert result.data["data"]["source_height"] is None
+
     async def test_returns_base64_png(self, mcp_client, mock_ctx_mgr):
         page = make_page(mock_ctx_mgr)
         page.screenshot = AsyncMock(return_value=_pil_png_bytes(100, 50))
@@ -126,6 +219,9 @@ class TestBrowserScreenshot:
         img = Image.open(BytesIO(decoded))
         assert img.width == w
         assert img.height == h
+        assert result.data["data"]["source_width"] == 2000
+        assert result.data["data"]["source_height"] == 1000
+        assert result.data["data"]["original"] is False
 
     async def test_modal_guard(self, mcp_client, mock_ctx_mgr):
         page = make_page(mock_ctx_mgr)

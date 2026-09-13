@@ -11,6 +11,9 @@ from playwright.async_api import Mouse, TimeoutError as PWTimeout
 
 from ..errors import BrowserMcpError, InvalidParamsError
 from ..instance_manager import InstanceManager, assert_no_modal
+from ..observation_models import WaitForSpec
+from ..observations import run_observed_action
+from ..operation_context import mark_action_completed
 from ..responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
@@ -53,6 +56,9 @@ def _register_browser_mouse_click_xy(mcp: FastMCP, mgr: InstanceManager) -> None
         button: str = "left",
         click_count: int = 1,
         delay_ms: int = 0,
+        *,
+        page_id: str | None = None,
+        wait_for: WaitForSpec | None = None,
     ) -> dict[str, Any]:
         """Click the mouse at an absolute pixel position on the active page.
 
@@ -76,11 +82,25 @@ def _register_browser_mouse_click_xy(mcp: FastMCP, mgr: InstanceManager) -> None
             mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
-                page = await mgr.active_page(instance)
-                await page.mouse.click(x, y, button=_validated_button(button), click_count=click_count, delay=delay_ms)
-                with contextlib.suppress(PWTimeout):
-                    await page.wait_for_load_state("domcontentloaded", timeout=2000)
-            return success_response(instance, data={"clicked_at": [x, y], "button": button})
+                page = await mgr.target_page(instance, page_id)
+                validated_button = _validated_button(button)
+
+                async def action() -> dict[str, Any]:
+                    await page.mouse.click(x, y, button=validated_button, click_count=click_count, delay=delay_ms)
+                    if wait_for is None:
+                        with contextlib.suppress(PWTimeout):
+                            await page.wait_for_load_state("domcontentloaded", timeout=2000)
+                    return {"clicked_at": [x, y], "button": button}
+
+                return await run_observed_action(
+                    instance,
+                    mgr,
+                    page,
+                    page.main_frame,
+                    action,
+                    wait_for,
+                    on_action_completed=mark_action_completed,
+                )
         except BrowserMcpError as e:
             return error_response(instance, e.error_type, str(e))
         except Exception as e:
@@ -91,7 +111,7 @@ def _register_browser_mouse_click_xy(mcp: FastMCP, mgr: InstanceManager) -> None
 def _register_browser_mouse_move_xy(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_mouse_move_xy(instance: str, x: int, y: int) -> dict[str, Any]:
+    async def browser_mouse_move_xy(instance: str, x: int, y: int, *, page_id: str | None = None) -> dict[str, Any]:
         """Move the mouse cursor to an absolute pixel position without clicking.
 
         This is a low-level positional tool useful for triggering hover effects
@@ -111,7 +131,7 @@ def _register_browser_mouse_move_xy(mcp: FastMCP, mgr: InstanceManager) -> None:
             mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
-                page = await mgr.active_page(instance)
+                page = await mgr.target_page(instance, page_id)
                 await page.mouse.move(x, y)
             return success_response(instance, data={"moved_to": [x, y]})
         except BrowserMcpError as e:
@@ -124,7 +144,7 @@ def _register_browser_mouse_move_xy(mcp: FastMCP, mgr: InstanceManager) -> None:
 def _register_browser_mouse_down(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_mouse_down(instance: str, button: str = "left") -> dict[str, Any]:
+    async def browser_mouse_down(instance: str, button: str = "left", *, page_id: str | None = None) -> dict[str, Any]:
         """Press a mouse button down (without releasing it).
 
         Low-level tool for building custom gesture sequences. button is "left",
@@ -142,7 +162,7 @@ def _register_browser_mouse_down(mcp: FastMCP, mgr: InstanceManager) -> None:
             mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
-                page = await mgr.active_page(instance)
+                page = await mgr.target_page(instance, page_id)
                 await page.mouse.down(button=_validated_button(button))
             return success_response(instance, data={"button_down": button})
         except BrowserMcpError as e:
@@ -155,7 +175,7 @@ def _register_browser_mouse_down(mcp: FastMCP, mgr: InstanceManager) -> None:
 def _register_browser_mouse_up(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_mouse_up(instance: str, button: str = "left") -> dict[str, Any]:
+    async def browser_mouse_up(instance: str, button: str = "left", *, page_id: str | None = None) -> dict[str, Any]:
         """Release a previously pressed mouse button.
 
         Low-level tool to be used after browser_mouse_down. button must match
@@ -173,7 +193,7 @@ def _register_browser_mouse_up(mcp: FastMCP, mgr: InstanceManager) -> None:
             mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
-                page = await mgr.active_page(instance)
+                page = await mgr.target_page(instance, page_id)
                 await page.mouse.up(button=_validated_button(button))
             return success_response(instance, data={"button_up": button})
         except BrowserMcpError as e:
@@ -186,7 +206,16 @@ def _register_browser_mouse_up(mcp: FastMCP, mgr: InstanceManager) -> None:
 def _register_browser_mouse_drag_xy(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_mouse_drag_xy(instance: str, from_x: int, from_y: int, to_x: int, to_y: int) -> dict[str, Any]:
+    async def browser_mouse_drag_xy(
+        instance: str,
+        from_x: int,
+        from_y: int,
+        to_x: int,
+        to_y: int,
+        *,
+        page_id: str | None = None,
+        wait_for: WaitForSpec | None = None,
+    ) -> dict[str, Any]:
         """Drag the mouse from one absolute pixel position to another.
 
         Performs: move to (from_x, from_y), press left button, move to (to_x, to_y),
@@ -206,24 +235,37 @@ def _register_browser_mouse_drag_xy(mcp: FastMCP, mgr: InstanceManager) -> None:
             mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
-                page = await mgr.active_page(instance)
-                await page.mouse.move(from_x, from_y)
-                failed = False
-                try:
-                    await page.mouse.down()
-                    await page.mouse.move(to_x, to_y)
-                except BaseException:
-                    failed = True
-                    raise
-                finally:
+                page = await mgr.target_page(instance, page_id)
+
+                async def action() -> dict[str, Any]:
+                    await page.mouse.move(from_x, from_y)
+                    failed = False
                     try:
-                        await _release_drag_button(page.mouse)
-                    except Exception:
-                        if not failed:
-                            raise
-                with contextlib.suppress(PWTimeout):
-                    await page.wait_for_load_state("domcontentloaded", timeout=2000)
-            return success_response(instance, data={"from": [from_x, from_y], "to": [to_x, to_y]})
+                        await page.mouse.down()
+                        await page.mouse.move(to_x, to_y)
+                    except BaseException:
+                        failed = True
+                        raise
+                    finally:
+                        try:
+                            await _release_drag_button(page.mouse)
+                        except Exception:
+                            if not failed:
+                                raise
+                    if wait_for is None:
+                        with contextlib.suppress(PWTimeout):
+                            await page.wait_for_load_state("domcontentloaded", timeout=2000)
+                    return {"from": [from_x, from_y], "to": [to_x, to_y]}
+
+                return await run_observed_action(
+                    instance,
+                    mgr,
+                    page,
+                    page.main_frame,
+                    action,
+                    wait_for,
+                    on_action_completed=mark_action_completed,
+                )
         except BrowserMcpError as e:
             return error_response(instance, e.error_type, str(e))
         except Exception as e:
@@ -234,7 +276,14 @@ def _register_browser_mouse_drag_xy(mcp: FastMCP, mgr: InstanceManager) -> None:
 def _register_browser_mouse_wheel(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_mouse_wheel(instance: str, delta_x: int = 0, delta_y: int = 0) -> dict[str, Any]:
+    async def browser_mouse_wheel(
+        instance: str,
+        delta_x: int = 0,
+        delta_y: int = 0,
+        *,
+        page_id: str | None = None,
+        wait_for: WaitForSpec | None = None,
+    ) -> dict[str, Any]:
         """Scroll the mouse wheel by the given pixel deltas at the current cursor position.
 
         delta_x is horizontal scroll (positive = right), delta_y is vertical
@@ -261,9 +310,21 @@ def _register_browser_mouse_wheel(mcp: FastMCP, mgr: InstanceManager) -> None:
             mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
-                page = await mgr.active_page(instance)
-                await page.mouse.wheel(delta_x, delta_y)
-            return success_response(instance, data={"scrolled": [delta_x, delta_y]})
+                page = await mgr.target_page(instance, page_id)
+
+                async def action() -> dict[str, Any]:
+                    await page.mouse.wheel(delta_x, delta_y)
+                    return {"scrolled": [delta_x, delta_y]}
+
+                return await run_observed_action(
+                    instance,
+                    mgr,
+                    page,
+                    page.main_frame,
+                    action,
+                    wait_for,
+                    on_action_completed=mark_action_completed,
+                )
         except BrowserMcpError as e:
             return error_response(instance, e.error_type, str(e))
         except Exception as e:

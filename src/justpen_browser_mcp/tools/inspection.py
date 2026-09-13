@@ -36,6 +36,34 @@ _STATIC_RESOURCE_TYPES = {"image", "font", "stylesheet", "media", "manifest"}
 _SCREENSHOT_MAX_DIM = 1568
 
 
+def _prepare_screenshot(
+    image_bytes: bytes, image_format: str, *, original: bool
+) -> tuple[bytes, int | None, int | None, int | None, int | None]:
+    """Read source dimensions and resize preview output when necessary."""
+    if _PILImage is None:
+        return image_bytes, None, None, None, None
+    try:
+        img = _PILImage.open(BytesIO(image_bytes))
+        img.load()
+        source_width, source_height = img.width, img.height
+        max_dim = max(img.width, img.height)
+        if not original and max_dim > _SCREENSHOT_MAX_DIM:
+            scale = _SCREENSHOT_MAX_DIM / max_dim
+            new_size = (max(1, int(img.width * scale)), max(1, int(img.height * scale)))
+            img = img.resize(new_size, _PILImage.Resampling.LANCZOS)
+            buf = BytesIO()
+            save_format = "PNG" if image_format == "png" else "JPEG"
+            if save_format == "JPEG" and img.mode != "RGB":
+                img = img.convert("RGB")
+            img.save(buf, format=save_format)
+            image_bytes = buf.getvalue()
+        result = image_bytes, img.width, img.height, source_width, source_height
+    except Exception:
+        logger.exception("browser_screenshot: PIL processing failed")
+        result = image_bytes, None, None, None, None
+    return result
+
+
 async def _event_result(instance: str, field: str, result: dict[str, Any], path: str | None) -> dict[str, Any]:
     data = {**result, field: result["items"]}
     data.pop("items")
@@ -50,7 +78,9 @@ async def _event_result(instance: str, field: str, result: dict[str, Any], path:
 def _register_browser_snapshot(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_snapshot(instance: str, selector: str | None = None) -> dict[str, Any]:
+    async def browser_snapshot(
+        instance: str, selector: str | None = None, *, page_id: str | None = None, frame_id: str | None = None
+    ) -> dict[str, Any]:
         """Capture an accessibility snapshot of the active page in LLM-friendly YAML.
 
         Default (selector=None): a full-page snapshot is captured via the internal
@@ -80,13 +110,23 @@ def _register_browser_snapshot(mcp: FastMCP, mgr: InstanceManager) -> None:
             mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
-                page = await mgr.active_page(instance)
+                page = await mgr.target_page(instance, page_id)
+                resolved_frame = mgr.target_frame(instance, page, frame_id)
+                scope = resolved_frame if frame_id is not None else page
                 if selector is None:
-                    snapshot = await capture_snapshot(page)
+                    snapshot = await capture_snapshot(scope)
                 else:
-                    locator = page.locator(selector)
+                    locator = scope.locator(selector)
                     snapshot = await locator.aria_snapshot(timeout=5000)
-            return success_response(instance, data={"snapshot": snapshot, "url": page.url})
+            return success_response(
+                instance,
+                data={
+                    "snapshot": snapshot,
+                    "url": page.url,
+                    "page_id": mgr.page_id(instance, page),
+                    "frame_id": mgr.frame_id(instance, resolved_frame),
+                },
+            )
         except BrowserMcpError as e:
             return error_response(instance, e.error_type, str(e))
         except Exception as e:
@@ -98,7 +138,13 @@ def _register_browser_screenshot(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
     async def browser_screenshot(
-        instance: str, image_format: str = "png", *, full_page: bool = False, path: str | None = None
+        instance: str,
+        image_format: str = "png",
+        *,
+        full_page: bool = False,
+        path: str | None = None,
+        page_id: str | None = None,
+        original: bool = False,
     ) -> dict[str, Any]:
         """Take a visual screenshot of the active page and return it as base64.
 
@@ -109,6 +155,8 @@ def _register_browser_screenshot(mcp: FastMCP, mgr: InstanceManager) -> None:
         If PIL/Pillow is available, oversized images are automatically
         downscaled so the longest side is at most 1568px to bound image output.
         Pass path to save the final image on the server instead of returning base64.
+        Set original=True with a path to preserve Playwright's exact captured bytes
+        and dimensions without resizing or re-encoding.
         The width/height fields in the response reflect
         the FINAL (possibly downscaled) image dimensions.
 
@@ -131,40 +179,27 @@ def _register_browser_screenshot(mcp: FastMCP, mgr: InstanceManager) -> None:
                 "invalid_params",
                 f"image_format must be 'png' or 'jpeg', got {image_format!r}",
             )
+        if original and path is None:
+            return error_response(instance, "invalid_params", "original=True requires an explicit path.")
         try:
             mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
-                page = await mgr.active_page(instance)
+                page = await mgr.target_page(instance, page_id)
                 image_bytes = await page.screenshot(type=image_format, full_page=full_page)
 
-            width: int | None = None
-            height: int | None = None
-            if _PILImage is not None:
-                try:
-                    img = _PILImage.open(BytesIO(image_bytes))
-                    img.load()
-                    max_dim = max(img.width, img.height)
-                    if max_dim > _SCREENSHOT_MAX_DIM:
-                        scale = _SCREENSHOT_MAX_DIM / max_dim
-                        new_size = (
-                            max(1, int(img.width * scale)),
-                            max(1, int(img.height * scale)),
-                        )
-                        img = img.resize(new_size, _PILImage.Resampling.LANCZOS)
-                        buf = BytesIO()
-                        save_format = "PNG" if image_format == "png" else "JPEG"
-                        if save_format == "JPEG" and img.mode != "RGB":
-                            img = img.convert("RGB")
-                        img.save(buf, format=save_format)
-                        image_bytes = buf.getvalue()
-                    width, height = img.width, img.height
-                except Exception:
-                    logger.exception("browser_screenshot: PIL processing failed")
-                    width = None
-                    height = None
+            image_bytes, width, height, source_width, source_height = _prepare_screenshot(
+                image_bytes, image_format, original=original
+            )
 
-            data: dict[str, Any] = {"image_format": image_format, "width": width, "height": height}
+            data: dict[str, Any] = {
+                "image_format": image_format,
+                "width": width,
+                "height": height,
+                "source_width": source_width,
+                "source_height": source_height,
+                "original": original,
+            }
             if path is None:
                 data["image_base64"] = base64.b64encode(image_bytes).decode("ascii")
             else:

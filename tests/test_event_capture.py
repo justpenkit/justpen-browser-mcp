@@ -1,6 +1,6 @@
 """The native listener buffers and their request lookup share a bounded lifetime."""
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 from justpen_browser_mcp.config import BrowserServerConfig
 
@@ -9,6 +9,7 @@ async def test_listener_retention_bounds_request_index_and_preserves_updates(man
     manager._config = BrowserServerConfig(event_buffer_size=2)
     record = await manager.create("evidence")
     page = MagicMock()
+    page.set_extra_http_headers = AsyncMock()
     page.is_closed.return_value = False
     record.context.pages = [page]
     for event in record.context.on.call_args_list:

@@ -39,7 +39,7 @@ Tool-reference examples omit that shared metadata for readability. Argument-vali
 | `instance_limit_exceeded` | The `BROWSER_MCP_MAX_INSTANCES` cap has been reached; destroy an existing instance first.                                      |
 | `instance_crashed`        | The browser disconnected; cleanup is scheduled. Check health and wait for its reservation to be released before recreating it. |
 | `profile_dir_in_use`      | The requested profile is reserved by another live, launching, or closing instance.                                             |
-| `binary_not_found`        | The Camoufox binary could not be located on the host.                                                                          |
+| `binary_not_found`        | The latest Camoufox release could not be resolved, prepared, or verified.                                                      |
 | `element_not_found`       | The element could not be found in the page's accessibility tree.                                                               |
 | `stale_ref`               | The `ref` was valid in a previous snapshot but is no longer in the current accessibility tree.                                 |
 | `navigation_failed`       | A network error, invalid URL, or page crash prevented navigation.                                                              |
@@ -54,6 +54,11 @@ Tool-reference examples omit that shared metadata for readability. Argument-vali
 | `operation_timeout`       | A cooperative operation, including its lock wait, exceeded the server deadline.                                                |
 | `result_too_large`        | The structured result exceeded the configured byte limit; the action may already have completed.                               |
 | `unsupported_capability`  | The active browser backend cannot perform this operation (currently PDF rendering).                                            |
+| `page_not_found`          | The requested page is not live in this instance.                                                                               |
+| `frame_not_found`         | The requested frame is detached or belongs to a different page.                                                                |
+| `observation_timeout`     | The action completed but its requested condition did not match before the deadline.                                            |
+| `download_not_found`      | The download ID is foreign, evicted, or no longer retained.                                                                    |
+| `download_failed`         | Download saving failed; a partial file may remain.                                                                             |
 
 ## Operation metadata
 
@@ -66,6 +71,7 @@ Every application envelope carries the same metadata object:
     "tool": "browser_navigate",
     "instance_id": "launch-uuid",
     "page_id": "tab-uuid",
+    "frame_id": null,
     "started_at": "2026-09-12T10:00:00+00:00",
     "finished_at": "2026-09-12T10:00:00.250000+00:00",
     "duration_ms": 250.0,

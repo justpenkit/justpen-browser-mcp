@@ -6,7 +6,38 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from camoufox import DefaultAddons
 
+from justpen_browser_mcp.browser_runtime import BrowserRuntime
 from justpen_browser_mcp.instance import InstanceState, launch_instance
+
+
+@pytest.mark.parametrize("persistent", [False, True])
+async def test_launch_uses_verified_install_and_context_metadata(mock_camoufox, tmp_path, persistent):
+    runtime = BrowserRuntime(
+        version="152.0.4-beta.30",
+        executable_path="/chosen/browser",
+        installation="browsers/official/152.0.4-beta.30-abcd",
+    )
+    headers = {"Justpen-Browser-Metadata-Instance-ID": "instance-id"}
+    stack, _, _ = await launch_instance(
+        profile_dir=str(tmp_path) if persistent else None,
+        headless=True,
+        proxy=None,
+        humanize=True,
+        window=None,
+        browser_runtime=runtime,
+        extra_http_headers=headers,
+    )
+    try:
+        kwargs = mock_camoufox["captured"]["kwargs"]
+        assert kwargs["browser"] == runtime.installation
+        assert "executable_path" not in kwargs
+        assert kwargs["ff_version"] == 152
+        if persistent:
+            assert kwargs["extra_http_headers"] == headers
+        else:
+            mock_camoufox["browser"].new_context.assert_awaited_once_with(extra_http_headers=headers)
+    finally:
+        await stack.aclose()
 
 
 @pytest.fixture

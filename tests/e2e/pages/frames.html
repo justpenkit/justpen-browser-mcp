@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Frame owners</title>
+  </head>
+  <body>
+    <label>
+      Email
+      <input aria-label="Email" value="main" />
+    </label>
+    <iframe name="same" src="frame-form.html?nested"></iframe>
+    <script>
+      const cross = document.createElement('iframe');
+      cross.name = 'cross';
+      cross.src = location.href.replace('127.0.0.1', 'localhost').replace('frames.html', 'frame-form.html');
+      document.body.append(cross);
+    </script>
+  </body>
+</html>

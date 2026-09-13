@@ -3,7 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from playwright.async_api import TimeoutError as PWTimeout
+from playwright.async_api import Error as PlaywrightError, TimeoutError as PWTimeout
 
 from justpen_browser_mcp.errors import (
     InstanceNotFoundError,
@@ -37,6 +37,33 @@ def make_page(mock_ctx_mgr, url="https://example.com", title="Example"):
 
 
 class TestBrowserNavigate:
+    async def test_download_navigation_returns_retained_download_id(self, mcp_client, mock_ctx_mgr):
+        page = make_page(mock_ctx_mgr, url="https://example.test/file", title="")
+        page.main_frame = MagicMock()
+        listeners = {}
+        page.on.side_effect = listeners.__setitem__
+        item = MagicMock(url="https://example.test/file", suggested_filename="evidence.bin")
+        request = MagicMock(url=item.url, frame=page.main_frame)
+        request.is_navigation_request.return_value = True
+        registry = mock_ctx_mgr.state.return_value.downloads
+
+        async def playwright_download(*_args, **_kwargs):
+            listeners["request"](request)
+            registry.register(item, "page-origin")
+            listeners["download"](item)
+            raise PlaywrightError("Download is starting")
+
+        page.goto.side_effect = playwright_download
+        result = await mcp_client.call_tool(
+            "browser_navigate", {"instance": "admin", "url": "https://example.test/file"}
+        )
+
+        retained_id = registry.id_for(item)
+        assert retained_id is not None
+        assert result.data["status"] == "success"
+        assert result.data["data"]["download"] is True
+        assert result.data["data"]["download_id"] == retained_id
+
     async def test_success(self, mcp_client, mock_ctx_mgr):
         page = make_page(mock_ctx_mgr, url="https://app.example.com/dashboard", title="Dashboard")
         result = await mcp_client.call_tool(

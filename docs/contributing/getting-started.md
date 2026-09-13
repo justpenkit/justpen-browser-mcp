@@ -25,10 +25,10 @@ make setup
 Git hooks. `make install` installs dependencies only. Run setup again after
 cloning onto another computer or when hooks need reinstalling.
 
-The server selects Camoufox `135.0.1-beta.24` for compatibility with
-Playwright `<1.60`. Setup, `make browser-fetch` and server startup all use this
-selection, updating the SDK's shared default browser for subsequent Camoufox
-launches.
+Setup, `make browser-fetch`, and every server startup resolve, install if needed,
+activate, and verify the latest official Camoufox release. The application requires
+Playwright 1.61.x and retains that startup's exact SDK browser selector for all
+instance launches. See [installation](../getting-started/install.md).
 
 Use uv for dependency management and application commands; do not install project
 dependencies into system Python. The standalone permission hook uses isolated
@@ -83,7 +83,7 @@ installation is missing or another Camoufox release has become the shared defaul
 
 `make test-consumer` builds the wheel, installs it in disposable environments
 outside the checkout, and checks the console entry point, installed package
-identity, all 43 tool schemas and a real browser round trip. One environment uses
+identity, all 46 tool schemas and a real browser round trip. One environment uses
 locked runtime dependencies; another resolves the lowest allowed direct versions
 with compatible transitive packages. It does not upgrade `uv.lock`.
 

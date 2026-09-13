@@ -38,7 +38,7 @@ def mock_launch(monkeypatch):
 
 @pytest.fixture
 async def manager(mock_launch):
-    cfg = BrowserServerConfig(log_level="INFO", max_instances=10)
+    cfg = BrowserServerConfig(log_level="INFO", max_instances=10, metadata_headers_enabled=False)
     mgr = InstanceManager(cfg)
     yield mgr
     await mgr.shutdown_all()

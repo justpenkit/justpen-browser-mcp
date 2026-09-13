@@ -151,6 +151,7 @@ class BrowserServerConfig:
     camoufox_args: tuple[str, ...] = ()
     enable_cache: bool = True
     ff_version: int | None = None
+    metadata_headers_enabled: bool = True
 
     @classmethod
     def from_env(cls, env: Mapping[str, str]) -> BrowserServerConfig:
@@ -264,4 +265,9 @@ class BrowserServerConfig:
             camoufox_args=camoufox_args,
             enable_cache=enable_cache,
             ff_version=ff_version,
+            metadata_headers_enabled=_parse_bool(
+                env.get("BROWSER_MCP_METADATA_HEADERS_ENABLED", "true"),
+                default=True,
+                name="BROWSER_MCP_METADATA_HEADERS_ENABLED",
+            ),
         )

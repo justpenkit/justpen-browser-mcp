@@ -21,7 +21,10 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from anyio import Path as AsyncPath
 
+from .browser_metadata import instance_headers, page_headers
+from .downloads import DownloadRegistry
 from .errors import (
+    FrameNotFoundError,
     InstanceAlreadyExistsError,
     InstanceCrashedError,
     InstanceLimitExceededError,
@@ -30,6 +33,7 @@ from .errors import (
     InvalidParamsError,
     ModalStateBlockedError,
     OperationTimeoutError,
+    PageNotFoundError,
     ProfileDirInUseError,
 )
 from .events import EventBuffer
@@ -44,13 +48,16 @@ if TYPE_CHECKING:
         BrowserContext,
         ConsoleMessage,
         Dialog,
+        Download,
         FileChooser,
+        Frame,
         Page,
         Request,
         Response,
         SourceLocation,
     )
 
+    from .browser_runtime import BrowserRuntime
     from .config import BrowserServerConfig
 
 logger = logging.getLogger(__name__)
@@ -149,7 +156,7 @@ def _existing_active_page(rec: InstanceRecord) -> Page | None:
 class InstanceManager:
     """Named registry of isolated Camoufox instances."""
 
-    def __init__(self, config: BrowserServerConfig) -> None:
+    def __init__(self, config: BrowserServerConfig, *, browser_runtime: BrowserRuntime | None = None) -> None:
         """Initialize an empty registry bound to the given server configuration."""
         self._instances: dict[str, InstanceRecord] = {}
         self._registry_lock = asyncio.Lock()
@@ -161,6 +168,7 @@ class InstanceManager:
         self._shutting_down = False
         self._shutdown_task: asyncio.Task[None] | None = None
         self._config = config
+        self._browser_runtime = browser_runtime
         self._max = config.max_instances
         self._closing_tasks: set[asyncio.Task[None]] = set()
         self._reaper_task: asyncio.Task[None] | None = None
@@ -235,6 +243,7 @@ class InstanceManager:
                         camoufox_args=eff_camoufox_args,
                         enable_cache=eff_enable_cache,
                         ff_version=eff_ff_version,
+                        browser_runtime=self._browser_runtime,
                     ),
                 ),
                 name=f"launch-{name}",
@@ -281,12 +290,18 @@ class InstanceManager:
         profile_dir: str | None,
         launch: Callable[..., Awaitable[tuple[AsyncExitStack, BrowserContext, Browser | None]]],
     ) -> InstanceRecord:
+        instance_id = str(uuid.uuid4())
         owned_stack = AsyncExitStack()
         deadline = asyncio.timeout(self.operation_timeout_seconds)
         try:
             async with deadline:
                 mark_operation_started(None)
-                stack, ctx, browser = await launch(stack=owned_stack)
+                stack, ctx, browser = await launch(
+                    stack=owned_stack,
+                    extra_http_headers=(
+                        instance_headers(name, instance_id) if self._config.metadata_headers_enabled else None
+                    ),
+                )
         except BaseException as error:
             self._launch_cleanup[name] = {"name": name, "status": "closing"}
             cleanup = asyncio.create_task(self._rollback_launch(name, owned_stack), name=f"rollback-{name}")
@@ -297,10 +312,12 @@ class InstanceManager:
             raise
         record = InstanceRecord(
             name=name,
+            instance_id=instance_id,
             stack=stack,
             context=ctx,
             lock=asyncio.Lock(),
             state=InstanceState(
+                downloads=DownloadRegistry(self.event_buffer_size),
                 console_messages=EventBuffer(self.event_buffer_size),
                 network_requests=EventBuffer(self.event_buffer_size),
             ),
@@ -310,6 +327,9 @@ class InstanceManager:
         )
         try:
             self._register_record(record)
+            async with asyncio.timeout_at(deadline.when()):
+                for page in ctx.pages:
+                    await self.ensure_page_headers(record, page)
         except BaseException:
             await asyncio.shield(self._start_close(record))
             raise
@@ -408,6 +428,12 @@ class InstanceManager:
     async def _close_resources(self, rec: InstanceRecord) -> None:
         try:
             async with rec.lock, rec.modal_lock:
+                tasks = tuple(rec.state.page_header_tasks.values())
+                for task in tasks:
+                    task.cancel()
+                await asyncio.gather(*tasks, return_exceptions=True)
+                rec.state.page_header_tasks.clear()
+                rec.state.downloads.clear()
                 await rec.stack.aclose()
         except Exception:
             logger.exception("Resource teardown failed for instance %r", rec.name)
@@ -519,14 +545,34 @@ class InstanceManager:
             rec.state.page_ids[page] = str(uuid.uuid4())
         return rec.state.page_ids[page]
 
+    def _wire_frame_identity(self, rec: InstanceRecord, page: Page) -> None:
+        def attached(frame: Frame) -> None:
+            rec.state.frame_ids.setdefault(frame, str(uuid.uuid4()))
+
+        def detached(frame: Frame) -> None:
+            rec.state.frame_ids.pop(frame, None)
+
+        for frame in page.frames:
+            attached(frame)
+        page.on("frameattached", attached)
+        page.on("framedetached", detached)
+
     def _wire_page_identity(self, rec: InstanceRecord) -> None:
         def attach(page: Page) -> None:
             self._remember_page(rec, page)
+            self._wire_frame_identity(rec, page)
+            self._schedule_page_headers(rec, page)
             if rec.state.active_page is None:
                 rec.state.active_page = page
 
             def closed(_page: Page | None = None) -> None:
                 rec.state.page_ids.pop(page, None)
+                header_task = rec.state.page_header_tasks.pop(page, None)
+                if header_task is not None:
+                    header_task.cancel()
+                for frame in tuple(rec.state.frame_ids):
+                    if frame.page is page:
+                        rec.state.frame_ids.pop(frame, None)
                 if rec.state.active_page is page:
                     rec.state.active_page = None
                 selected = _existing_active_page(rec)
@@ -539,12 +585,91 @@ class InstanceManager:
         for page in rec.context.pages:
             attach(page)
 
+    def _schedule_page_headers(self, rec: InstanceRecord, page: Page) -> asyncio.Task[None] | None:
+        if not self._config.metadata_headers_enabled or rec.state.status != "live":
+            return None
+        task = rec.state.page_header_tasks.get(page)
+        if task is None:
+            page_id = self._remember_page(rec, page)
+            task = asyncio.create_task(
+                page.set_extra_http_headers(page_headers(page_id)), name=f"page-headers-{page_id}"
+            )
+            rec.state.page_header_tasks[page] = task
+            task.add_done_callback(self._page_headers_finished)
+        return task
+
+    @staticmethod
+    def _page_headers_finished(task: asyncio.Task[None]) -> None:
+        if not task.cancelled() and task.exception() is not None:
+            logger.warning("Page metadata initialization failed: %s", task.exception())
+
+    async def ensure_page_headers(self, rec: InstanceRecord, page: Page) -> None:
+        """Await once-per-page metadata setup before controlled navigation/actions."""
+        task = self._schedule_page_headers(rec, page)
+        if task is not None:
+            try:
+                await asyncio.shield(task)
+            except asyncio.CancelledError as error:
+                caller = asyncio.current_task()
+                if caller is not None and not caller.cancelling() and task.cancelled() and page.is_closed():
+                    raise PageNotFoundError("Page closed while its metadata was being initialized.") from error
+                raise
+            if page.is_closed():
+                raise PageNotFoundError("Page closed while its metadata was being initialized.")
+
     def page_id(self, name: str, page: Page) -> str:
         """Return a stable identifier for a page owned by this instance."""
         rec = self.get(name)
         if page not in rec.context.pages and page is not rec.state.active_page:
             raise InvalidParamsError("Page is closed or is not owned by this instance.")
         return self._remember_page(rec, page)
+
+    async def target_page(self, name: str, page_id: str | None = None) -> Page:
+        """Resolve a live explicit page without changing selection or creating a page."""
+        if page_id is None:
+            return await self.active_page(name)
+        rec = self.get(name)
+        page = next(
+            (
+                p
+                for p, pid in rec.state.page_ids.items()
+                if pid == page_id and p in rec.context.pages and not p.is_closed()
+            ),
+            None,
+        )
+        if page is None:
+            raise PageNotFoundError(f"Page {page_id!r} is not open in instance {name!r}")
+        await self.ensure_page_headers(rec, page)
+        mark_operation_started(rec.instance_id, page_id=page_id)
+        return page
+
+    def frame_id(self, name: str, frame: Frame) -> str:
+        """Return an identity valid for the lifetime of an attached frame."""
+        rec = self.get(name)
+        if frame.page not in rec.context.pages or frame.page.is_closed() or frame.is_detached():
+            raise FrameNotFoundError("Frame is detached or not owned by this instance.")
+        return rec.state.frame_ids.setdefault(frame, str(uuid.uuid4()))
+
+    def target_frame(self, name: str, page: Page, frame_id: str | None = None) -> Frame:
+        """Resolve only frames attached to the selected page."""
+        rec = self.get(name)
+        frame = (
+            page.main_frame
+            if frame_id is None
+            else next((f for f, fid in rec.state.frame_ids.items() if fid == frame_id), None)
+        )
+        if (
+            page not in rec.context.pages
+            or page.is_closed()
+            or frame is None
+            or frame.page is not page
+            or frame.is_detached()
+            or frame not in page.frames
+        ):
+            raise FrameNotFoundError(f"Frame {frame_id!r} is not attached to the target page")
+        resolved_id = self.frame_id(name, frame)
+        mark_operation_started(rec.instance_id, page_id=self.page_id(name, page), frame_id=resolved_id)
+        return frame
 
     def target_snapshot(self, name: str) -> dict[str, str | None]:
         """Inspect existing target identifiers without creating pages or touching activity."""
@@ -564,6 +689,7 @@ class InstanceManager:
         rec.state.active_page = page
         rec.state.active_page_index = rec.context.pages.index(page) if page in rec.context.pages else 0
         self._remember_page(rec, page)
+        await self.ensure_page_headers(rec, page)
         mark_operation_started(rec.instance_id, page_id=self.page_id(name, page))
         return page
 
@@ -585,11 +711,13 @@ class InstanceManager:
         states[:] = [s for s in states if not s["page"].is_closed()]
         return list(states)
 
-    def consume_modal_state(self, name: str, kind: str) -> dict[str, Any] | None:
+    def consume_modal_state(self, name: str, kind: str, *, page_id: str | None = None) -> dict[str, Any] | None:
         """Pop and return the oldest pending modal of the given kind, or None."""
         states = self.get(name).state.modal_states
         for i, state in enumerate(states):
-            if state["kind"] == kind:
+            if state["kind"] == kind and (
+                page_id is None or self.get(name).state.page_ids.get(state["page"]) == page_id
+            ):
                 return states.pop(i)
         return None
 
@@ -682,6 +810,11 @@ class InstanceManager:
                 state.network_request_index.pop(evicted["_id"])
         state.network_request_index[id(req)] = state.network_requests.append(entry)
 
+    @staticmethod
+    def _capture_download(state: InstanceState, page_id: str, download: Download) -> None:
+        if state.status == "live":
+            state.downloads.register(download, page_id)
+
     def _wire_event_listeners(self, record: InstanceRecord) -> None:
         ctx, state = record.context, record.state
 
@@ -719,6 +852,7 @@ class InstanceManager:
             page.on("request", partial(self._capture_request, record, page_id))
             page.on("response", _on_response)
             page.on("requestfailed", _on_requestfailed)
+            page.on("download", partial(self._capture_download, state, page_id))
 
         ctx.on("page", _attach)
         for existing_page in ctx.pages:

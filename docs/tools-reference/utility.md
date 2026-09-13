@@ -8,6 +8,11 @@ Utility tools resize viewports, generate reusable locators, and manage tabs. The
 
 Examples below focus on tool-specific data. Registered tools also return the shared [operation metadata and error fields](../concepts/response-envelope.md).
 
+Optional `page_id` selects a live page without changing the selected tab; an invalid
+explicit target returns `page_not_found`. Frame-capable calls also accept `frame_id`
+and return `frame_not_found` for a detached or foreign frame. Omitted targets retain
+existing behavior. See [explicit targeting](../concepts/instances-isolation.md#explicit-page-targets).
+
 ## browser_resize { #browser_resize }
 
 Resize the viewport of the active page to the given pixel dimensions.
@@ -15,16 +20,17 @@ Resize the viewport of the active page to the given pixel dimensions.
 **Signature**
 
 ```python
-async def browser_resize(instance: str, width: int, height: int) -> dict[str, Any]
+async def browser_resize(instance: str, width: int, height: int, *, page_id: str | None = None) -> dict[str, Any]
 ```
 
 **Parameters**
 
-| Name       | Type  | Default | Description                |
-| ---------- | ----- | ------- | -------------------------- |
-| `instance` | `str` | —       | Instance name.             |
-| `width`    | `int` | —       | Viewport width in pixels.  |
-| `height`   | `int` | —       | Viewport height in pixels. |
+| Name       | Type          | Default | Description                                                                                                         |
+| ---------- | ------------- | ------- | ------------------------------------------------------------------------------------------------------------------- |
+| `instance` | `str`         | —       | Instance name.                                                                                                      |
+| `width`    | `int`         | —       | Viewport width in pixels.                                                                                           |
+| `height`   | `int`         | —       | Viewport height in pixels.                                                                                          |
+| `page_id`  | `str \| None` | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -122,17 +128,22 @@ async def browser_generate_locator(
     ref: str | None = None,
     selector: str | None = None,
     element: str | None = None,
+    *,
+    page_id: str | None = None,
+    frame_id: str | None = None,
 ) -> dict[str, Any]
 ```
 
 **Parameters**
 
-| Name       | Type          | Default | Description                                                                                  |
-| ---------- | ------------- | ------- | -------------------------------------------------------------------------------------------- |
-| `instance` | `str`         | —       | Instance name.                                                                               |
-| `ref`      | `str \| None` | `None`  | Ephemeral snapshot ref to resolve into a stable locator. Mutually exclusive with `selector`. |
-| `selector` | `str \| None` | `None`  | Raw CSS selector to pass through verbatim. Mutually exclusive with `ref`.                    |
-| `element`  | `str \| None` | `None`  | Optional free-form human description (logged; not used by the implementation).               |
+| Name       | Type          | Default | Description                                                                                                         |
+| ---------- | ------------- | ------- | ------------------------------------------------------------------------------------------------------------------- |
+| `instance` | `str`         | —       | Instance name.                                                                                                      |
+| `ref`      | `str \| None` | `None`  | Ephemeral snapshot ref to resolve into a stable locator. Mutually exclusive with `selector`.                        |
+| `selector` | `str \| None` | `None`  | Raw CSS selector to pass through verbatim. Mutually exclusive with `ref`.                                           |
+| `element`  | `str \| None` | `None`  | Optional free-form human description (logged; not used by the implementation).                                      |
+| `page_id`  | `str \| None` | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs. |
+| `frame_id` | `str \| None` | `None`  | Attached frame ID from `browser_frames`; explicit scope never falls back to another frame.                          |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -181,6 +192,8 @@ Response:
 **Notes** — Exactly one of `ref` or `selector` must be provided. For `ref` mode, resolution priority is: data-testid > ARIA role+name > label > placeholder > alt text > title > text content > CSS fallback. The `internal_selector` field is a raw Playwright engine selector (e.g. `internal:role=button[name="Submit"i]`) suitable for use directly with `page.locator()`, and survives navigation, making it ideal for saving durable test code or reusable workflow definitions. The `python_syntax` field converts that same resolution into the equivalent Python API call (e.g. `get_by_role("button", name='Submit')`) for codegen output — the two fields describe the same element via different syntaxes, they are not identical strings. In `selector` mode, `internal_selector` preserves the supplied selector and `python_syntax` wraps it in `locator(...)`; for `selector="#main"`, these are `"#main"` and `"locator('#main')"` respectively.
 
 Complex selectors use `locator(...)` in `python_syntax` when a shorter Python call would lose meaning. Role filters, `nth` selection, and frame chains remain intact. For example, `internal:role=button[name="Same"i] >> nth=1` stays a raw locator that selects the second matching button.
+
+Generated locator results also include the resolved `page_id` and `frame_id`. For an explicit frame, the selector and Python syntax are frame-local; select that frame before replaying them.
 
 ## browser_tabs { #browser_tabs }
 
@@ -274,3 +287,32 @@ Request (select by stable ID):
 `"new"` selects the page created by that request, even if another popup opens while its URL loads. If loading fails or the request is cancelled, the tool attempts a bounded close of the newly created tab while preserving the original failure. Inspect the tab list after an error if the browser could not complete cleanup. Closing a non-active tab preserves the active page; closing the active tab selects the next remaining tab, or the previous one at the end of the list. Closing the last tab keeps the instance alive with no open pages.
 
 Operation metadata for `"new"`, `"select"`, and `"close"` identifies the page acted on, including the closed page for `"close"`.
+
+## browser_frames { #browser_frames }
+
+Enumerate attached frames in one live page without changing the selected tab.
+
+```python
+async def browser_frames(instance: str, *, page_id: str | None = None) -> dict[str, Any]
+```
+
+Omitting `page_id` uses the selected page. The result contains `page_id`,
+`main_frame_id`, and `frames`; each frame has `frame_id`, nullable
+`parent_frame_id`, `name`, `url`, and boolean `is_main` (true only for the main frame). Frame IDs survive navigation while the same
+Frame remains attached. Detach expires the ID; replacement creates a new ID.
+Errors include `instance_not_found`, `page_not_found`, and `frame_not_found`.
+
+```json
+{
+  "status": "success", "instance": "main",
+  "data": {
+    "page_id": "page-uuid", "main_frame_id": "main-frame-uuid",
+    "frames": [
+      {"frame_id": "main-frame-uuid", "parent_frame_id": null, "is_main": true, "name": "", "url": "https://example.com"},
+      {"frame_id": "child-frame-uuid", "parent_frame_id": "main-frame-uuid", "is_main": false, "name": "checkout", "url": "https://payments.example.com"}
+    ]
+  }
+}
+```
+
+Use the returned IDs with [snapshots and frame-local refs](../concepts/refs-snapshots.md#iframe--child-frame-refs).

@@ -8,6 +8,11 @@ Navigation tools control where the active page points and how long the agent wai
 
 Examples below focus on tool-specific data. Registered tools also return the shared [operation metadata and error fields](../concepts/response-envelope.md).
 
+Optional `page_id` selects a live page without changing the selected tab; an invalid
+explicit target returns `page_not_found`. Frame-capable calls also accept `frame_id`
+and return `frame_not_found` for a detached or foreign frame. Omitted targets retain
+existing behavior. See [explicit targeting](../concepts/instances-isolation.md#explicit-page-targets).
+
 ## browser_navigate { #browser_navigate }
 
 Navigate the active page in the given instance to a URL.
@@ -15,15 +20,16 @@ Navigate the active page in the given instance to a URL.
 **Signature**
 
 ```python
-async def browser_navigate(instance: str, url: str) -> dict[str, Any]
+async def browser_navigate(instance: str, url: str, *, page_id: str | None = None) -> dict[str, Any]
 ```
 
 **Parameters**
 
-| Name       | Type  | Default | Description      |
-| ---------- | ----- | ------- | ---------------- |
-| `instance` | `str` | —       | Instance name.   |
-| `url`      | `str` | —       | Destination URL. |
+| Name       | Type          | Default | Description                                                                                                         |
+| ---------- | ------------- | ------- | ------------------------------------------------------------------------------------------------------------------- |
+| `instance` | `str`         | —       | Instance name.                                                                                                      |
+| `url`      | `str`         | —       | Destination URL.                                                                                                    |
+| `page_id`  | `str \| None` | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -58,7 +64,7 @@ Response:
 
 **Notes** — URL normalisation: `localhost[:PORT]` and bare IPv4 addresses receive an `http://` scheme; schemeless hostnames containing a dot receive `https://`, including hostnames with a port. Explicit schemes such as `data:`, `javascript:`, and `about:` are preserved.
 
-When an observed download event matches the navigation or its redirect chain, the response data includes `"download": true` alongside the current page's `url` and `title`. A URL or error message containing the word `download` alone does not indicate success. This response confirms the download was triggered; it does not report a completed file save. After navigation changes the document, refs obtained from `browser_snapshot` are invalidated — take a fresh snapshot before referencing page elements.
+When an observed download event matches the navigation or its redirect chain, the response data includes `"download": true` and, when the handle was retained, `download_id`, alongside the current page's `url` and `title`. A URL or error message containing the word `download` alone does not indicate success. This response confirms the download was triggered; it does not report a completed file save. After navigation changes the document, refs obtained from `browser_snapshot` are invalidated — take a fresh snapshot before referencing page elements.
 
 ## browser_navigate_back { #browser_navigate_back }
 
@@ -67,14 +73,15 @@ Navigate back one step in the browser history for the active page.
 **Signature**
 
 ```python
-async def browser_navigate_back(instance: str) -> dict[str, Any]
+async def browser_navigate_back(instance: str, *, page_id: str | None = None) -> dict[str, Any]
 ```
 
 **Parameters**
 
-| Name       | Type  | Default | Description    |
-| ---------- | ----- | ------- | -------------- |
-| `instance` | `str` | —       | Instance name. |
+| Name       | Type          | Default | Description                                                                                                         |
+| ---------- | ------------- | ------- | ------------------------------------------------------------------------------------------------------------------- |
+| `instance` | `str`         | —       | Instance name.                                                                                                      |
+| `page_id`  | `str \| None` | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -117,17 +124,22 @@ async def browser_wait_for(
     text: str | None = None,
     text_gone: str | None = None,
     time: float | None = None,
+    *,
+    page_id: str | None = None,
+    frame_id: str | None = None,
 ) -> dict[str, Any]
 ```
 
 **Parameters**
 
-| Name        | Type            | Default | Description                                                      |
-| ----------- | --------------- | ------- | ---------------------------------------------------------------- |
-| `instance`  | `str`           | —       | Instance name.                                                   |
-| `text`      | `str \| None`   | `None`  | Wait until at least one matching element is visible on the page. |
-| `text_gone` | `str \| None`   | `None`  | Wait until no matching element is visible on the page.           |
-| `time`      | `float \| None` | `None`  | Seconds to wait unconditionally (capped at 30).                  |
+| Name        | Type            | Default | Description                                                                                                         |
+| ----------- | --------------- | ------- | ------------------------------------------------------------------------------------------------------------------- |
+| `instance`  | `str`           | —       | Instance name.                                                                                                      |
+| `text`      | `str \| None`   | `None`  | Wait until at least one matching element is visible on the page.                                                    |
+| `text_gone` | `str \| None`   | `None`  | Wait until no matching element is visible on the page.                                                              |
+| `time`      | `float \| None` | `None`  | Seconds to wait unconditionally (capped at 30).                                                                     |
+| `page_id`   | `str \| None`   | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs. |
+| `frame_id`  | `str \| None`   | `None`  | Attached frame ID from `browser_frames`; explicit scope never falls back to another frame.                          |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 

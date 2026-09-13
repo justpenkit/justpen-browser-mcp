@@ -74,6 +74,7 @@ async def _storage_in_origin(
     failed = False
     try:
         mark_operation_started(mgr.get(instance).instance_id, page_id=mgr.page_id(instance, page))
+        await mgr.ensure_page_headers(mgr.get(instance), page)
         await page.goto(origin, wait_until="commit")
         # Playwright drops __proto__ object properties at its JS serialization
         # boundary. JSON text preserves arbitrary storage keys in both directions.
@@ -141,7 +142,9 @@ def _register_browser_get_cookies(mcp: FastMCP, mgr: InstanceManager) -> None:
 def _register_browser_set_cookies(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_set_cookies(instance: str, cookies: list[dict[str, Any]]) -> dict[str, Any]:
+    async def browser_set_cookies(
+        instance: str, cookies: list[dict[str, Any]], *, page_id: str | None = None
+    ) -> dict[str, Any]:
         """Add or update cookies on the instance using Playwright cookie format.
 
         Each cookie dict must have at minimum: name, value. Playwright also
@@ -167,8 +170,8 @@ def _register_browser_set_cookies(mcp: FastMCP, mgr: InstanceManager) -> None:
             ctx = rec.context
             async with mgr.lock_for(instance):
                 default_domain: str | None = None
-                if ctx.pages:
-                    active_page = await mgr.active_page(instance)
+                if ctx.pages or page_id is not None:
+                    active_page = await mgr.target_page(instance, page_id)
                     parsed = urlparse(active_page.url)
                     default_domain = parsed.hostname
                 processed: list[dict[str, Any]] = []
@@ -310,6 +313,8 @@ def _register_browser_clear_local_storage(mcp: FastMCP, mgr: InstanceManager) ->
     async def browser_clear_local_storage(
         instance: str,
         origin: str | None = None,
+        *,
+        page_id: str | None = None,
     ) -> dict[str, Any]:
         """Clear localStorage entries.
 
@@ -331,13 +336,15 @@ def _register_browser_clear_local_storage(mcp: FastMCP, mgr: InstanceManager) ->
             instance_not_found — instance does not exist
             internal_error    — navigation to origin failed
         """
+        if origin is not None and page_id is not None:
+            return error_response(instance, "invalid_params", "origin and page_id cannot be combined")
         try:
             rec = mgr.get(instance)
             ctx = rec.context
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
                 if origin is None:
-                    page = await mgr.active_page(instance)
+                    page = await mgr.target_page(instance, page_id)
                     await page.evaluate("() => localStorage.clear()")
                     return success_response(instance, data={"cleared": True, "origin": page.url})
                 await _storage_in_origin(ctx, origin, "clear", mgr=mgr, instance=instance)

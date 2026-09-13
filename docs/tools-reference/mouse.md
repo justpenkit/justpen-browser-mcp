@@ -8,6 +8,11 @@ Mouse tools provide low-level positional control over the browser's mouse pointe
 
 Examples below focus on tool-specific data. Registered tools also return the shared [operation metadata and error fields](../concepts/response-envelope.md).
 
+Optional `page_id` selects a live page without changing the selected tab; an invalid
+explicit target returns `page_not_found`. Frame-capable calls also accept `frame_id`
+and return `frame_not_found` for a detached or foreign frame. Omitted targets retain
+existing behavior. See [explicit targeting](../concepts/instances-isolation.md#explicit-page-targets).
+
 ## browser_mouse_click_xy { #browser_mouse_click_xy }
 
 Click the mouse at a viewport position on the active page.
@@ -26,19 +31,24 @@ async def browser_mouse_click_xy(
     button: str = "left",
     click_count: int = 1,
     delay_ms: int = 0,
+    *,
+    page_id: str | None = None,
+    wait_for: WaitForSpec | None = None,
 ) -> dict[str, Any]
 ```
 
 **Parameters**
 
-| Name          | Type  | Default  | Description                                                        |
-| ------------- | ----- | -------- | ------------------------------------------------------------------ |
-| `instance`    | `str` | —        | Instance name.                                                     |
-| `x`           | `int` | —        | Viewport-relative horizontal CSS pixel coordinate (0 = left edge). |
-| `y`           | `int` | —        | Viewport-relative vertical CSS pixel coordinate (0 = top edge).    |
-| `button`      | `str` | `"left"` | One of `"left"`, `"right"`, `"middle"`.                            |
-| `click_count` | `int` | `1`      | Number of clicks to deliver; use `2` for a double-click.           |
-| `delay_ms`    | `int` | `0`      | Delay in milliseconds between mousedown and mouseup.               |
+| Name          | Type                  | Default  | Description                                                                                                               |
+| ------------- | --------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `instance`    | `str`                 | —        | Instance name.                                                                                                            |
+| `x`           | `int`                 | —        | Viewport-relative horizontal CSS pixel coordinate (0 = left edge).                                                        |
+| `y`           | `int`                 | —        | Viewport-relative vertical CSS pixel coordinate (0 = top edge).                                                           |
+| `button`      | `str`                 | `"left"` | One of `"left"`, `"right"`, `"middle"`.                                                                                   |
+| `click_count` | `int`                 | `1`      | Number of clicks to deliver; use `2` for a double-click.                                                                  |
+| `delay_ms`    | `int`                 | `0`      | Delay in milliseconds between mousedown and mouseup.                                                                      |
+| `page_id`     | `str \| None`         | `None`   | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs.       |
+| `wait_for`    | `WaitForSpec \| None` | `None`   | One condition armed before the action; see [action observations](../guides/framework-integration.md#action-observations). |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -76,16 +86,17 @@ Move the mouse cursor to an absolute pixel position without clicking.
 **Signature**
 
 ```python
-async def browser_mouse_move_xy(instance: str, x: int, y: int) -> dict[str, Any]
+async def browser_mouse_move_xy(instance: str, x: int, y: int, *, page_id: str | None = None) -> dict[str, Any]
 ```
 
 **Parameters**
 
-| Name       | Type  | Default | Description                         |
-| ---------- | ----- | ------- | ----------------------------------- |
-| `instance` | `str` | —       | Instance name.                      |
-| `x`        | `int` | —       | Target horizontal pixel coordinate. |
-| `y`        | `int` | —       | Target vertical pixel coordinate.   |
+| Name       | Type          | Default | Description                                                                                                         |
+| ---------- | ------------- | ------- | ------------------------------------------------------------------------------------------------------------------- |
+| `instance` | `str`         | —       | Instance name.                                                                                                      |
+| `x`        | `int`         | —       | Target horizontal pixel coordinate.                                                                                 |
+| `y`        | `int`         | —       | Target vertical pixel coordinate.                                                                                   |
+| `page_id`  | `str \| None` | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -122,15 +133,16 @@ Press a mouse button down without releasing it.
 **Signature**
 
 ```python
-async def browser_mouse_down(instance: str, button: str = "left") -> dict[str, Any]
+async def browser_mouse_down(instance: str, button: str = "left", *, page_id: str | None = None) -> dict[str, Any]
 ```
 
 **Parameters**
 
-| Name       | Type  | Default  | Description                             |
-| ---------- | ----- | -------- | --------------------------------------- |
-| `instance` | `str` | —        | Instance name.                          |
-| `button`   | `str` | `"left"` | One of `"left"`, `"right"`, `"middle"`. |
+| Name       | Type          | Default  | Description                                                                                                         |
+| ---------- | ------------- | -------- | ------------------------------------------------------------------------------------------------------------------- |
+| `instance` | `str`         | —        | Instance name.                                                                                                      |
+| `button`   | `str`         | `"left"` | One of `"left"`, `"right"`, `"middle"`.                                                                             |
+| `page_id`  | `str \| None` | `None`   | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -168,15 +180,16 @@ Release a previously pressed mouse button.
 **Signature**
 
 ```python
-async def browser_mouse_up(instance: str, button: str = "left") -> dict[str, Any]
+async def browser_mouse_up(instance: str, button: str = "left", *, page_id: str | None = None) -> dict[str, Any]
 ```
 
 **Parameters**
 
-| Name       | Type  | Default  | Description                                           |
-| ---------- | ----- | -------- | ----------------------------------------------------- |
-| `instance` | `str` | —        | Instance name.                                        |
-| `button`   | `str` | `"left"` | Must match the button passed to `browser_mouse_down`. |
+| Name       | Type          | Default  | Description                                                                                                         |
+| ---------- | ------------- | -------- | ------------------------------------------------------------------------------------------------------------------- |
+| `instance` | `str`         | —        | Instance name.                                                                                                      |
+| `button`   | `str`         | `"left"` | Must match the button passed to `browser_mouse_down`.                                                               |
+| `page_id`  | `str \| None` | `None`   | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -212,18 +225,29 @@ Drag the mouse from one absolute pixel position to another.
 **Signature**
 
 ```python
-async def browser_mouse_drag_xy(instance: str, from_x: int, from_y: int, to_x: int, to_y: int) -> dict[str, Any]
+async def browser_mouse_drag_xy(
+    instance: str,
+    from_x: int,
+    from_y: int,
+    to_x: int,
+    to_y: int,
+    *,
+    page_id: str | None = None,
+    wait_for: WaitForSpec | None = None,
+) -> dict[str, Any]
 ```
 
 **Parameters**
 
-| Name       | Type  | Default | Description                           |
-| ---------- | ----- | ------- | ------------------------------------- |
-| `instance` | `str` | —       | Instance name.                        |
-| `from_x`   | `int` | —       | Starting horizontal pixel coordinate. |
-| `from_y`   | `int` | —       | Starting vertical pixel coordinate.   |
-| `to_x`     | `int` | —       | Ending horizontal pixel coordinate.   |
-| `to_y`     | `int` | —       | Ending vertical pixel coordinate.     |
+| Name       | Type                  | Default | Description                                                                                                               |
+| ---------- | --------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `instance` | `str`                 | —       | Instance name.                                                                                                            |
+| `from_x`   | `int`                 | —       | Starting horizontal pixel coordinate.                                                                                     |
+| `from_y`   | `int`                 | —       | Starting vertical pixel coordinate.                                                                                       |
+| `to_x`     | `int`                 | —       | Ending horizontal pixel coordinate.                                                                                       |
+| `to_y`     | `int`                 | —       | Ending vertical pixel coordinate.                                                                                         |
+| `page_id`  | `str \| None`         | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs.       |
+| `wait_for` | `WaitForSpec \| None` | `None`  | One condition armed before the action; see [action observations](../guides/framework-integration.md#action-observations). |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -265,16 +289,25 @@ Scroll the mouse wheel by the given pixel deltas at the current cursor position.
 **Signature**
 
 ```python
-async def browser_mouse_wheel(instance: str, delta_x: int = 0, delta_y: int = 0) -> dict[str, Any]
+async def browser_mouse_wheel(
+    instance: str,
+    delta_x: int = 0,
+    delta_y: int = 0,
+    *,
+    page_id: str | None = None,
+    wait_for: WaitForSpec | None = None,
+) -> dict[str, Any]
 ```
 
 **Parameters**
 
-| Name       | Type  | Default | Description                                         |
-| ---------- | ----- | ------- | --------------------------------------------------- |
-| `instance` | `str` | —       | Instance name.                                      |
-| `delta_x`  | `int` | `0`     | Horizontal scroll in CSS pixels (positive = right). |
-| `delta_y`  | `int` | `0`     | Vertical scroll in CSS pixels (positive = down).    |
+| Name       | Type                  | Default | Description                                                                                                               |
+| ---------- | --------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `instance` | `str`                 | —       | Instance name.                                                                                                            |
+| `delta_x`  | `int`                 | `0`     | Horizontal scroll in CSS pixels (positive = right).                                                                       |
+| `delta_y`  | `int`                 | `0`     | Vertical scroll in CSS pixels (positive = down).                                                                          |
+| `page_id`  | `str \| None`         | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs.       |
+| `wait_for` | `WaitForSpec \| None` | `None`  | One condition armed before the action; see [action observations](../guides/framework-integration.md#action-observations). |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
