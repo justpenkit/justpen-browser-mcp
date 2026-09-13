@@ -17,7 +17,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.e2e, pytest.mark.asyncio, pyt
 
 async def _exercise_browser(client, test_site):
     tools = await client.list_tools()
-    assert len(tools) == 43
+    assert len(tools) == 46
     health = await call(client, "browser_health")
     assert health["status"] == "success", health
     assert health["data"]["instance_count"] == 0
