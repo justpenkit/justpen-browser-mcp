@@ -22,6 +22,8 @@ jobs:
           enable-cache: true
       - name: Install Python
         run: uv python install 3.13
+      - name: Require the committed lockfile
+        run: make lock-check
       - name: make install
         run: make install
       - name: make audit

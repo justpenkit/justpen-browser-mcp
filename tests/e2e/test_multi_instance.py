@@ -7,6 +7,8 @@ import pytest
 from justpen_browser_mcp.config import BrowserServerConfig
 from justpen_browser_mcp.instance_manager import InstanceManager
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture
 async def real_manager():

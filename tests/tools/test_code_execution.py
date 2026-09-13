@@ -2,6 +2,10 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
+pytestmark = pytest.mark.integration
+
 
 def make_page(mock_ctx_mgr, eval_result="42"):
     page = MagicMock()

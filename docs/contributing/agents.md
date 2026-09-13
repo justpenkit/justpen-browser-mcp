@@ -68,9 +68,11 @@ reviewed change merges, then start a new session and review the hooks there.
 
 Use the documented Make targets for routine tests, linting, typing and formatting.
 `make test-one TEST=tests/test_file.py::test_name` selects a single test without
-exposing arbitrary pytest flags; the full `make check` gate remains required.
-Browser behavior changes also need `make test-e2e`, which runs separately from
-the fast suite.
+exposing arbitrary pytest flags. Pre-push runs `make check` and `make docs-build`;
+do not repeat those gates manually after edits or before a PR. CI runs real
+tool, transport, hook, release, documentation and browser integration scenarios,
+plus installed-wheel consumer checks. Run the relevant integration scenario
+locally through `make test-one` when developing that test or its harness.
 Claude's hook checks the complete `make test-one TEST=…` command before allowing
 it; no wildcard permission covers extra Make options or targets.
 
@@ -116,7 +118,7 @@ alternative to approval.
 
 ## Verify and troubleshoot
 
-The fast policy tests run in `make check`. To also exercise a real Codex sandbox
+The isolated policy tests run in `make check`. To also exercise a real Codex sandbox
 against disposable files, run this from a terminal outside an existing sandbox:
 
 ```bash

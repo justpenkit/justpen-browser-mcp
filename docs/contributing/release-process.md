@@ -1,7 +1,8 @@
 # Release process
 
 This project releases from `main`. Create a version bump on a feature branch,
-merge its PR, then create and push the annotated tag to create the GitHub Release.
+merge its PR, then annotate the reviewed merge and push that tag to create the
+GitHub Release.
 The sequence is identical for patch, minor and major bumps.
 
 ## Versioning policy
@@ -14,31 +15,40 @@ version; adopting or updating its framework does not bump or reset this server.
 ## Tooling
 
 Use `make changelog` to generate `CHANGELOG.md` from Conventional Commits with
-Commitizen. This established application retains its actual `0.1.0` through
-`0.4.0` release history. Its changelog boundary follows the real application
-history; the later Copier enrollment is not the application's first release.
-Preserve that boundary and the existing tags during template updates.
+Commitizen. This established application retains its actual release history and
+existing tags; its later Copier enrollment is not the application's first release.
 The explicit `changelog_start_rev = ""` setting under `[tool.commitizen]` keeps
-the full genuine application history; do not replace it with the enrollment commit.
+the full genuine application history and overrides the first-answers default.
+Preserve it during template updates; changing this metadata follows the normal
+approval policy.
 
 Each `make bump-{patch,minor,major}` target:
 
 1. Requires a clean working tree on a feature branch, not `main`, `master` or a
     detached checkout.
 2. Calls `uv version --bump <segment>` to update `pyproject.toml` and `uv.lock`.
-3. Updates the installation pins in `README.md`, `docs/index.md`, and
-    `docs/getting-started/install.md`, generates the changelog with Commitizen,
-    and formats `CHANGELOG.md` with mdformat. The website reads the version from
-    project metadata during its MkDocs build.
-4. Commits the release changes with the normal Git hooks enabled.
-5. Leaves tag creation to `make release-tag` after the reviewed PR merges.
+3. Generates the changelog with Commitizen and formats `CHANGELOG.md` with
+    mdformat.
+4. Updates this project's installation references in tracked `README.md` and
+    Markdown files beneath `docs/`, matching `git+<Repository>[.git]@v<version>`.
+    The full URL comes from `[project.urls].Repository`; other repositories,
+    branch/SHA refs, changelog pages, symlinks and untracked files stay unchanged.
+    Older installation pins also move to the new version; no manual per-file
+    version update is needed.
+5. Commits the metadata, changelog and updated installation examples with the
+    normal Git hooks enabled, so the pin changes are included in PR review.
+
+The bump prepares the release for review without creating a tag. After the PR
+merges, `make release-tag` creates `v<new-version>` at the reviewed merge commit
+on an updated, clean `main`. It rejects feature branches, stale local main,
+non-merge commits and existing tags.
 
 Every failed step stops the command. Inspect the reported error and working
 tree before retrying; formatting and hook changes are not silently discarded.
-The command never pushes tags or publishes to PyPI.
+Neither command pushes tags or publishes to PyPI.
 
 For coding agents, ordinary uv-managed version changes remain allowed. The
-complete release operation also commits and eventually tags, so it requires release
+complete release operation also commits and tags, so it requires release
 authorization and is not an automatic dependency-management exemption.
 
 ## Step-by-step flow
@@ -49,7 +59,7 @@ Start with a clean working tree and an up-to-date `main`.
 
 ```bash
 git switch main
-git pull
+git pull --ff-only
 git switch -c chore/bump-v<new-version>
 ```
 
@@ -72,23 +82,22 @@ and agree on a correction before changing history.
 git push -u origin chore/bump-v<new-version>
 ```
 
-Use the branch name you created. Create the tag after the PR merges so it includes
-all changes made during review. An early tag is rejected if unmerged or if its
-contents differ from the reviewed merge.
+Use the branch name you created. Finish PR review before creating the tag so
+the release includes corrections made after the bump commit.
 
 ### 4. Open and merge the PR
 
 - Title: `chore: bump version to v<new-version>`.
-- Complete the [PR checklist](pr-checklist.md), including `make check` and
-    `make docs-build`.
+- Complete the [PR checklist](pr-checklist.md); the pre-push hook runs
+    `make check` and `make docs-build`, so no duplicate manual run is required.
 - Review the changelog as the exact notes that will accompany this release.
-- Merge with a regular merge commit, never squash. Release finalization tags this
-    reviewed merge, including corrections committed after the version bump.
+- Merge with a regular merge commit, never squash. The finalization command
+    requires a merge commit on `main`.
 
 ### 5. Create and push the reviewed tag
 
-Once the PR is merged and its checks have passed, update `main` to the release
-merge and finalize the tag before starting the next release:
+Once the PR is merged, update `main` and review that its latest merge is the
+release you intend to publish:
 
 ```bash
 git switch main
@@ -97,20 +106,20 @@ make release-tag
 git push origin v<new-version>
 ```
 
-`make release-tag` requires a clean `main` at the same commit as `origin/main`,
-a regular merge commit, a matching changelog section, and an unused tag name.
-It never moves an existing tag or publishes anything itself. If more work has
-already landed on main, inspect the intended release contents before finalizing.
+The tag points at the merged contents, including changes made during review.
+Never move or overwrite an existing published tag. If a historical branch tag
+omits changes included when its PR merged, release validation rejects it; an old
+branch tag with identical merged contents remains valid.
 
 ### 6. Automatic GitHub Release
 
-The tag-triggered workflow verifies that the tag is annotated, matches the
-version in `pyproject.toml`, and points to a commit contained in `origin/main`.
-A tag on a feature-branch commit is accepted only when its tree is identical to
-its first reviewed integration into main; this preserves valid historical tags
-while rejecting tags that omit PR review corrections.
-It takes the corresponding section from `CHANGELOG.md` and creates the GitHub
-Release. A rerun keeps an already-created release instead of duplicating it.
+The tag-triggered workflow runs validation code from `main` with read-only
+permissions. It verifies that the tag is annotated, matches the tagged
+`pyproject.toml`, belongs to `origin/main`, and includes its reviewed merge
+contents. It extracts the corresponding section from the tagged `CHANGELOG.md`.
+Only the separate publication job has write permission; it receives those notes
+as data and creates the GitHub Release. A rerun keeps an already-created release
+instead of duplicating it.
 
 Inspect the workflow result in Actions and the release notes in GitHub Releases.
 This automation creates the GitHub Release only; package-index publishing is

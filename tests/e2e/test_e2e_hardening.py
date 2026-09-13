@@ -20,6 +20,7 @@ from justpen_browser_mcp.errors import InstanceCrashedError, InstanceNotFoundErr
 from justpen_browser_mcp.instance_manager import InstanceManager
 
 pytestmark = [
+    pytest.mark.integration,
     pytest.mark.e2e,
     pytest.mark.asyncio,
     pytest.mark.filterwarnings("ignore::camoufox._warnings.LeakWarning"),

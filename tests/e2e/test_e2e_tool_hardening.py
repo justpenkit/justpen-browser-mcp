@@ -22,6 +22,7 @@ from justpen_browser_mcp.tools.cookies import _storage_in_origin
 from .conftest import call
 
 pytestmark = [
+    pytest.mark.integration,
     pytest.mark.e2e,
     pytest.mark.asyncio,
     pytest.mark.filterwarnings("ignore::camoufox._warnings.LeakWarning"),

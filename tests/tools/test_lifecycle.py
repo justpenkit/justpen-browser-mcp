@@ -157,6 +157,7 @@ async def test_create_instance_omitted_headless_humanize_stay_none(mcp):
     assert kwargs["humanize"] is None
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_browser_health_returns_snapshot(mcp_client, mock_mgr):
     mock_mgr.health_snapshot = lambda: {

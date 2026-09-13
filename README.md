@@ -45,7 +45,11 @@ or its [source in this repository](docs/index.md).
 
 ## Contributing
 
-See the [contributing guides](docs/contributing/pr-checklist.md) for the PR checklist, lint/typing rules, code-intelligence conventions, and release process.
+Run `make setup` once to install development tools, Camoufox and Git hooks.
+The hooks run routine checks when you commit and push; CI runs the Python matrix
+and real integration/browser/consumer scenarios. No duplicate manual gate is needed
+after a passing push. See the [contributing guides](docs/contributing/pr-checklist.md)
+for focused checks, lint/typing rules, code navigation and the release process.
 
 ## License
 

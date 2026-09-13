@@ -22,6 +22,7 @@ from justpen_browser_mcp.responses import error_response, success_response
 from justpen_browser_mcp.tools import register_all
 
 
+@pytest.mark.integration
 async def test_each_mcp_operation_has_independent_identity_and_timing():
     server = FastMCP("operations")
     register_all(server, InstanceManager(BrowserServerConfig()))
@@ -38,6 +39,7 @@ async def test_each_mcp_operation_has_independent_identity_and_timing():
         assert operation["instance_id"] is None
 
 
+@pytest.mark.integration
 async def test_rejected_operation_reports_that_execution_did_not_start():
     server = FastMCP("operations")
     register_all(server, InstanceManager(BrowserServerConfig()))
@@ -48,6 +50,7 @@ async def test_rejected_operation_reports_that_execution_did_not_start():
     assert result.data["operation"]["retry"] == "after_correction"
 
 
+@pytest.mark.integration
 async def test_failed_started_mutation_reports_uncertainty_and_original_identity():
     server = FastMCP("operations")
     register_all(server, InstanceManager(BrowserServerConfig()))
@@ -69,6 +72,7 @@ async def test_failed_started_mutation_reports_uncertainty_and_original_identity
     assert following.data["operation"]["instance_id"] is None
 
 
+@pytest.mark.integration
 async def test_oversized_result_is_explicit_error_after_completed_work():
     server = FastMCP("operations")
     register_all(server, InstanceManager(BrowserServerConfig(max_result_bytes=4096)))
@@ -86,6 +90,7 @@ async def test_oversized_result_is_explicit_error_after_completed_work():
     assert len(str(result.data)) < 4096
 
 
+@pytest.mark.integration
 async def test_artifact_paths_are_attached_to_the_operation(tmp_path):
     server = FastMCP("operations")
     register_all(server, InstanceManager(BrowserServerConfig()))
@@ -101,6 +106,7 @@ async def test_artifact_paths_are_attached_to_the_operation(tmp_path):
     assert result.data["operation"]["artifacts"] == [{"path": path}]
 
 
+@pytest.mark.integration
 async def test_oversized_references_cannot_bypass_result_limit():
     server = FastMCP("operations")
     register_all(server, InstanceManager(BrowserServerConfig(max_result_bytes=4096)))
@@ -118,6 +124,7 @@ async def test_oversized_references_cannot_bypass_result_limit():
     assert result.data["instance"] is None
 
 
+@pytest.mark.integration
 @pytest.mark.parametrize("arguments", [{"instance": "missing"}, {"instance": "missing", "url": [1, 2]}])
 async def test_validation_errors_keep_mcp_error_and_operation_metadata(arguments):
     server = FastMCP("operations")
@@ -131,6 +138,7 @@ async def test_validation_errors_keep_mcp_error_and_operation_metadata(arguments
     assert result.structured_content["operation"]["id"]
 
 
+@pytest.mark.integration
 @pytest.mark.parametrize("tool", ["browser_console_messages", "browser_network_requests", "browser_screenshot"])
 async def test_artifact_write_failure_reports_uncertain_effects(manager, monkeypatch, tmp_path, tool):
     record = await manager.create("export")
@@ -160,6 +168,7 @@ def test_replaced_instance_cannot_inherit_previous_generation_page_id():
         current_operation.reset(token)
 
 
+@pytest.mark.integration
 async def test_unknown_oversized_tool_name_is_a_bounded_tracked_mcp_error():
     server = FastMCP("operations")
     register_all(server, InstanceManager(BrowserServerConfig(max_result_bytes=4096)))
@@ -171,6 +180,7 @@ async def test_unknown_oversized_tool_name_is_a_bounded_tracked_mcp_error():
     assert result.structured_content["operation"]["outcome"] == "not_started"
 
 
+@pytest.mark.integration
 async def test_outer_deadline_bounds_work_outside_an_instance_lock():
     server = FastMCP("operations")
     register_all(server, InstanceManager(BrowserServerConfig(operation_timeout_seconds=0.03)))

@@ -9,6 +9,8 @@ from justpen_browser_mcp.errors import (
     StaleRefError,
 )
 
+pytestmark = pytest.mark.integration
+
 
 def make_page_with_locator(mock_ctx_mgr):
     locator = MagicMock()

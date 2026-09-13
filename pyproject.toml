@@ -75,6 +75,11 @@ changelog_start_rev = ""
 name = "cz_conventional_commits"
 version_provider = "pep621"
 tag_format = "v$version"
+message_length_limit = 72
+allowed_prefixes = ["Merge ", "fixup! ", "squash! ", "amend! ", 'Revert "']
+
+[tool.commitizen.customize]
+schema_pattern = '^(?=[^\r\n]{1,72}(?:\r?\n|$))(?:feat|fix|docs|chore|ci|refactor|test|style|build|perf|revert)(?:\([^()\r\n]+\))?!?: [^\r\n]+(?<!\.)(?:\r?\n[\s\S]*)?$'
 
 [tool.yamlfix]
 explicit_start = false
@@ -90,7 +95,10 @@ pythonpath = ["src"]
 asyncio_mode = "auto"
 addopts = "--strict-markers --strict-config"
 filterwarnings = ["error"]
-markers = ["e2e: tests requiring a real Camoufox browser"]
+markers = [
+  "integration: real tool, release, documentation, and generated-project scenarios",
+  "e2e: tests requiring a real Camoufox browser",
+]
 
 [tool.ruff]
 line-length = 120
@@ -181,7 +189,7 @@ indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
 
-# The editor follows the environment; Make checks Python 3.11, 3.12 and 3.13.
+# Make and the editor use the active Python; CI checks Python 3.11, 3.12 and 3.13.
 [tool.pyright]
 include = ["src", "tests", "scripts"]
 typeCheckingMode = "strict"

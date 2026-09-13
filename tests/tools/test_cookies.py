@@ -7,6 +7,8 @@ import pytest
 
 from justpen_browser_mcp.errors import InstanceNotFoundError
 
+pytestmark = pytest.mark.integration
+
 
 def make_ctx_with_page(mock_ctx_mgr, cookies=None, eval_result=None):
     """Wire mock_ctx_mgr.get to return a mock InstanceRecord with a mock active page."""

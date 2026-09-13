@@ -2,7 +2,11 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from justpen_browser_mcp.errors import InstanceNotFoundError, StaleRefError
+
+pytestmark = pytest.mark.integration
 
 
 def make_page(mock_ctx_mgr):

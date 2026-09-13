@@ -12,25 +12,25 @@
                 padding: 40px">Drop target</div>
     <p id="result">waiting</p>
     <script>
-        const source = document.querySelector("#src");
-        const target = document.querySelector("#dst");
-        let dragging = false;
-        let moved = false;
-        source.style.userSelect = "none";
-        source.addEventListener("pointerdown", () => {
-            dragging = true;
-            moved = false;
-        });
-        document.addEventListener("pointermove", (event) => {
-            if (dragging && event.buttons === 1) moved = true;
-        });
-        document.addEventListener("pointerup", (event) => {
-            const hit = document.elementFromPoint(event.clientX, event.clientY);
-            if (dragging && moved && (hit === target || target.contains(hit))) {
-                document.querySelector("#result").textContent = "dropped: source";
-            }
-            dragging = false;
-        });
+      const source = document.querySelector("#src");
+      const target = document.querySelector("#dst");
+      let dragging = false;
+      let moved = false;
+      source.style.userSelect = "none";
+      source.addEventListener("pointerdown", () => {
+        dragging = true;
+        moved = false;
+      });
+      document.addEventListener("pointermove", (event) => {
+        if (dragging && event.buttons === 1) moved = true;
+      });
+      document.addEventListener("pointerup", (event) => {
+        const hit = document.elementFromPoint(event.clientX, event.clientY);
+        if (dragging && moved && (hit === target || target.contains(hit))) {
+          document.querySelector("#result").textContent = "dropped: source";
+        }
+        dragging = false;
+      });
     </script>
   </body>
 </html>

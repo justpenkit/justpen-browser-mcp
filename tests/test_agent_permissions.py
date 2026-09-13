@@ -248,6 +248,7 @@ def test_symlink_write_is_guarded(tmp_path):
     assert output["hookSpecificOutput"]["permissionDecision"] == "ask"
 
 
+@pytest.mark.integration
 @pytest.mark.parametrize("client", ["claude", "codex"])
 def test_registered_hooks_run_from_subdirectory(client):
     # Git's pre-push exports GIT_DIR. Carrying it into a different cwd makes
@@ -315,14 +316,13 @@ def test_claude_imports_shared_rules():
     assert (ROOT / "AGENTS.md").is_file()
 
 
+@pytest.mark.integration
 @pytest.mark.skipif(not os.environ.get("CODEX_TEST_BINARY"), reason="opt-in: needs an installed Codex sandbox")
 def test_real_codex_sandbox_enforces_protected_files(tmp_path):
     """Exercise OS permissions against disposable files, without a model call."""
-    # Hook-provided Git variables override cwd and can reinitialize the caller's
-    # shared repository. Keep both child processes inside the disposable fixture.
-    environment = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
     fixture = tmp_path / "permission-fixture"
     fixture.mkdir()
+    environment = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
     subprocess.run(["git", "init", "-q", str(fixture)], env=environment, check=True)
     assert (fixture / ".git").is_dir()
     (fixture / ".codex").mkdir()
@@ -370,6 +370,7 @@ Path("source.py").write_text("# ordinary edits work\\n")
     assert (fixture / "source.py").is_file()
 
 
+@pytest.mark.integration
 @pytest.mark.skipif(not os.environ.get("CODEX_TEST_BINARY"), reason="opt-in: needs an installed Codex sandbox")
 def test_real_codex_sandbox_ignores_inherited_worktree(tmp_path, monkeypatch):
     """A pre-push GIT_DIR must not redirect the probe into the shared repository."""

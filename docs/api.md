@@ -26,5 +26,6 @@ client-facing reference for parameters, examples and error responses.
 
 ::: justpen_browser_mcp.events
 
-Update docstrings alongside API changes and run `make docs-build` to validate the
-reference and local links.
+Update docstrings alongside API changes. The pre-push hook runs a strict
+documentation build to validate this reference and local links; use
+`make docs-build` for earlier feedback when needed.

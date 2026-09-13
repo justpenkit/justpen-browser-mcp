@@ -2,11 +2,14 @@
 
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from playwright.async_api import TimeoutError as PWTimeout
 
 from justpen_browser_mcp.errors import (
     InstanceNotFoundError,
 )
+
+pytestmark = pytest.mark.integration
 
 
 def make_page(mock_ctx_mgr, url="https://example.com", title="Example"):

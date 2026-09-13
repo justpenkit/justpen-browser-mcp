@@ -37,57 +37,76 @@ system Python independently of the project environment. See the
 
 ## The dev gate
 
-Run before every PR:
+Git hooks run the routine checks automatically:
 
-```bash
-make check
-make docs-build
-```
+| Stage      | Checks                                                                                                                                           |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Pre-commit | Conflict/whitespace checks; lint and active-Python typing for Python changes; formatting for text changes; lock consistency for metadata changes |
+| Commit-msg | Commitizen validates the project commit-message rules                                                                                            |
+| Pre-push   | `make check` and one strict `make docs-build`                                                                                                    |
 
 `make check` verifies lock consistency, all supported formatting, lint, strict
-Python 3.11/3.12/3.13 typing and the fast tests once in the active interpreter.
-`make docs-build` runs the strict MkDocs build, including local file and anchor
-validation. CI builds documentation on Python 3.13. The pre-push hook runs both
-gates for early feedback; CI verifies the PR independently.
+typing and unit tests with 80% branch coverage. Typing and tests each use the
+active uv Python once, defaulting to 3.13. The strict MkDocs build validates
+local file links, heading anchors and Python API references. A passing pre-push
+already supplies these gates; no duplicate manual run is required before a PR.
 
-Use `make lint-fix`, `make format` and `make typecheck` for individual checks.
-`make test-one TEST=tests/test_file.py::test_name` provides focused feedback; it
-does not replace the full `make check` coverage gate.
+CI runs shared formatting, lint and docs once on Python 3.13. Its unit matrix
+checks strict typing and unit coverage once per Python 3.11, 3.12 and 3.13.
+It rejects a missing or stale committed lock before installing dependencies.
+Real tool, transport, hook, formatter, release and docs scenarios run separately
+through `make test-integration` on 3.13, including the browser tests below.
+
+Use `make lint-fix`, `make format` and `make typecheck` for focused checks when
+diagnosing failures or seeking earlier feedback.
+`make test-one TEST=tests/test_file.py::test_name` runs a relevant test without
+the suite-wide coverage threshold; the pre-push unit gate applies that threshold.
 
 ### End-to-end tests
 
-`make check` and `make test` exclude the Camoufox-backed tests marked `e2e`.
-CI's fast test jobs do not run them. To exercise a real fetched browser:
+`make check` and `make test` select unit tests and exclude `integration` tests.
+Every Camoufox-backed `e2e` test is also an integration test. CI runs these on
+Python 3.11 and 3.12 through `make test-e2e`; on 3.13 they run once as part of
+the full integration suite. A short test using real components still belongs
+in integration: classification depends on its boundaries, not elapsed time.
 
-```bash
-make test-e2e
-```
+When developing an integration test or its harness, use
+`make test-one TEST=tests/e2e/test_e2e_smoke.py::test_harness_navigates`
+for a relevant scenario, choosing the test that covers the change. There is no
+routine requirement to repeat the full browser matrix locally. `make test-e2e`
+remains available for deliberate suite diagnostics.
 
-Run this separate gate locally when changing navigation, interaction, modal
-handling, page code execution, instance isolation or other browser behavior.
 `make setup` fetches the binary; run `make browser-fetch` if the browser
 installation is missing or another Camoufox release has become the shared default.
 
 ### Consumer installation checks
 
-```bash
-make test-consumer
-```
+`make test-consumer` builds the wheel, installs it in disposable environments
+outside the checkout, and checks the console entry point, installed package
+identity, all 43 tool schemas and a real browser round trip. One environment uses
+locked runtime dependencies; another resolves the lowest allowed direct versions
+with compatible transitive packages. It does not upgrade `uv.lock`.
 
-This builds the wheel, installs it in disposable environments outside the checkout,
-and checks the console entry point, installed package identity, all 43 tool schemas,
-and a real browser round trip. One environment uses locked runtime dependencies;
-another resolves the lowest allowed direct versions with compatible transitive
-packages. It does not upgrade `uv.lock`. CI runs this on Python 3.11, 3.12 and 3.13.
+CI runs this on Python 3.11, 3.12 and 3.13. It is a real installation/MCP/browser
+integration, not part of the local unit gate. A focused local run is useful while
+developing the consumer harness; repeating it before every PR is unnecessary.
 The local target needs network access and the fetched Camoufox binary.
+
+### Editor tests
+
+VS Code's default **Run Test Task** invokes `make check`. The Python Test
+Explorer's **Run All Tests** selects unit tests with `-m "not integration"`;
+it does not run the integration suite or invoke Make. Formatting on save remains
+enabled.
 
 ## Make a change
 
 1. Create a feature branch: `codex/short-description` for Codex, otherwise
     `type/short-description`. Never commit directly to `main`.
 2. Cover behavior changes with a focused regression test, implement the fix and
-    run the relevant Make checks.
-3. Follow the [PR checklist](pr-checklist.md), including the full local gates.
+    use focused Make checks for feedback.
+3. Follow the [PR checklist](pr-checklist.md); passing commit/push hooks provide
+    the routine local gates.
 4. Use Conventional Commits with subjects no longer than 72 characters. Keep
     Git hooks enabled and merge PRs with a regular merge commit.
 

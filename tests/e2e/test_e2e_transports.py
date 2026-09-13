@@ -12,7 +12,7 @@ from fastmcp.client.transports import StdioTransport
 
 from .conftest import call
 
-pytestmark = [pytest.mark.e2e, pytest.mark.asyncio, pytest.mark.timeout(90)]
+pytestmark = [pytest.mark.integration, pytest.mark.e2e, pytest.mark.asyncio, pytest.mark.timeout(90)]
 
 
 async def _exercise_browser(client, test_site):

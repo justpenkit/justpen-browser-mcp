@@ -1,8 +1,10 @@
 # Contributing
 
 Run `make setup` once to install the locked development and docs dependencies,
-fetch Camoufox and install Git hooks. Before a PR, run `make check` and
-`make docs-build`; browser behavior changes also need `make test-e2e`.
+fetch Camoufox and install Git hooks. Commit hooks format, lint and check types;
+the pre-push hook runs `make check` and one strict `make docs-build`. Do not repeat
+passing gates manually. CI runs the supported Python matrix, real integration and
+browser scenarios, and installed-wheel consumer checks.
 
 Contributor documentation lives under [`docs/contributing/`](docs/contributing/):
 
