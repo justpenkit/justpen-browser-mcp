@@ -125,7 +125,7 @@ async def test_duplicate_text_visibility_and_disappearance(hardening_browser):
     assert verified["status"] == "success", verified
     visible = await call(client, "browser_wait_for", {"instance": "review", "text_gone": "Done"})
     assert visible["error_type"] == "wait_timeout"
-    await page.locator("span").last.evaluate("el => el.hidden = true")
+    await page.locator("span").last.evaluate("el => el.hidden = true", timeout=SETUP_TIMEOUT_MS)
     hidden = await call(client, "browser_wait_for", {"instance": "review", "text_gone": "Done"})
     assert hidden["status"] == "success", hidden
 
