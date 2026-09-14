@@ -19,7 +19,7 @@ The pre-push hook must pass `make check` and one strict `make docs-build`. Do no
 repeat those gates manually for the same passing push. `make check` covers lock
 consistency, Python/Markdown/TOML/YAML/JSON/HTML/CSS formatting, lint, strict typing
 and unit tests with 80% branch coverage in the active Python environment.
-The strict docs build validates local links, anchors and Python API references.
+The strict docs build validates local links and heading anchors.
 Do not substitute direct tool invocations or weaker flags.
 
 CI runs shared quality checks once, typing/unit tests across Python 3.11–3.13,

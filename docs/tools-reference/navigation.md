@@ -171,3 +171,52 @@ Response:
 **Notes** — At least one of `text`, `text_gone`, or `time` must be provided; omitting all three returns an `invalid_params` error immediately. When multiple conditions are given they are evaluated in order: `time` first, then `text_gone`, then `text`.
 
 Text conditions use substring matches in the active page's main frame. Hidden duplicates do not mask a visible match. `text_gone` requires every matching element to be hidden or removed; a hidden first match alone is insufficient.
+
+## Action observations
+
+Pass optional `wait_for` to click, type, fill-form, select-option, hover, drag,
+press-key, and coordinate mouse click/drag/wheel. `WaitForSpec` in the signatures
+means one JSON object selected by `kind`:
+
+| `kind`     | Required fields | Optional fields                                                | Match                                                                                                    |
+| ---------- | --------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `response` | `url`           | `method`, `status` (100–599)                                   | Exact response URL; its request must begin after observation is armed.                                   |
+| `url`      | `url`           | —                                                              | A subsequent navigation of the resolved frame reaches the exact URL, including same-document navigation. |
+| `element`  | `selector`      | `state`: `attached`, `detached`, `visible` (default), `hidden` | DOM condition after the action.                                                                          |
+| `text`     | `text`          | `state`: `visible` (default), `hidden`                         | Literal text condition after the action.                                                                 |
+| `popup`    | —               | —                                                              | A popup opened by the target page.                                                                       |
+| `download` | —               | —                                                              | A download emitted by the target page.                                                                   |
+
+All kinds accept positive integer `timeout_ms` (default 10000); unknown fields
+are rejected. Response URLs are exact strings, not patterns. Method matching is
+case-normalized. An explicit `frame_id` narrows response matching to that frame;
+otherwise responses may originate in any frame of the target page. Element/text
+conditions may already hold and do not imply a transition. A response match means
+headers/status arrived, not that its response body finished downloading.
+
+The observer is armed before the action executes, so an event during the action
+can satisfy it. The timeout starts after the action, and both share the existing
+overall operation deadline. The action executes once. No retry, compound condition,
+or automatic business-success inference is performed. When supplied, the explicit
+observation replaces type/Enter's extra best-effort page-load wait.
+
+```json
+{
+  "name": "browser_click",
+  "arguments": {
+    "instance": "checkout", "page_id": "page-uuid", "frame_id": "frame-uuid",
+    "ref": "e12",
+    "wait_for": {"kind": "response", "url": "https://example.com/orders", "method": "POST", "status": 201, "timeout_ms": 10000}
+  }
+}
+```
+
+Success retains existing action keys and adds `data.observation` with `kind`,
+`matched: true`, and observed facts. Popup observations return the popup's
+`page_id` without selecting it. Downloads return a `download_id` for explicit saving.
+A completed action whose condition times out returns `observation_timeout` with
+`data.action_completed: true`, its action result and an unmatched observation.
+An outer operation deadline can return `operation_timeout` with the same completion
+marker if it expired during observation. Outcome remains `unknown` and retry advice
+is `inspect_state`; do not repeat a possibly successful submission automatically.
+This is temporal association, not proof that the action caused a particular request.

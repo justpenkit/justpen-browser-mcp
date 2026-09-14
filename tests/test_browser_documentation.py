@@ -87,7 +87,7 @@ def test_raw_install_commands_use_current_project_pin(relative):
     assert "{{ project_version }}" not in markdown
 
 
-@pytest.mark.parametrize("relative", ["docs/guides/template-updates.md", "docs/contributing/release-process.md"])
+@pytest.mark.parametrize("relative", ["docs/contributing/template-updates.md", "docs/contributing/release-process.md"])
 def test_raw_version_guidance_needs_no_template_rendering(relative):
     markdown = (ROOT / relative).read_text()
     assert "{{ project_version }}" not in markdown

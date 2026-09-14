@@ -106,8 +106,26 @@ BROWSER_MCP_MAX_INSTANCES=5 justpen-browser-mcp
 
 ## HTTP metadata headers
 
-Automatic identity headers are enabled by default. Set
-`BROWSER_MCP_METADATA_HEADERS_ENABLED=false` before starting the server to disable
-them. Values are generated from the current instance and page IDs; there is no
-per-instance override or arbitrary header input. See [header names and lifecycle
-limits](../guides/framework-integration.md#automatic-http-identity-headers).
+The server adds these headers by default so proxy records can be associated with
+the instance and page that sent them:
+
+| Header                                   | Value                                                                    |
+| ---------------------------------------- | ------------------------------------------------------------------------ |
+| `Justpen-Browser-Metadata-Instance-Name` | Percent-encoded UTF-8 instance name; decode once for display.            |
+| `Justpen-Browser-Metadata-Instance-ID`   | Current launch UUID, matching MCP `instance_id`.                         |
+| `Justpen-Browser-Metadata-Page-ID`       | Containing page UUID, matching MCP `page_id`, including iframe requests. |
+
+Set `BROWSER_MCP_METADATA_HEADERS_ENABLED=false` before starting the server to
+disable them. Values are generated automatically; there is no arbitrary header
+input or per-instance override. These IDs identify traffic for correlation, not
+authentication. Request-ID and Timestamp HTTP headers are not generated.
+
+Instance headers are installed when the browser context is created. Page-ID is
+installed when its page becomes available. The first native popup or restored-page
+requests can start earlier and may lack Page-ID; the opener's ID is never used
+as a substitute. Controlled navigation waits for page header setup.
+
+Page-ID stays stable through navigation and tab selection changes. Reopening a
+persistent profile generates fresh instance/page IDs and reapplies the headers;
+header configuration is not saved in the profile. Headers use the browser's
+extra-header APIs without request interception.

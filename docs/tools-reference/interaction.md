@@ -35,16 +35,16 @@ async def browser_click(
 
 **Parameters**
 
-| Name           | Type                  | Default  | Description                                                                                                               |
-| -------------- | --------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `instance`     | `str`                 | —        | Instance name.                                                                                                            |
-| `ref`          | `str`                 | —        | Element ref from `browser_snapshot` (e.g. `"e5"`). See [Refs & snapshots](../concepts/refs-snapshots.md).                 |
-| `double_click` | `bool`                | `False`  | Perform a double-click instead of a single click.                                                                         |
-| `button`       | `str`                 | `"left"` | Mouse button: `"left"`, `"right"`, or `"middle"`.                                                                         |
-| `modifiers`    | `list[str] \| None`   | `None`   | Keyboard modifiers held during the click. Valid values: `"Alt"`, `"Control"`, `"ControlOrMeta"`, `"Meta"`, `"Shift"`.     |
-| `page_id`      | `str \| None`         | `None`   | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs.       |
-| `frame_id`     | `str \| None`         | `None`   | Attached frame ID from `browser_frames`; explicit scope never falls back to another frame.                                |
-| `wait_for`     | `WaitForSpec \| None` | `None`   | One condition armed before the action; see [action observations](../guides/framework-integration.md#action-observations). |
+| Name           | Type                  | Default  | Description                                                                                                           |
+| -------------- | --------------------- | -------- | --------------------------------------------------------------------------------------------------------------------- |
+| `instance`     | `str`                 | —        | Instance name.                                                                                                        |
+| `ref`          | `str`                 | —        | Element ref from `browser_snapshot` (e.g. `"e5"`). See [Refs & snapshots](../concepts/refs-snapshots.md).             |
+| `double_click` | `bool`                | `False`  | Perform a double-click instead of a single click.                                                                     |
+| `button`       | `str`                 | `"left"` | Mouse button: `"left"`, `"right"`, or `"middle"`.                                                                     |
+| `modifiers`    | `list[str] \| None`   | `None`   | Keyboard modifiers held during the click. Valid values: `"Alt"`, `"Control"`, `"ControlOrMeta"`, `"Meta"`, `"Shift"`. |
+| `page_id`      | `str \| None`         | `None`   | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs.   |
+| `frame_id`     | `str \| None`         | `None`   | Attached frame ID from `browser_frames`; explicit scope never falls back to another frame.                            |
+| `wait_for`     | `WaitForSpec \| None` | `None`   | One condition armed before the action; see [action observations](navigation.md#action-observations).                  |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -107,7 +107,7 @@ async def browser_type(
 | `submit`      | `bool`                | `False` | Press Enter after typing and wait up to 2 s for `domcontentloaded` (useful for forms that navigate on submit).             |
 | `page_id`     | `str \| None`         | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs.        |
 | `frame_id`    | `str \| None`         | `None`  | Attached frame ID from `browser_frames`; explicit scope never falls back to another frame.                                 |
-| `wait_for`    | `WaitForSpec \| None` | `None`  | One condition armed before the action; see [action observations](../guides/framework-integration.md#action-observations).  |
+| `wait_for`    | `WaitForSpec \| None` | `None`  | One condition armed before the action; see [action observations](navigation.md#action-observations).                       |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -164,7 +164,7 @@ async def browser_fill_form(
 | `fields`   | `list[dict]`          | —       | Ordered list of field descriptors. Each dict must have `"ref"` (from `browser_snapshot`) and `"value"`, plus an optional `"type"`: `"textbox"` (default), `"checkbox"`, `"radio"`, or `"combobox"`. See [Refs & snapshots](../concepts/refs-snapshots.md). |
 | `page_id`  | `str \| None`         | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs.                                                                                                                                        |
 | `frame_id` | `str \| None`         | `None`  | Attached frame ID from `browser_frames`; explicit scope never falls back to another frame.                                                                                                                                                                 |
-| `wait_for` | `WaitForSpec \| None` | `None`  | One condition armed before the action; see [action observations](../guides/framework-integration.md#action-observations).                                                                                                                                  |
+| `wait_for` | `WaitForSpec \| None` | `None`  | One condition armed before the action; see [action observations](navigation.md#action-observations).                                                                                                                                                       |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -226,14 +226,14 @@ async def browser_select_option(
 
 **Parameters**
 
-| Name       | Type                  | Default | Description                                                                                                               |
-| ---------- | --------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `instance` | `str`                 | —       | Instance name.                                                                                                            |
-| `ref`      | `str`                 | —       | Ref of the `<select>` element from `browser_snapshot`. See [Refs & snapshots](../concepts/refs-snapshots.md).             |
-| `value`    | `str \| list[str]`    | —       | HTML `value` attribute of the option to select (not the display label). Pass a list for multi-select elements.            |
-| `page_id`  | `str \| None`         | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs.       |
-| `frame_id` | `str \| None`         | `None`  | Attached frame ID from `browser_frames`; explicit scope never falls back to another frame.                                |
-| `wait_for` | `WaitForSpec \| None` | `None`  | One condition armed before the action; see [action observations](../guides/framework-integration.md#action-observations). |
+| Name       | Type                  | Default | Description                                                                                                         |
+| ---------- | --------------------- | ------- | ------------------------------------------------------------------------------------------------------------------- |
+| `instance` | `str`                 | —       | Instance name.                                                                                                      |
+| `ref`      | `str`                 | —       | Ref of the `<select>` element from `browser_snapshot`. See [Refs & snapshots](../concepts/refs-snapshots.md).       |
+| `value`    | `str \| list[str]`    | —       | HTML `value` attribute of the option to select (not the display label). Pass a list for multi-select elements.      |
+| `page_id`  | `str \| None`         | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs. |
+| `frame_id` | `str \| None`         | `None`  | Attached frame ID from `browser_frames`; explicit scope never falls back to another frame.                          |
+| `wait_for` | `WaitForSpec \| None` | `None`  | One condition armed before the action; see [action observations](navigation.md#action-observations).                |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -286,13 +286,13 @@ async def browser_hover(
 
 **Parameters**
 
-| Name       | Type                  | Default | Description                                                                                                               |
-| ---------- | --------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `instance` | `str`                 | —       | Instance name.                                                                                                            |
-| `ref`      | `str`                 | —       | Element ref from `browser_snapshot`. See [Refs & snapshots](../concepts/refs-snapshots.md).                               |
-| `page_id`  | `str \| None`         | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs.       |
-| `frame_id` | `str \| None`         | `None`  | Attached frame ID from `browser_frames`; explicit scope never falls back to another frame.                                |
-| `wait_for` | `WaitForSpec \| None` | `None`  | One condition armed before the action; see [action observations](../guides/framework-integration.md#action-observations). |
+| Name       | Type                  | Default | Description                                                                                                         |
+| ---------- | --------------------- | ------- | ------------------------------------------------------------------------------------------------------------------- |
+| `instance` | `str`                 | —       | Instance name.                                                                                                      |
+| `ref`      | `str`                 | —       | Element ref from `browser_snapshot`. See [Refs & snapshots](../concepts/refs-snapshots.md).                         |
+| `page_id`  | `str \| None`         | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs. |
+| `frame_id` | `str \| None`         | `None`  | Attached frame ID from `browser_frames`; explicit scope never falls back to another frame.                          |
+| `wait_for` | `WaitForSpec \| None` | `None`  | One condition armed before the action; see [action observations](navigation.md#action-observations).                |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -342,14 +342,14 @@ async def browser_drag(
 
 **Parameters**
 
-| Name         | Type                  | Default | Description                                                                                                               |
-| ------------ | --------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `instance`   | `str`                 | —       | Instance name.                                                                                                            |
-| `source_ref` | `str`                 | —       | Ref of the element to drag (from `browser_snapshot`). See [Refs & snapshots](../concepts/refs-snapshots.md).              |
-| `target_ref` | `str`                 | —       | Ref of the drop target (from `browser_snapshot`).                                                                         |
-| `page_id`    | `str \| None`         | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs.       |
-| `frame_id`   | `str \| None`         | `None`  | Attached frame ID from `browser_frames`; explicit scope never falls back to another frame.                                |
-| `wait_for`   | `WaitForSpec \| None` | `None`  | One condition armed before the action; see [action observations](../guides/framework-integration.md#action-observations). |
+| Name         | Type                  | Default | Description                                                                                                         |
+| ------------ | --------------------- | ------- | ------------------------------------------------------------------------------------------------------------------- |
+| `instance`   | `str`                 | —       | Instance name.                                                                                                      |
+| `source_ref` | `str`                 | —       | Ref of the element to drag (from `browser_snapshot`). See [Refs & snapshots](../concepts/refs-snapshots.md).        |
+| `target_ref` | `str`                 | —       | Ref of the drop target (from `browser_snapshot`).                                                                   |
+| `page_id`    | `str \| None`         | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs. |
+| `frame_id`   | `str \| None`         | `None`  | Attached frame ID from `browser_frames`; explicit scope never falls back to another frame.                          |
+| `wait_for`   | `WaitForSpec \| None` | `None`  | One condition armed before the action; see [action observations](navigation.md#action-observations).                |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -399,12 +399,12 @@ async def browser_press_key(
 
 **Parameters**
 
-| Name       | Type                  | Default | Description                                                                                                               |
-| ---------- | --------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `instance` | `str`                 | —       | Instance name.                                                                                                            |
-| `key`      | `str`                 | —       | Playwright key name, e.g. `"Enter"`, `"Tab"`, `"Escape"`, `"ArrowDown"`, `"Control+A"`, `"Shift+Tab"`.                    |
-| `page_id`  | `str \| None`         | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs.       |
-| `wait_for` | `WaitForSpec \| None` | `None`  | One condition armed before the action; see [action observations](../guides/framework-integration.md#action-observations). |
+| Name       | Type                  | Default | Description                                                                                                         |
+| ---------- | --------------------- | ------- | ------------------------------------------------------------------------------------------------------------------- |
+| `instance` | `str`                 | —       | Instance name.                                                                                                      |
+| `key`      | `str`                 | —       | Playwright key name, e.g. `"Enter"`, `"Tab"`, `"Escape"`, `"ArrowDown"`, `"Control+A"`, `"Shift+Tab"`.              |
+| `page_id`  | `str \| None`         | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs. |
+| `wait_for` | `WaitForSpec \| None` | `None`  | One condition armed before the action; see [action observations](navigation.md#action-observations).                |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
