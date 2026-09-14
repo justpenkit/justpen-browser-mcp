@@ -32,12 +32,19 @@ async def main_runtime(
     manager = MagicMock(spec=main_mod.InstanceManager)
     manager.stop_reaper = AsyncMock()
     manager.shutdown_all = AsyncMock()
+    telemetry = MagicMock()
+    telemetry.enabled = False
+    telemetry.asgi_middleware.return_value = []
+    telemetry.shutdown = AsyncMock()
+    manager.telemetry = telemetry
+    monkeypatch.setattr(main_mod, "_initialize_telemetry", MagicMock(return_value=telemetry))
     monkeypatch.setattr(asyncio.get_running_loop(), "add_signal_handler", add_handler)
     monkeypatch.setattr(main_mod, "build_config", lambda _args, _env: BrowserServerConfig())
     monkeypatch.setattr(main_mod, "_ensure_camoufox_binary", AsyncMock())
     monkeypatch.setattr(main_mod, "InstanceManager", lambda _config, **_kwargs: manager)
     monkeypatch.setattr(main_mod, "register_all", MagicMock())
     yield handlers, manager
+    telemetry.shutdown.assert_awaited_once_with()
     # Keep a failing cleanup regression from leaving tasks behind in its test loop.
     pending = [task for task in asyncio.all_tasks() if task.get_name() in {"mcp-server", "stop-signal"}]
     for task in pending:
@@ -58,6 +65,69 @@ def test_run_kwargs_stdio_is_empty():
 def test_run_kwargs_http_includes_host_port():
     cfg = BrowserServerConfig(transport="http", host="127.0.0.1", port=8931)
     assert _run_kwargs(cfg) == {"transport": "http", "host": "127.0.0.1", "port": 8931}
+
+
+async def test_enabled_telemetry_wraps_operations_and_only_http_gets_asgi_adapter(monkeypatch, main_runtime):
+    _handlers, manager = main_runtime
+    telemetry = manager.telemetry
+    telemetry.enabled = True
+    adapter = MagicMock()
+    telemetry.asgi_middleware.return_value = [adapter]
+    config = BrowserServerConfig(transport="http", host="127.0.0.1", port=8931)
+    monkeypatch.setattr(main_mod, "build_config", lambda _args, _env: config)
+    register = MagicMock()
+    ordering = MagicMock()
+    ordering.attach_mock(register, "register")
+    add_middleware = MagicMock()
+    ordering.attach_mock(add_middleware, "middleware")
+    monkeypatch.setattr(main_mod, "register_all", register)
+    monkeypatch.setattr(main_mod.mcp, "add_middleware", add_middleware)
+    run_server = AsyncMock()
+    monkeypatch.setattr(main_mod.mcp, "run_async", run_server)
+    await main_mod.main()
+    assert ordering.mock_calls[0][0] == "middleware"
+    assert ordering.mock_calls[1][0] == "register"
+    assert run_server.call_args.kwargs["middleware"] == [adapter]
+    assert _run_kwargs(BrowserServerConfig(), middleware=[adapter]) == {}
+
+
+@pytest.mark.parametrize("stage", ["prepare", "reaper", "browsers"])
+async def test_telemetry_closes_after_startup_or_cleanup_failure(monkeypatch, main_runtime, stage):
+    _handlers, manager = main_runtime
+    ordering = []
+    failure = RuntimeError("fixture failure")
+
+    async def stop_reaper():
+        ordering.append("reaper")
+        if stage == "reaper":
+            raise failure
+
+    async def stop_browsers():
+        ordering.append("browsers")
+        if stage == "browsers":
+            raise failure
+
+    async def stop_telemetry():
+        ordering.append("telemetry")
+
+    manager.stop_reaper.side_effect = stop_reaper
+    manager.shutdown_all.side_effect = stop_browsers
+    manager.telemetry.shutdown.side_effect = stop_telemetry
+    monkeypatch.setattr(main_mod.mcp, "run_async", AsyncMock())
+    if stage == "prepare":
+        monkeypatch.setattr(main_mod, "_ensure_camoufox_binary", AsyncMock(side_effect=failure))
+    with pytest.raises(RuntimeError, match="fixture failure"):
+        await main_mod.main()
+    assert ordering == (["telemetry"] if stage == "prepare" else ["reaper", "browsers", "telemetry"])
+
+
+async def test_cleanup_failure_does_not_mask_original_server_failure(monkeypatch, main_runtime):
+    _handlers, manager = main_runtime
+    manager.stop_reaper.side_effect = ValueError("cleanup failed")
+    monkeypatch.setattr(main_mod.mcp, "run_async", AsyncMock(side_effect=RuntimeError("server failed")))
+    with pytest.raises(RuntimeError, match="server failed"):
+        await main_mod.main()
+    manager.shutdown_all.assert_awaited_once()
 
 
 @pytest.mark.parametrize("transport", ["stdio", "http"])
