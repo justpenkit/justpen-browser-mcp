@@ -31,7 +31,7 @@ uv run python -m justpen_browser_mcp
 `BROWSER_MCP_TRANSPORT` or `--transport`:
 
 - **stdio** (default) — the client spawns the process and speaks MCP over its
-    stdin/stdout. No network socket is opened.
+    stdin/stdout. No MCP network listener is opened.
 - **http** — the server listens for MCP-over-HTTP connections on a TCP host
     and port.
 
@@ -76,6 +76,9 @@ path instead.
 
 Server-side logs go to stderr. See [Configuration](configuration.md) for the
 `BROWSER_MCP_LOG_LEVEL` variable.
+
+Optional [Telemetry](telemetry.md) exports correlated traces, operational events
+and metrics to an OTLP collector with either MCP transport.
 
 ## Process limits
 

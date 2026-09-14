@@ -48,6 +48,23 @@ Codex supports Streamable HTTP servers through the `url` field. See
     loopback binding unless you supply your own authentication and authorization
     layer. Read the [HTTP transport warning](../getting-started/run-server.md#transport).
 
+## Telemetry
+
+For stdio, add a server environment table as supported by
+[Codex's MCP configuration](https://learn.chatgpt.com/docs/extend/mcp?surface=cli):
+
+```toml
+[mcp_servers.justpen-browser.env]
+JUSTPEN_BROWSER_OTEL_ENABLED = "true"
+JUSTPEN_BROWSER_OTEL_ENDPOINT = "http://127.0.0.1:4318"
+JUSTPEN_SESSION_ID = "pentest-example"
+JUSTPEN_BROWSER_OTEL_RESOURCE_ATTRIBUTES = "justpen.run.id=run-example"
+```
+
+For HTTP, set these variables on the separately started server process. See
+[Telemetry](../getting-started/telemetry.md) for session ownership, collector
+settings and the [measured native tracing limits](../getting-started/telemetry.md#measured-client-limits).
+
 ## Verify the connection
 
 Run `codex mcp list`, or use `/mcp` in the Codex CLI, to inspect connected servers.
