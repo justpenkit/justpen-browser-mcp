@@ -17,6 +17,7 @@ from typing_extensions import override
 
 from .operation_context import Operation, current_operation
 from .responses import error_response
+from .telemetry.context import observe_operation
 
 if TYPE_CHECKING:
     from fastmcp.server.middleware import CallNext, MiddlewareContext
@@ -85,6 +86,13 @@ class OperationMiddleware(Middleware):
             page_id=target.get("page_id") if arguments.get("page_id") is None else None,
         )
         token = current_operation.set(operation)
+        observe_operation(
+            operation.id,
+            instance_id=operation.instance_id,
+            page_id=operation.page_id,
+            frame_id=operation.frame_id,
+            execution_started=operation.execution_started,
+        )
         deadline = asyncio.timeout(self.manager.operation_timeout_seconds)
         try:
             async with deadline:
@@ -120,6 +128,13 @@ class OperationMiddleware(Middleware):
             )
             raise
         finally:
+            observe_operation(
+                operation.id,
+                instance_id=operation.instance_id,
+                page_id=operation.page_id,
+                frame_id=operation.frame_id,
+                execution_started=operation.execution_started,
+            )
             current_operation.reset(token)
 
     def _finish(self, operation: Operation, result: ToolResult) -> ToolResult:

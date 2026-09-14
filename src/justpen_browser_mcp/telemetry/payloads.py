@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, cast
 
+from ..errors import VALID_ERROR_TYPES
 from .context import bounded_string
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
-
+    from fastmcp.tools import ToolResult
     from opentelemetry.util.types import AttributeValue
+
+    from .context import RequestObservation
 
 KNOWN_TOOLS = frozenset(
     "browser_" + suffix
@@ -137,3 +140,26 @@ def safe_attributes(attributes: Mapping[str, object]) -> dict[str, AttributeValu
         elif selected := bounded_string(value):
             result[name] = selected
     return result
+
+
+def apply_tool_result(observation: RequestObservation, result: ToolResult) -> None:
+    """Project the final envelope; operation completion does not imply tool success."""
+    payload = result.structured_content or {}
+    if result.is_error or payload.get("status") == "error":
+        observation.outcome = "error"
+        error_type = payload.get("error_type")
+        observation.error_type = (
+            error_type if isinstance(error_type, str) and error_type in VALID_ERROR_TYPES else "tool_error"
+        )
+    operation = payload.get("operation")
+    if isinstance(operation, Mapping):
+        fields = cast("Mapping[str, object]", operation)
+        for name, key in (("operation", "id"), ("instance", "instance_id"), ("page", "page_id"), ("frame", "frame_id")):
+            if identifier := bounded_string(fields.get(key)):
+                observation.attributes[f"justpen.{name}.id"] = identifier
+        outcome = fields.get("outcome")
+        if isinstance(outcome, str) and outcome in {"completed", "unknown", "not_started"}:
+            observation.attributes["justpen.operation.outcome"] = outcome
+    data = payload.get("data")
+    if isinstance(data, Mapping) and cast("Mapping[str, object]", data).get("action_completed") is True:
+        observation.attributes["justpen.operation.action_completed"] = True

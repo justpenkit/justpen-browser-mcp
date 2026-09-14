@@ -107,4 +107,6 @@ def observe_operation(
     for name, value in (("operation", operation_id), ("instance", instance_id), ("page", page_id), ("frame", frame_id)):
         if identifier := bounded_string(value):
             observation.attributes[f"justpen.{name}.id"] = identifier
+        else:
+            observation.attributes.pop(f"justpen.{name}.id", None)
     observation.attributes["justpen.operation.execution_started"] = execution_started

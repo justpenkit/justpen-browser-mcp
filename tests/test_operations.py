@@ -13,13 +13,77 @@ from fastmcp.client import Client
 from fastmcp.server.middleware import MiddlewareContext
 from fastmcp.tools import ToolResult
 from mcp.types import CallToolRequestParams
+from opentelemetry.sdk._logs import LoggerProvider
+from opentelemetry.sdk._logs.export import InMemoryLogRecordExporter, SimpleLogRecordProcessor
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace import SpanKind, StatusCode
 
 from justpen_browser_mcp.config import BrowserServerConfig
 from justpen_browser_mcp.instance_manager import InstanceManager
 from justpen_browser_mcp.operation_context import Operation, current_operation, mark_operation_started
 from justpen_browser_mcp.operations import OperationMiddleware
 from justpen_browser_mcp.responses import error_response, success_response
+from justpen_browser_mcp.telemetry.events import TelemetryEvents
+from justpen_browser_mcp.telemetry.middleware import TelemetryMiddleware
 from justpen_browser_mcp.tools import register_all
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("oversized", [False, True])
+async def test_telemetry_uses_final_operation_outcome(monkeypatch, oversized):
+    memory, logs = InMemorySpanExporter(), InMemoryLogRecordExporter()
+    provider = TracerProvider(resource=Resource({"justpen.session.id": "pentest-a"}), shutdown_on_exit=False)
+    provider.add_span_processor(SimpleSpanProcessor(memory))
+    logger_provider = LoggerProvider(resource=provider.resource, shutdown_on_exit=False)
+    logger_provider.add_log_record_processor(SimpleLogRecordProcessor(logs))
+    monkeypatch.setattr("fastmcp.server.telemetry.get_tracer", lambda *args: provider.get_tracer("fastmcp"))
+    server = FastMCP("operations")
+    server.add_middleware(
+        TelemetryMiddleware(
+            events=TelemetryEvents(logger_provider=logger_provider, meter_provider=None),
+            transport="stdio",
+        )
+    )
+    register_all(server, InstanceManager(BrowserServerConfig(max_result_bytes=1024)))
+
+    @server.tool
+    async def browser_probe() -> dict[str, Any]:
+        mark_operation_started("instance-a", page_id="page-a")
+        return success_response("instance-a", {"value": "sentinel-secret" * (1000 if oversized else 1)})
+
+    try:
+        async with Client(server) as client:
+            response = await client.call_tool("browser_probe")
+        operation = response.data["operation"]
+        spans = [
+            span
+            for span in memory.get_finished_spans()
+            if (span.attributes or {}).get("mcp.method.name") == "tools/call"
+        ]
+        assert len(spans) == 1
+        span = spans[0]
+        assert span.attributes is not None
+        assert span.context is not None
+        assert span.kind == SpanKind.SERVER
+        assert span.attributes["justpen.operation.id"] == operation["id"]
+        assert span.attributes["justpen.page.id"] == "page-a"
+        assert span.attributes["justpen.operation.execution_started"] is True
+        assert span.status.status_code == (StatusCode.ERROR if oversized else StatusCode.UNSET)
+        terminal = [
+            item
+            for item in logs.get_finished_logs()
+            if item.log_record.body == "mcp.request.finished"
+            and (item.log_record.attributes or {}).get("justpen.operation.id") == operation["id"]
+        ]
+        assert len(terminal) == 1
+        assert terminal[0].log_record.span_id == span.context.span_id
+        assert "sentinel-secret" not in repr(span.attributes)
+    finally:
+        provider.shutdown()
+        logger_provider.shutdown()
 
 
 @pytest.mark.integration
