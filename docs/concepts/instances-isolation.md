@@ -172,7 +172,7 @@ destroy calls do not pretend that an incomplete cleanup succeeded.
 
 Shutdown stops admission permanently for that manager. Calling destroy or shutdown
 from the instance's own `browser_run_code` operation is rejected to prevent a
-self-wait. See [framework integration](../guides/framework-integration.md).
+self-wait. See [process limits](../getting-started/run-server.md#process-limits).
 
 ## Explicit page targets
 

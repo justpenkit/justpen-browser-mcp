@@ -338,7 +338,8 @@ evicted records or shortened fields.
 When `path` is provided, the file contains the selected `messages` or `requests`
 plus pagination metadata. The returned data contains `path`, `count`, and the
 same pagination metadata, without inline entries. Artifacts refer to files on
-the server; see [framework integration](../guides/framework-integration.md).
+the server. Collect those files separately if the MCP client runs elsewhere;
+the server does not upload them or manage their long-term retention.
 
 ```json
 {
@@ -399,4 +400,4 @@ Errors include `instance_not_found`, `download_not_found` for a foreign or evict
 ID, `download_failed` for saving failures, and `operation_timeout`. A failed or
 cancelled save may leave a partial file; inspect it before retrying. Browser
 teardown removes browser-managed temporary downloads, while explicitly saved
-files remain the framework's responsibility.
+files remain on disk for you to collect or delete.

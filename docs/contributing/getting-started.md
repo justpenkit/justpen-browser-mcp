@@ -52,7 +52,7 @@ Git hooks run the routine checks automatically:
 `make check` verifies lock consistency, all supported formatting, lint, strict
 typing and unit tests with 80% branch coverage. Typing and tests each use the
 active uv Python once, defaulting to 3.13. The strict MkDocs build validates
-local file links, heading anchors and Python API references. A passing pre-push
+local file links and heading anchors. A passing pre-push
 already supplies these gates; no duplicate manual run is required before a PR.
 
 CI runs shared formatting, lint and docs once on Python 3.13. Its unit matrix
@@ -116,4 +116,4 @@ enabled.
 
 See [Lint & typing](lint-typing.md) for formatting and suppressions,
 [Release process](release-process.md) for version bumps and
-[Template updates](../guides/template-updates.md) for framework updates.
+[Template updates](template-updates.md) for development tooling updates.

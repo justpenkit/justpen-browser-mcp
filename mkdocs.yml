@@ -63,25 +63,16 @@ nav:
       - Cookies & storage: tools-reference/cookies.md
       - Utility: tools-reference/utility.md
       - Page: tools-reference/page.md
-  - Python API reference: api.md
-  - Framework integration: guides/framework-integration.md
-  - Template updates: guides/template-updates.md
   - Contributing:
       - Getting started: contributing/getting-started.md
       - Claude Code and Codex: contributing/agents.md
       - PR checklist: contributing/pr-checklist.md
       - Lint & typing: contributing/lint-typing.md
       - Release process: contributing/release-process.md
+      - Template updates: contributing/template-updates.md
 
 plugins:
   - search
-  - mkdocstrings:
-      handlers:
-        python:
-          paths: [src]
-          options:
-            docstring_style: google
-            show_source: true
 
 markdown_extensions:
   - admonition

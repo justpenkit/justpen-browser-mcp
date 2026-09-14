@@ -100,7 +100,9 @@ persistent job or an idempotency key.
 The classification is conservative: entering the operation can mark an eventual
 validation failure as `unknown` even if the browser was not changed. No mutation
 is automatically retried. A cancelled call may have no response; server logs
-record the operation ID and whether execution had started.
+record the operation ID and whether execution had started. After cancellation or
+reconnecting a client, inspect the page before repeating a mutation. Repeated calls
+are not deduplicated, and logs are not a durable record of your workflow.
 
 `artifacts` lists returned server-side `path`/`saved_to` references. These are not
 uploads or integrity guarantees. If oversized references themselves prevent a
@@ -110,5 +112,6 @@ be omitted. Stable target IDs are preserved.
 
 `BROWSER_MCP_MAX_RESULT_BYTES` bounds the serialized structured envelope including
 metadata. Large results return `result_too_large`; use smaller queries, event
-pagination, or explicit file output. See [framework integration](../guides/framework-integration.md)
-for recovery and evidence collection.
+pagination, or explicit file output. See [event pagination and export](../tools-reference/inspection.md#event-pagination-and-export)
+for collecting console and network records. Check `operation.outcome` before
+repeating an action whose result was too large to return.

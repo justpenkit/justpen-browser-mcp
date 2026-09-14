@@ -66,7 +66,7 @@ dev = [
   "taplo>=0.9.3",
   "yamlfix>=1.16",
 ]
-docs = ["mkdocs-material>=9.5", "mkdocstrings[python]>=0.27"]
+docs = ["mkdocs-material>=9.5"]
 
 [tool.commitizen]
 # Existing application history predates Copier enrollment.

@@ -39,16 +39,16 @@ async def browser_mouse_click_xy(
 
 **Parameters**
 
-| Name          | Type                  | Default  | Description                                                                                                               |
-| ------------- | --------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `instance`    | `str`                 | —        | Instance name.                                                                                                            |
-| `x`           | `int`                 | —        | Viewport-relative horizontal CSS pixel coordinate (0 = left edge).                                                        |
-| `y`           | `int`                 | —        | Viewport-relative vertical CSS pixel coordinate (0 = top edge).                                                           |
-| `button`      | `str`                 | `"left"` | One of `"left"`, `"right"`, `"middle"`.                                                                                   |
-| `click_count` | `int`                 | `1`      | Number of clicks to deliver; use `2` for a double-click.                                                                  |
-| `delay_ms`    | `int`                 | `0`      | Delay in milliseconds between mousedown and mouseup.                                                                      |
-| `page_id`     | `str \| None`         | `None`   | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs.       |
-| `wait_for`    | `WaitForSpec \| None` | `None`   | One condition armed before the action; see [action observations](../guides/framework-integration.md#action-observations). |
+| Name          | Type                  | Default  | Description                                                                                                         |
+| ------------- | --------------------- | -------- | ------------------------------------------------------------------------------------------------------------------- |
+| `instance`    | `str`                 | —        | Instance name.                                                                                                      |
+| `x`           | `int`                 | —        | Viewport-relative horizontal CSS pixel coordinate (0 = left edge).                                                  |
+| `y`           | `int`                 | —        | Viewport-relative vertical CSS pixel coordinate (0 = top edge).                                                     |
+| `button`      | `str`                 | `"left"` | One of `"left"`, `"right"`, `"middle"`.                                                                             |
+| `click_count` | `int`                 | `1`      | Number of clicks to deliver; use `2` for a double-click.                                                            |
+| `delay_ms`    | `int`                 | `0`      | Delay in milliseconds between mousedown and mouseup.                                                                |
+| `page_id`     | `str \| None`         | `None`   | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs. |
+| `wait_for`    | `WaitForSpec \| None` | `None`   | One condition armed before the action; see [action observations](navigation.md#action-observations).                |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -239,15 +239,15 @@ async def browser_mouse_drag_xy(
 
 **Parameters**
 
-| Name       | Type                  | Default | Description                                                                                                               |
-| ---------- | --------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `instance` | `str`                 | —       | Instance name.                                                                                                            |
-| `from_x`   | `int`                 | —       | Starting horizontal pixel coordinate.                                                                                     |
-| `from_y`   | `int`                 | —       | Starting vertical pixel coordinate.                                                                                       |
-| `to_x`     | `int`                 | —       | Ending horizontal pixel coordinate.                                                                                       |
-| `to_y`     | `int`                 | —       | Ending vertical pixel coordinate.                                                                                         |
-| `page_id`  | `str \| None`         | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs.       |
-| `wait_for` | `WaitForSpec \| None` | `None`  | One condition armed before the action; see [action observations](../guides/framework-integration.md#action-observations). |
+| Name       | Type                  | Default | Description                                                                                                         |
+| ---------- | --------------------- | ------- | ------------------------------------------------------------------------------------------------------------------- |
+| `instance` | `str`                 | —       | Instance name.                                                                                                      |
+| `from_x`   | `int`                 | —       | Starting horizontal pixel coordinate.                                                                               |
+| `from_y`   | `int`                 | —       | Starting vertical pixel coordinate.                                                                                 |
+| `to_x`     | `int`                 | —       | Ending horizontal pixel coordinate.                                                                                 |
+| `to_y`     | `int`                 | —       | Ending vertical pixel coordinate.                                                                                   |
+| `page_id`  | `str \| None`         | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs. |
+| `wait_for` | `WaitForSpec \| None` | `None`  | One condition armed before the action; see [action observations](navigation.md#action-observations).                |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -301,13 +301,13 @@ async def browser_mouse_wheel(
 
 **Parameters**
 
-| Name       | Type                  | Default | Description                                                                                                               |
-| ---------- | --------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `instance` | `str`                 | —       | Instance name.                                                                                                            |
-| `delta_x`  | `int`                 | `0`     | Horizontal scroll in CSS pixels (positive = right).                                                                       |
-| `delta_y`  | `int`                 | `0`     | Vertical scroll in CSS pixels (positive = down).                                                                          |
-| `page_id`  | `str \| None`         | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs.       |
-| `wait_for` | `WaitForSpec \| None` | `None`  | One condition armed before the action; see [action observations](../guides/framework-integration.md#action-observations). |
+| Name       | Type                  | Default | Description                                                                                                         |
+| ---------- | --------------------- | ------- | ------------------------------------------------------------------------------------------------------------------- |
+| `instance` | `str`                 | —       | Instance name.                                                                                                      |
+| `delta_x`  | `int`                 | `0`     | Horizontal scroll in CSS pixels (positive = right).                                                                 |
+| `delta_y`  | `int`                 | `0`     | Vertical scroll in CSS pixels (positive = down).                                                                    |
+| `page_id`  | `str \| None`         | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs. |
+| `wait_for` | `WaitForSpec \| None` | `None`  | One condition armed before the action; see [action observations](navigation.md#action-observations).                |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 

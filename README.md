@@ -14,8 +14,8 @@ identities.
 The runtime provides stable instance/page/frame identities, cooperative operation deadlines,
 46 tools, optional action observations, original screenshot files, retained downloads,
 bounded console/network evidence with cursor pagination, and explicit recovery
-metadata on tool results. See the [framework integration guide](docs/guides/framework-integration.md)
-for lifecycle ownership, artifact collection and process supervision.
+metadata on tool results. See [action observations](docs/tools-reference/navigation.md#action-observations)
+and [response metadata](docs/concepts/response-envelope.md#operation-metadata) for usage.
 
 ## Install
 

@@ -77,6 +77,18 @@ path instead.
 Server-side logs go to stderr. See [Configuration](configuration.md) for the
 `BROWSER_MCP_LOG_LEVEL` variable.
 
+## Process limits
+
+Operation deadlines cover cooperative asynchronous work and time spent waiting
+for an instance's lock. `browser_run_code` runs Python in the server process;
+synchronous loops or blocking calls can prevent that deadline from taking effect.
+Use a process supervisor when you need a hard wall-clock limit.
+
+Browser instances share the host and server process. Use separate processes or
+containers for stronger workload isolation. If teardown leaves a `close_failed`
+entry in `browser_health`, stop surviving browser processes before restarting
+the server or reusing their profiles. See [instance teardown](../concepts/instances-isolation.md#identity-concurrency-and-teardown).
+
 ## Latest-build compatibility { #latest-build-compatibility }
 
 Published Camoufox 152.0.4-beta.30 can hang on short humanized movements, initial
