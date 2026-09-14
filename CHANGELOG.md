@@ -1,3 +1,14 @@
+## v0.8.0 (2026-09-14)
+
+### Feat
+
+- wire telemetry into MCP server lifecycle
+- correlate browser operations with native MCP spans
+- configure bounded OTLP telemetry export
+- emit correlated operational events and metrics
+- receive W3C context and MCP call metadata
+- add telemetry configuration and resource identity
+
 ## v0.7.0 (2026-09-14)
 
 ### Feat
