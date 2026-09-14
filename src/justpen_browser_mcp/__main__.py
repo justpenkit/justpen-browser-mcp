@@ -11,13 +11,21 @@ import logging
 import os
 import signal
 import sys
+from importlib.metadata import version
 from typing import Any
+
+from opentelemetry import trace
+from opentelemetry.context import Context, attach, detach
+from starlette.middleware import Middleware
 
 from .app import mcp
 from .browser_runtime import BrowserRuntime, ensure_camoufox_binary as _ensure_camoufox_binary
 from .cli import build_config
 from .config import BrowserServerConfig
 from .instance_manager import InstanceManager
+from .telemetry.config import read_config as _telemetry_config
+from .telemetry.middleware import TelemetryMiddleware
+from .telemetry.runtime import TelemetryRuntime, initialize as _initialize_telemetry
 from .tools import register_all
 
 logger = logging.getLogger(__name__)
@@ -31,10 +39,13 @@ def _setup_logging(level: str) -> None:
     )
 
 
-def _run_kwargs(config: BrowserServerConfig) -> dict[str, Any]:
+def _run_kwargs(config: BrowserServerConfig, *, middleware: list[Middleware] | None = None) -> dict[str, Any]:
     """Build run_async kwargs from config: empty for stdio, host/port for http."""
     if config.transport == "http":
-        return {"transport": "http", "host": config.host, "port": config.port}
+        kwargs: dict[str, Any] = {"transport": "http", "host": config.host, "port": config.port}
+        if middleware:
+            kwargs["middleware"] = middleware
+        return kwargs
     return {}
 
 
@@ -42,6 +53,38 @@ async def main() -> None:
     """Launch the browser MCP server using the configured transport."""
     config = build_config(sys.argv[1:], os.environ)
     _setup_logging(config.log_level)
+    telemetry = _initialize_telemetry(_telemetry_config(os.environ), service_version=version("justpen-browser-mcp"))
+    try:
+        await _serve(config, telemetry)
+    except Exception:
+        telemetry.events.lifecycle("mcp.server.failed", {})
+        raise
+    finally:
+        telemetry.events.lifecycle("mcp.server.stopped", {})
+        await telemetry.shutdown()
+
+
+async def _prepare_browser(telemetry: TelemetryRuntime) -> BrowserRuntime:
+    if not telemetry.enabled:
+        return await _ensure_camoufox_binary()
+    with trace.get_tracer("justpen_browser_mcp").start_as_current_span("browser.prepare", context=Context()):
+        return await _ensure_camoufox_binary()
+
+
+async def _cleanup_manager(mgr: InstanceManager, *, preserve_error: bool) -> None:
+    failure: Exception | None = None
+    for cleanup in (mgr.stop_reaper, mgr.shutdown_all):
+        try:
+            await cleanup()
+        except Exception as error:
+            logger.exception("Browser manager cleanup failed")
+            if failure is None:
+                failure = error
+    if failure is not None and not preserve_error:
+        raise failure
+
+
+async def _serve(config: BrowserServerConfig, telemetry: TelemetryRuntime) -> None:
 
     stop_event = asyncio.Event()
     preparation_task: asyncio.Task[BrowserRuntime] | None = None
@@ -57,7 +100,7 @@ async def main() -> None:
     for sig in (signal.SIGTERM, signal.SIGINT):
         loop.add_signal_handler(sig, request_stop)
 
-    preparation_task = asyncio.create_task(_ensure_camoufox_binary(), name="browser-preparation")
+    preparation_task = asyncio.create_task(_prepare_browser(telemetry), name="browser-preparation")
     try:
         runtime = await preparation_task
     except asyncio.CancelledError:
@@ -71,10 +114,29 @@ async def main() -> None:
         return
 
     mgr = InstanceManager(config, browser_runtime=runtime)
+    await _run_server(config, telemetry, mgr, stop_event)
+
+
+async def _run_server(
+    config: BrowserServerConfig,
+    telemetry: TelemetryRuntime,
+    mgr: InstanceManager,
+    stop_event: asyncio.Event,
+) -> None:
+    if telemetry.enabled:
+        mcp.add_middleware(TelemetryMiddleware(events=telemetry.events, transport=config.transport))
     register_all(mcp, mgr)
     mgr.start_reaper()
-
-    server_task = asyncio.create_task(mcp.run_async(**_run_kwargs(config)), name="mcp-server")
+    telemetry.events.lifecycle("mcp.server.ready", {"justpen.transport": config.transport})
+    # Startup or an embedding caller's context must not parent the whole server.
+    token = attach(Context())
+    try:
+        server_task = asyncio.create_task(
+            mcp.run_async(**_run_kwargs(config, middleware=telemetry.asgi_middleware())),
+            name="mcp-server",
+        )
+    finally:
+        detach(token)
     stop_task = asyncio.create_task(stop_event.wait(), name="stop-signal")
 
     try:
@@ -91,13 +153,13 @@ async def main() -> None:
                 return
         await server_task
     finally:
+        telemetry.events.lifecycle("mcp.server.stopping", {})
         server_task.cancel()
         stop_task.cancel()
         try:
             await asyncio.gather(server_task, stop_task, return_exceptions=True)
         finally:
-            await mgr.stop_reaper()
-            await mgr.shutdown_all()
+            await _cleanup_manager(mgr, preserve_error=sys.exception() is not None)
 
 
 def cli() -> None:

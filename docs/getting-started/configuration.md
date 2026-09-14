@@ -10,10 +10,13 @@ config file. Configuration is read once at server startup.
 
 ## Environment variables and CLI flags { #environment-variables-and-cli-flags }
 
-All environment variables are prefixed `BROWSER_MCP_`. Booleans accept
+Browser and server settings below use the prefix `BROWSER_MCP_`. Booleans accept
 `1`/`true`/`yes`/`on` for true and `0`/`false`/`no`/`off` for false
 (case-insensitive); an invalid value logs a warning and falls back to the
 default.
+
+Optional [Telemetry](telemetry.md) uses `JUSTPEN_BROWSER_OTEL_*` and the dedicated
+`JUSTPEN_SESSION_ID` variable, with its own boolean and identity rules.
 
 | Variable                                | CLI flag                          | Format                                                                                                  | Default     |
 | --------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------- | ----------- |

@@ -42,6 +42,7 @@ nav:
       - Install: getting-started/install.md
       - Run the server: getting-started/run-server.md
       - Configuration: getting-started/configuration.md
+      - Telemetry: getting-started/telemetry.md
   - Concepts:
       - Response envelope: concepts/response-envelope.md
       - Instances & isolation: concepts/instances-isolation.md

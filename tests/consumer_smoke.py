@@ -9,12 +9,62 @@ from pathlib import Path
 from anyio import Path as AsyncPath
 from fastmcp import FastMCP
 from fastmcp.client import Client
+from opentelemetry.sdk._logs import LoggerProvider
+from opentelemetry.sdk._logs.export import InMemoryLogRecordExporter, SimpleLogRecordProcessor
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 import justpen_browser_mcp
 from justpen_browser_mcp.browser_runtime import ensure_camoufox_binary
 from justpen_browser_mcp.config import BrowserServerConfig
 from justpen_browser_mcp.instance_manager import InstanceManager
+from justpen_browser_mcp.telemetry.config import read_config
+from justpen_browser_mcp.telemetry.context import extract_carrier
+from justpen_browser_mcp.telemetry.events import TelemetryEvents
+from justpen_browser_mcp.telemetry.export import SanitizingSpanExporter
+from justpen_browser_mcp.telemetry.resource import build_resource
+from justpen_browser_mcp.telemetry.runtime import initialize
 from justpen_browser_mcp.tools import register_all
+
+
+async def telemetry_smoke() -> None:
+    """Exercise installed SDK imports and local signal APIs at dependency floors."""
+    disabled = initialize(read_config({}), service_version="consumer")
+    assert not disabled.enabled
+    await disabled.shutdown()
+    config = read_config(
+        {
+            "JUSTPEN_BROWSER_OTEL_ENABLED": "true",
+            "JUSTPEN_SESSION_ID": "consumer-session",
+            "JUSTPEN_BROWSER_OTEL_RESOURCE_ATTRIBUTES": "justpen.session.id=wrong,deployment.environment.name=test",
+        }
+    )
+    assert config.enabled
+    resource = build_resource(config, service_version="consumer")
+    assert resource.attributes["justpen.session.id"] == "consumer-session"
+    traces, logs = InMemorySpanExporter(), InMemoryLogRecordExporter()
+    provider = TracerProvider(resource=resource, shutdown_on_exit=False)
+    provider.add_span_processor(SimpleSpanProcessor(SanitizingSpanExporter(traces)))
+    logger_provider = LoggerProvider(resource=resource, shutdown_on_exit=False)
+    logger_provider.add_log_record_processor(SimpleLogRecordProcessor(logs))
+    events = TelemetryEvents(logger_provider=logger_provider, meter_provider=None)
+    parent = extract_carrier({"traceparent": "00-" + "11" * 16 + "-" + "22" * 8 + "-01"})
+    try:
+        with provider.get_tracer("consumer").start_as_current_span("browser.prepare", context=parent.context) as span:
+            span.record_exception(ValueError("consumer-sentinel-secret"))
+            events.lifecycle("mcp.server.ready", {})
+        exported = traces.get_finished_spans()
+        assert len(exported) == 1
+        assert "consumer-sentinel-secret" not in exported[0].to_json()
+        assert exported[0].context is not None
+        record = logs.get_finished_logs()[0]
+        assert record.log_record.trace_id == int("11" * 16, 16)
+        assert record.log_record.span_id == exported[0].context.span_id
+        assert record.resource.attributes["justpen.session.id"] == "consumer-session"
+    finally:
+        provider.shutdown()
+        logger_provider.shutdown()
 
 
 async def smoke(source_root: Path, *, browser: bool) -> None:
@@ -22,6 +72,7 @@ async def smoke(source_root: Path, *, browser: bool) -> None:
     package = await AsyncPath(justpen_browser_mcp.__file__).resolve()
     assert not package.is_relative_to(source_root), f"Imported checkout instead of wheel: {package}"
     assert await (package.parent / "py.typed").is_file()
+    await telemetry_smoke()
     expected = json.loads(await AsyncPath(source_root / "tests/fixtures/tool-input-schemas.json").read_text())
     runtime = await ensure_camoufox_binary() if browser else None
     manager = InstanceManager(BrowserServerConfig(), browser_runtime=runtime)

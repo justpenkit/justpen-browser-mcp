@@ -42,6 +42,25 @@ use an explicit interpreter path:
 }
 ```
 
+## Telemetry
+
+For stdio, add an `env` object inside the `mcpServers.justpen-browser` entry:
+
+```json
+{
+  "env": {
+    "JUSTPEN_BROWSER_OTEL_ENABLED": "true",
+    "JUSTPEN_BROWSER_OTEL_ENDPOINT": "http://127.0.0.1:4318",
+    "JUSTPEN_SESSION_ID": "pentest-example",
+    "JUSTPEN_BROWSER_OTEL_RESOURCE_ATTRIBUTES": "justpen.run.id=run-example"
+  }
+}
+```
+
+For HTTP, set these variables on the separately started server process. See
+[Telemetry](../getting-started/telemetry.md) for session ownership, collector
+settings and the [measured native tracing limits](../getting-started/telemetry.md#measured-client-limits).
+
 ## Sanity check { #sanity-check }
 
 After registering, ask Claude Code to list available MCP servers / tools. The
