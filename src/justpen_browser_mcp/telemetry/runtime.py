@@ -24,9 +24,9 @@ from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from starlette.middleware import Middleware
 
+from .context import BoundedTraceContextPropagator
 from .events import TelemetryEvents
 from .export import SanitizingSpanExporter, SdkDiagnosticFilter
 from .http import HttpTraceContextMiddleware
@@ -151,21 +151,32 @@ def initialize(config: TelemetryConfig, *, service_version: str) -> TelemetryRun
         tracer_provider = TracerProvider(resource=resource, shutdown_on_exit=False)
         handle.providers.append(tracer_provider)
         if config.traces.exporter == "otlp":
-            tracer_provider.add_span_processor(
-                BatchSpanProcessor(SanitizingSpanExporter(_trace_exporter(config.traces.protocol)))
-            )
+            span_exporter = SanitizingSpanExporter(_trace_exporter(config.traces.protocol))
+            handle.providers.append(span_exporter)
+            span_processor = BatchSpanProcessor(span_exporter)
+            handle.providers[-1] = span_processor
+            tracer_provider.add_span_processor(span_processor)
+            handle.providers.pop()
         logger_provider = None
         if config.logs.exporter == "otlp":
             logger_provider = LoggerProvider(resource=resource, shutdown_on_exit=False)
             handle.providers.append(logger_provider)
-            logger_provider.add_log_record_processor(BatchLogRecordProcessor(_log_exporter(config.logs.protocol)))
+            log_exporter = _log_exporter(config.logs.protocol)
+            handle.providers.append(log_exporter)
+            log_processor = BatchLogRecordProcessor(log_exporter)
+            handle.providers[-1] = log_processor
+            logger_provider.add_log_record_processor(log_processor)
+            handle.providers.pop()
         meter_provider = None
         if config.metrics.exporter == "otlp":
-            reader = PeriodicExportingMetricReader(_metric_exporter(config.metrics.protocol))
+            metric_exporter = _metric_exporter(config.metrics.protocol)
+            handle.providers.append(metric_exporter)
+            reader = PeriodicExportingMetricReader(metric_exporter)
+            handle.providers[-1] = reader
             meter_provider = MeterProvider(resource=resource, metric_readers=[reader], shutdown_on_exit=False)
-            handle.providers.append(meter_provider)
+            handle.providers[-1] = meter_provider
         handle.events = TelemetryEvents(logger_provider=logger_provider, meter_provider=meter_provider)
-        propagate.set_global_textmap(TraceContextTextMapPropagator())
+        propagate.set_global_textmap(BoundedTraceContextPropagator())
         trace.set_tracer_provider(tracer_provider)
     except Exception:  # noqa: BLE001 — failed SDK setup must close owned resources without leaking credentials
         _start_cleanup(handle.providers, time.monotonic() + config.shutdown_timeout_ms / 1000)

@@ -99,3 +99,32 @@ async def test_flush_failure_does_not_skip_shutdown_or_leak_error(caplog):
     await handle.shutdown()
     broken.shutdown.assert_called_once()
     assert "sentinel-secret" not in caplog.text
+
+
+@pytest.mark.parametrize("stage", ["logs", "reader", "meter"])
+async def test_partial_setup_closes_all_acquired_resources(monkeypatch, stage):
+    monkeypatch.setattr(runtime, "configure_sdk_environment", MagicMock())
+    traces, logs, metrics = MagicMock(), MagicMock(), MagicMock()
+    loop = asyncio.get_running_loop()
+    closed = [asyncio.Event() for _ in range(3)]
+    for exporter, event in zip((traces, logs, metrics), closed, strict=True):
+        exporter.shutdown.side_effect = lambda *args, event=event, **kwargs: loop.call_soon_threadsafe(event.set)
+    monkeypatch.setattr(runtime, "_trace_exporter", lambda protocol: traces)
+    monkeypatch.setattr(runtime, "_log_exporter", lambda protocol: logs)
+    monkeypatch.setattr(runtime, "_metric_exporter", lambda protocol: metrics)
+    failure = MagicMock(side_effect=ValueError("sentinel-secret"))
+    if stage == "logs":
+        monkeypatch.setattr(runtime, "_log_exporter", failure)
+    elif stage == "reader":
+        monkeypatch.setattr(runtime, "PeriodicExportingMetricReader", failure)
+    else:
+        monkeypatch.setattr(runtime, "MeterProvider", failure)
+    with pytest.raises(ValueError, match="Browser telemetry initialization failed") as error:
+        runtime.initialize(read_config({PREFIX + "ENABLED": "true"}), service_version="test")
+    assert "sentinel-secret" not in str(error.value)
+    await asyncio.wait_for(closed[0].wait(), 1)
+    traces.shutdown.assert_called_once()
+    if stage != "logs":
+        await asyncio.wait_for(asyncio.gather(closed[1].wait(), closed[2].wait()), 1)
+        logs.shutdown.assert_called_once()
+        metrics.shutdown.assert_called_once()

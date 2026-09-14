@@ -9,8 +9,29 @@ from typing import Literal, cast
 
 from opentelemetry import trace
 from opentelemetry.context import Context
+from opentelemetry.propagators import textmap
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from opentelemetry.util.types import AttributeValue
+from typing_extensions import override
+
+
+class BoundedTraceContextPropagator(TraceContextTextMapPropagator):
+    """Apply the same carrier size limits before native FastMCP span creation."""
+
+    @override
+    def extract(
+        self,
+        carrier: textmap.CarrierT,
+        context: Context | None = None,
+        getter: textmap.Getter[textmap.CarrierT] = textmap.default_getter,
+    ) -> Context:
+        """Delegate W3C parsing to the standard propagator after bounding inputs."""
+        selected: dict[str, str] = {}
+        for name in ("traceparent", "tracestate"):
+            values = getter.get(carrier, name)
+            if values and len(values) == 1 and 0 < len(values[0]) <= 512:
+                selected[name] = values[0]
+        return super().extract(selected, context=context)
 
 
 @dataclass(frozen=True)
@@ -55,7 +76,7 @@ def extract_carrier(carrier: Mapping[str, object]) -> IncomingContext:
             selected[name] = value
         else:
             invalid = True
-    context = TraceContextTextMapPropagator().extract(selected, context=Context())
+    context = BoundedTraceContextPropagator().extract(selected, context=Context())
     parent = trace.get_current_span(context).get_span_context()
     if "traceparent" in carrier and not parent.is_valid:
         invalid = True
