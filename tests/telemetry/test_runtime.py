@@ -1,0 +1,101 @@
+import asyncio
+import os
+import threading
+import time
+from unittest.mock import MagicMock
+
+import pytest
+from opentelemetry.sdk._logs.export import InMemoryLogRecordExporter
+from opentelemetry.sdk.metrics.export import InMemoryMetricReader
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+from justpen_browser_mcp.telemetry import runtime
+from justpen_browser_mcp.telemetry.config import read_config
+from justpen_browser_mcp.telemetry.events import TelemetryEvents
+
+PREFIX = "JUSTPEN_BROWSER_OTEL_"
+
+
+async def test_disabled_runtime_does_not_install_or_modify_sdk(monkeypatch):
+    install = MagicMock()
+    monkeypatch.setattr(runtime.trace, "set_tracer_provider", install)
+    before = dict(os.environ)
+    handle = runtime.initialize(read_config({}), service_version="test")
+    assert not handle.enabled
+    assert handle.asgi_middleware() == []
+    await handle.shutdown()
+    await handle.shutdown()
+    assert dict(os.environ) == before
+    install.assert_not_called()
+
+
+@pytest.mark.parametrize("protocol", ["http/protobuf", "grpc"])
+@pytest.mark.parametrize("signal", ["TRACES", "LOGS", "METRICS", "ALL"])
+async def test_runtime_builds_selected_signals_with_one_resource(monkeypatch, protocol, signal):
+    # Inject exporters, keeping real SDK providers without replacing global SDK state.
+    install = MagicMock()
+    monkeypatch.setattr(runtime.trace, "set_tracer_provider", install)
+    monkeypatch.setattr(runtime.propagate, "set_global_textmap", MagicMock())
+    monkeypatch.setattr(runtime, "configure_sdk_environment", MagicMock())
+    traces, logs = InMemorySpanExporter(), InMemoryLogRecordExporter()
+    factories = {}
+    for name, exporter in (("trace", traces), ("log", logs), ("metric", MagicMock())):
+        factories[name] = MagicMock(return_value=exporter)
+        monkeypatch.setattr(runtime, f"_{name}_exporter", factories[name])
+    monkeypatch.setattr(runtime, "PeriodicExportingMetricReader", lambda exporter: InMemoryMetricReader())
+    env = {PREFIX + "ENABLED": "true", PREFIX + "PROTOCOL": protocol, "JUSTPEN_SESSION_ID": "pentest-a"}
+    env.update(
+        {PREFIX + name + "_ENABLED": str(signal in {name, "ALL"}).lower() for name in ("TRACES", "LOGS", "METRICS")}
+    )
+    handle = runtime.initialize(read_config(env), service_version="test")
+    assert handle.enabled
+    assert len(handle.asgi_middleware()) == 1
+    for name, setting in (("trace", "TRACES"), ("log", "LOGS"), ("metric", "METRICS")):
+        if signal in {setting, "ALL"}:
+            factories[name].assert_called_once_with(protocol)
+        else:
+            factories[name].assert_not_called()
+    tracer_provider = install.call_args.args[0]
+    assert tracer_provider.resource.attributes["justpen.session.id"] == "pentest-a"
+    await handle.shutdown()
+
+
+@pytest.mark.parametrize("mode", ["off", "propagation_only"])
+def test_native_fastmcp_mode_conflict_is_explicit(monkeypatch, mode):
+    monkeypatch.setattr(runtime.fastmcp.settings, "telemetry_mode", mode)
+    with pytest.raises(ValueError, match="FASTMCP_TELEMETRY_MODE"):
+        runtime.initialize(read_config({PREFIX + "ENABLED": "true"}), service_version="test")
+
+
+async def test_shutdown_is_bounded_idempotent_and_other_signals_still_close(caplog):
+    release = threading.Event()
+    blocked, healthy = MagicMock(), MagicMock()
+    blocked.force_flush.side_effect = lambda **kwargs: release.wait(5)
+    handle = runtime.TelemetryRuntime(
+        enabled=True,
+        events=TelemetryEvents(logger_provider=None, meter_provider=None),
+        providers=[blocked, healthy],
+        shutdown_timeout_ms=50,
+    )
+    started = time.monotonic()
+    try:
+        await asyncio.gather(handle.shutdown(), handle.shutdown())
+        assert time.monotonic() - started < 0.5
+        healthy.shutdown.assert_called_once()
+        assert "budget" in caplog.text
+    finally:
+        release.set()
+
+
+async def test_flush_failure_does_not_skip_shutdown_or_leak_error(caplog):
+    broken = MagicMock()
+    broken.force_flush.side_effect = ValueError("sentinel-secret")
+    handle = runtime.TelemetryRuntime(
+        enabled=True,
+        events=TelemetryEvents(logger_provider=None, meter_provider=None),
+        providers=[broken],
+        shutdown_timeout_ms=100,
+    )
+    await handle.shutdown()
+    broken.shutdown.assert_called_once()
+    assert "sentinel-secret" not in caplog.text

@@ -11,6 +11,57 @@ if TYPE_CHECKING:
 
     from opentelemetry.util.types import AttributeValue
 
+KNOWN_TOOLS = frozenset(
+    "browser_" + suffix
+    for suffix in (
+        "create_instance",
+        "destroy_instance",
+        "list_instances",
+        "health",
+        "close",
+        "tabs",
+        "frames",
+        "navigate",
+        "navigate_back",
+        "wait_for",
+        "click",
+        "type",
+        "fill_form",
+        "select_option",
+        "hover",
+        "drag",
+        "press_key",
+        "file_upload",
+        "handle_dialog",
+        "mouse_click_xy",
+        "mouse_move_xy",
+        "mouse_down",
+        "mouse_up",
+        "mouse_drag_xy",
+        "mouse_wheel",
+        "snapshot",
+        "screenshot",
+        "console_messages",
+        "network_requests",
+        "verify_element_visible",
+        "verify_list_visible",
+        "verify_text_visible",
+        "verify_value",
+        "evaluate",
+        "run_code",
+        "get_cookies",
+        "set_cookies",
+        "clear_cookies",
+        "get_local_storage",
+        "set_local_storage",
+        "clear_local_storage",
+        "resize",
+        "pdf_save",
+        "generate_locator",
+        "downloads",
+        "download_save",
+    )
+)
 METHODS = frozenset(
     {
         "initialize",
@@ -78,6 +129,9 @@ def safe_attributes(attributes: Mapping[str, object]) -> dict[str, AttributeValu
             continue
         if name == "mcp.method.name":
             result[name] = known_method(value)
+        elif name == "gen_ai.tool.name":
+            if isinstance(value, str) and value in KNOWN_TOOLS:
+                result[name] = value
         elif isinstance(value, bool):
             result[name] = value
         elif selected := bounded_string(value):

@@ -84,3 +84,16 @@ def test_configuration_is_an_immutable_snapshot():
 def test_invalid_master_boolean_does_not_enable_export(caplog):
     assert not read_config({PREFIX + "ENABLED": "yes"}).enabled
     assert "ENABLED" in caplog.text
+
+
+def test_oversized_numbers_and_unsupported_compression_use_defaults(caplog):
+    config = read_config({PREFIX + "SHUTDOWN_TIMEOUT_MS": "9" * 400, PREFIX + "COMPRESSION": "sentinel-secret"})
+    assert config.shutdown_timeout_ms == 5000
+    assert "OTEL_EXPORTER_OTLP_COMPRESSION" not in config.sdk_environment
+    assert "sentinel-secret" not in caplog.text
+
+
+def test_small_batch_queue_also_bounds_default_batch_size():
+    config = read_config({PREFIX + "BSP_MAX_QUEUE_SIZE": "8", PREFIX + "BLRP_MAX_QUEUE_SIZE": "4"})
+    assert config.sdk_environment["OTEL_BSP_MAX_EXPORT_BATCH_SIZE"] == "8"
+    assert config.sdk_environment["OTEL_BLRP_MAX_EXPORT_BATCH_SIZE"] == "4"

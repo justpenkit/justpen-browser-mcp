@@ -88,10 +88,11 @@ def _boolean(env: Mapping[str, str], name: str, *, default: bool) -> bool:
 def _positive(value: str, name: str, *, integer: bool = True) -> str | None:
     try:
         parsed = int(value) if integer else float(value)
-    except ValueError:
+        valid = math.isfinite(parsed) and parsed > 0
+    except (ValueError, OverflowError):
         _invalid(name)
         return None
-    if not math.isfinite(parsed) or parsed <= 0:
+    if not valid:
         _invalid(name)
         return None
     return str(parsed)
@@ -152,6 +153,11 @@ def _export_environment(env: Mapping[str, str]) -> dict[str, str]:
                 value = _positive(value, name, integer=False)
             if option == "INSECURE":
                 value = str(_boolean(env, name, default=False)).lower()
+            if option == "COMPRESSION" and value is not None:
+                value = value.lower()
+                if value not in {"none", "gzip", "deflate"}:
+                    _invalid(name)
+                    value = None
             if value is not None:
                 result["OTEL_EXPORTER_OTLP_" + signal + option] = value
     return result
