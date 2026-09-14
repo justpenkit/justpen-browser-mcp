@@ -3,7 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from playwright.async_api import Error as PlaywrightError
+from playwright.async_api import Error as PlaywrightError, Frame
 
 from justpen_browser_mcp.errors import StaleRefError
 from justpen_browser_mcp.ref_resolver import (
@@ -23,7 +23,7 @@ class TestCaptureSnapshot:
         channel.send = AsyncMock(return_value="- button [ref=e1]")
         page._impl_obj = MagicMock()
         page._impl_obj.main_frame = MagicMock()
-        page._impl_obj.main_frame._channel = channel
+        page.main_frame._impl_obj._channel = channel
 
         result = await capture_snapshot(page)
         assert result == "- button [ref=e1]"
@@ -123,7 +123,7 @@ class TestResolveSelectorToStable:
         channel.send = AsyncMock(return_value='internal:role=button[name="Submit"i]')
         page._impl_obj = MagicMock()
         page._impl_obj.main_frame = MagicMock()
-        page._impl_obj.main_frame._channel = channel
+        page.main_frame._impl_obj._channel = channel
 
         result = await resolve_selector_to_stable(page, "e2")
         assert result["internal_selector"] == 'internal:role=button[name="Submit"i]'
@@ -140,7 +140,15 @@ class TestResolveSelectorToStable:
         channel.send = AsyncMock(side_effect=PlaywrightError("No element matching aria-ref=e99"))
         page._impl_obj = MagicMock()
         page._impl_obj.main_frame = MagicMock()
-        page._impl_obj.main_frame._channel = channel
+        page.main_frame._impl_obj._channel = channel
 
         with pytest.raises(StaleRefError):
             await resolve_selector_to_stable(page, "e99")
+
+
+async def test_child_frame_snapshot_uses_its_own_channel():
+    frame = MagicMock(spec=Frame)
+    frame._impl_obj = MagicMock()
+    frame._impl_obj._channel.send = AsyncMock(return_value="child snapshot")
+    assert await capture_snapshot(frame) == "child snapshot"
+    frame._impl_obj._channel.send.assert_awaited_once()

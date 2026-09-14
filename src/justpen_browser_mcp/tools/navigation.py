@@ -62,7 +62,7 @@ def canonicalize_browser_url(url: str) -> str:
     return url
 
 
-async def _navigate_with_download(page: Page, url: str) -> bool:
+async def _navigate_with_download(page: Page, url: str) -> Download | None:
     """Recognize downloads observed on this page's in-flight main navigation."""
     navigation_urls: set[str] = set()
     downloads: list[Download] = []
@@ -79,19 +79,20 @@ async def _navigate_with_download(page: Page, url: str) -> bool:
     try:
         await page.goto(url, wait_until="domcontentloaded")
     except PlaywrightError:
-        if any(download.url in navigation_urls for download in downloads):
-            return True
+        matched = next((download for download in downloads if download.url in navigation_urls), None)
+        if matched is not None:
+            return matched
         raise
     finally:
         page.remove_listener("request", on_request)
         page.remove_listener("download", on_download)
-    return False
+    return None
 
 
 def _register_browser_navigate(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_navigate(instance: str, url: str) -> dict[str, Any]:
+    async def browser_navigate(instance: str, url: str, *, page_id: str | None = None) -> dict[str, Any]:
         """Navigate the active page in the given instance to a URL.
 
         This navigates the CURRENT active page. Other tabs in the instance
@@ -123,17 +124,19 @@ def _register_browser_navigate(mcp: FastMCP, mgr: InstanceManager) -> None:
             normalized = canonicalize_browser_url(url)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
-                page = await mgr.active_page(instance)
+                page = await mgr.target_page(instance, page_id)
                 try:
-                    downloaded = await _navigate_with_download(page, normalized)
+                    download = await _navigate_with_download(page, normalized)
                 except PWTimeout as e:
                     raise NavigationTimeoutError(str(e)) from e
                 except PlaywrightError as e:
                     raise NavigationFailedError(str(e)) from e
-                if downloaded:
-                    return success_response(
-                        instance, data={"url": page.url, "title": await page.title(), "download": True}
-                    )
+                if download is not None:
+                    data: dict[str, Any] = {"url": page.url, "title": await page.title(), "download": True}
+                    download_id = mgr.state(instance).downloads.id_for(download)
+                    if download_id is not None:
+                        data["download_id"] = download_id
+                    return success_response(instance, data=data)
                 with contextlib.suppress(PWTimeout):
                     await page.wait_for_load_state("load", timeout=5000)
                 return success_response(
@@ -150,7 +153,7 @@ def _register_browser_navigate(mcp: FastMCP, mgr: InstanceManager) -> None:
 def _register_browser_navigate_back(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_navigate_back(instance: str) -> dict[str, Any]:
+    async def browser_navigate_back(instance: str, *, page_id: str | None = None) -> dict[str, Any]:
         """Navigate back one step in the browser history for the active page.
 
         Equivalent to pressing the browser Back button. Has no effect if there
@@ -172,7 +175,7 @@ def _register_browser_navigate_back(mcp: FastMCP, mgr: InstanceManager) -> None:
             mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
-                page = await mgr.active_page(instance)
+                page = await mgr.target_page(instance, page_id)
                 try:
                     await page.go_back()
                 except PWTimeout as e:
@@ -195,6 +198,9 @@ def _register_browser_wait_for(mcp: FastMCP, mgr: InstanceManager) -> None:
         text: str | None = None,
         text_gone: str | None = None,
         time: float | None = None,
+        *,
+        page_id: str | None = None,
+        frame_id: str | None = None,
     ) -> dict[str, Any]:
         """Wait for text to appear, text to disappear, or a fixed duration.
 
@@ -225,7 +231,9 @@ def _register_browser_wait_for(mcp: FastMCP, mgr: InstanceManager) -> None:
             mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
-                page = await mgr.active_page(instance)
+                page = await mgr.target_page(instance, page_id)
+                resolved_frame = mgr.target_frame(instance, page, frame_id)
+                scope = resolved_frame if frame_id is not None else page
                 parts: list[str] = []
                 if time is not None:
                     capped_seconds = min(30.0, float(time))
@@ -233,13 +241,13 @@ def _register_browser_wait_for(mcp: FastMCP, mgr: InstanceManager) -> None:
                     parts.append(f"{capped_seconds}s")
                 if text_gone is not None:
                     try:
-                        await page.get_by_text(text_gone).filter(visible=True).first.wait_for(state="hidden")
+                        await scope.get_by_text(text_gone).filter(visible=True).first.wait_for(state="hidden")
                     except PWTimeout as e:
                         raise WaitTimeoutError(f"Text '{text_gone}' did not disappear: {e}") from e
                     parts.append(f"text_gone={text_gone!r}")
                 if text is not None:
                     try:
-                        await page.get_by_text(text).filter(visible=True).first.wait_for(state="visible")
+                        await scope.get_by_text(text).filter(visible=True).first.wait_for(state="visible")
                     except PWTimeout as e:
                         raise WaitTimeoutError(f"Text '{text}' did not appear: {e}") from e
                     parts.append(f"text={text!r}")

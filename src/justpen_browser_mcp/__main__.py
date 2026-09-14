@@ -14,7 +14,7 @@ import sys
 from typing import Any
 
 from .app import mcp
-from .browser_runtime import ensure_camoufox_binary as _ensure_camoufox_binary
+from .browser_runtime import BrowserRuntime, ensure_camoufox_binary as _ensure_camoufox_binary
 from .cli import build_config
 from .config import BrowserServerConfig
 from .instance_manager import InstanceManager
@@ -43,16 +43,36 @@ async def main() -> None:
     config = build_config(sys.argv[1:], os.environ)
     _setup_logging(config.log_level)
 
-    await _ensure_camoufox_binary()
-
-    mgr = InstanceManager(config)
-    register_all(mcp, mgr)
-    mgr.start_reaper()
-
     stop_event = asyncio.Event()
+    preparation_task: asyncio.Task[BrowserRuntime] | None = None
+
+    def request_stop() -> None:
+        # Repeated signals must not interrupt the worker's terminate/reap cleanup.
+        if not stop_event.is_set():
+            stop_event.set()
+            if preparation_task is not None:
+                preparation_task.cancel()
+
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGTERM, signal.SIGINT):
-        loop.add_signal_handler(sig, stop_event.set)
+        loop.add_signal_handler(sig, request_stop)
+
+    preparation_task = asyncio.create_task(_ensure_camoufox_binary(), name="browser-preparation")
+    try:
+        runtime = await preparation_task
+    except asyncio.CancelledError:
+        current = asyncio.current_task()
+        if stop_event.is_set() and current is not None and not current.cancelling():
+            return
+        raise
+    finally:
+        preparation_task = None
+    if stop_event.is_set():
+        return
+
+    mgr = InstanceManager(config, browser_runtime=runtime)
+    register_all(mcp, mgr)
+    mgr.start_reaper()
 
     server_task = asyncio.create_task(mcp.run_async(**_run_kwargs(config)), name="mcp-server")
     stop_task = asyncio.create_task(stop_event.wait(), name="stop-signal")

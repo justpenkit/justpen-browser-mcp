@@ -23,13 +23,16 @@ def success_response(instance: str | None, data: dict[str, Any] | None = None) -
     }
 
 
-def error_response(instance: str | None, error_type: str, message: str) -> dict[str, Any]:
+def error_response(
+    instance: str | None, error_type: str, message: str, *, data: dict[str, Any] | None = None
+) -> dict[str, Any]:
     """Build an error envelope.
 
     Args:
         instance: The instance the failed call referenced. None for server-level tools.
         error_type: One of the standardized values in VALID_ERROR_TYPES.
         message: Action-oriented human-readable description of the failure.
+        data: Optional completion facts; absent for old error calls.
 
     Returns:
         {"status": "error", "instance": <name>, "error_type": <type>, "message": <msg>}
@@ -41,4 +44,5 @@ def error_response(instance: str | None, error_type: str, message: str) -> dict[
         "instance": instance,
         "error_type": error_type,
         "message": message,
+        **({"data": data} if data is not None else {}),
     }

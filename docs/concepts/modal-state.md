@@ -61,3 +61,13 @@ Queued actions recheck modal state after acquiring their lock. This catches a
 modal that appeared while they waited. Recoverable resolution failures keep the pending object available for recovery;
 entries belonging to closed pages and definitively already-handled dialogs are
 discarded. A discarded object is not evidence that the original action succeeded.
+
+## Recovering a modal on an explicit page
+
+`browser_handle_dialog` and `browser_file_upload` accept optional `page_id`.
+They consume the oldest pending modal of the requested kind on that page, leaving
+other pages' modal entries untouched. Omission preserves the oldest-instance-modal
+behavior. Recovery still uses its independent lock so it can run concurrently
+with the action that opened the modal. Recoverable failures requeue the same modal
+object when its page remains live. The modal guard remains instance-wide: targeting
+another page does not promise that a Firefox dialog will stop blocking input.

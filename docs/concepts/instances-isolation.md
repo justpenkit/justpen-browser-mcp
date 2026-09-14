@@ -173,3 +173,17 @@ destroy calls do not pretend that an incomplete cleanup succeeded.
 Shutdown stops admission permanently for that manager. Calling destroy or shutdown
 from the instance's own `browser_run_code` operation is rejected to prevent a
 self-wait. See [framework integration](../guides/framework-integration.md).
+
+## Explicit page targets
+
+Use `page_id` from `browser_tabs` to address a particular live page. Supported
+page actions resolve it after acquiring the instance lock. They do not change
+selected-tab state or create a replacement page. A foreign, closed, or unknown ID
+returns `page_not_found`, including when a page closes while the action is queued.
+Omitting the ID retains selected-page behavior and existing automatic page creation.
+Closing an explicitly targeted unselected page preserves the selected page.
+
+Frame-capable tools also accept `frame_id` from `browser_frames`. A frame must
+belong to the resolved page; see [frame refs](refs-snapshots.md#iframe--child-frame-refs).
+Coordinate mouse, screenshot, resize, navigation, and keyboard tools remain
+page-level. Keyboard input follows actual focus, including focus inside an iframe.

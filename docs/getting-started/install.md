@@ -34,11 +34,17 @@ Clone the repository to develop the server. Contributors can run `make setup`, w
 installs the locked dev and docs groups through `uv`, fetches the Camoufox binary, and
 installs the project's git hooks (pre-commit / pre-push / commit-msg).
 
-The server selects Camoufox `135.0.1-beta.24` for its
-`playwright>=1.59,<1.60` driver. Setup and server startup use the same selection,
-which updates the Camoufox SDK's shared default browser for subsequent launches.
-Use `make browser-fetch` to restore that selection, and keep the compatibility
-bound in `pyproject.toml`.
+Every server startup resolves the newest compatible official Camoufox release for
+this platform, including prereleases. While upstream is older than the fixed
+beta.31 CI build, it selects a SHA256-pinned mirror of that unchanged official build.
+Equal or newer official releases automatically take priority at the next startup,
+even when the mirror is cached. See [browser selection](run-server.md#latest-build-compatibility).
+The server reuses or downloads the selected browser, activates it, and verifies it before serving
+browser operations. Startup fails if that preparation cannot complete; it does not
+fall back to an unverified older browser. Playwright 1.61.x and Camoufox SDK 0.5.6 or newer are required. The process
+retains the exact resolved SDK browser selector for all its launches even if another SDK process
+later changes the shared active selection. `make browser-fetch` uses the same
+preparation flow. Python dependencies are installed through uv, not updated at runtime.
 
 The server excludes Camoufox's automatically added uBlock Origin
 extension because its startup request handler can leave navigations suspended.

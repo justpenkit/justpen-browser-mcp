@@ -124,6 +124,10 @@ class ModalStateBlockedError(BrowserMcpError):
 VALID_ERROR_TYPES = frozenset(
     {
         "instance_not_found",
+        "page_not_found",
+        "frame_not_found",
+        "download_not_found",
+        "download_failed",
         "instance_already_exists",
         "instance_limit_exceeded",
         "profile_dir_in_use",
@@ -135,6 +139,7 @@ VALID_ERROR_TYPES = frozenset(
         "navigation_timeout",
         "wait_timeout",
         "operation_timeout",
+        "observation_timeout",
         "result_too_large",
         "unsupported_capability",
         "dialog_not_present",
@@ -145,3 +150,27 @@ VALID_ERROR_TYPES = frozenset(
         "modal_state_blocked",
     }
 )
+
+
+class PageNotFoundError(BrowserMcpError):
+    """The explicit page is not live in this instance."""
+
+    error_type = "page_not_found"
+
+
+class FrameNotFoundError(BrowserMcpError):
+    """The explicit frame is not attached to the target page."""
+
+    error_type = "frame_not_found"
+
+
+class DownloadNotFoundError(BrowserMcpError):
+    """The requested download is unavailable."""
+
+    error_type = "download_not_found"
+
+
+class DownloadFailedError(BrowserMcpError):
+    """The browser download failed."""
+
+    error_type = "download_failed"

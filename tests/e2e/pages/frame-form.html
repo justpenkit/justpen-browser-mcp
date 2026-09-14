@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Frame form</title>
+  </head>
+  <body>
+    <label>
+      Email
+      <input aria-label="Email" />
+    </label>
+    <label>
+      Choice
+      <select aria-label="Choice">
+        <option value="one">One</option>
+        <option value="two">Two</option>
+      </select>
+    </label>
+    <button onclick="document.querySelector('output').textContent='Submitted'">Submit</button>
+    <output></output>
+    <script>
+      if (!location.search) {
+        const nested = document.createElement('iframe');
+        nested.name = 'nested';
+        nested.src = 'frame-form.html?nested';
+        document.body.append(nested);
+      }
+    </script>
+  </body>
+</html>

@@ -20,7 +20,7 @@ def register(mcp: FastMCP, mgr: InstanceManager) -> None:
     """Register page (tab) management tools on the MCP server."""
 
     @mcp.tool
-    async def browser_close(instance: str) -> dict[str, Any]:
+    async def browser_close(instance: str, *, page_id: str | None = None) -> dict[str, Any]:
         """Close the active page (tab) in the instance, keeping the instance alive.
 
         Only the currently active page is closed. If the instance has other tabs,
@@ -42,13 +42,17 @@ def register(mcp: FastMCP, mgr: InstanceManager) -> None:
             rec = mgr.get(instance)
             async with mgr.lock_for(instance):
                 ctx = rec.context
-                if not ctx.pages:
+                if not ctx.pages and page_id is None:
                     return success_response(instance, data={"closed": False, "reason": "no open pages"})
-                page = await mgr.active_page(instance)
+                page = await mgr.target_page(instance, page_id)
+                selected = mgr.state(instance).active_page
                 closed_index = ctx.pages.index(page)
                 await page.close()
                 if ctx.pages:
-                    mgr.set_active_page(instance, min(closed_index, len(ctx.pages) - 1))
+                    mgr.set_active_page(
+                        instance,
+                        ctx.pages.index(selected) if selected in ctx.pages else min(closed_index, len(ctx.pages) - 1),
+                    )
             return success_response(instance, data={"closed": True})
         except BrowserMcpError as e:
             return error_response(instance, e.error_type, str(e))

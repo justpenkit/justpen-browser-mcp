@@ -8,6 +8,11 @@ Page tools manage individual tabs within a browser instance. This page currently
 
 Examples below focus on tool-specific data. Registered tools also return the shared [operation metadata and error fields](../concepts/response-envelope.md).
 
+Optional `page_id` selects a live page without changing the selected tab; an invalid
+explicit target returns `page_not_found`. Frame-capable calls also accept `frame_id`
+and return `frame_not_found` for a detached or foreign frame. Omitted targets retain
+existing behavior. See [explicit targeting](../concepts/instances-isolation.md#explicit-page-targets).
+
 ## browser_close { #browser_close }
 
 Close the active page (tab) in the instance while keeping the instance alive.
@@ -15,14 +20,15 @@ Close the active page (tab) in the instance while keeping the instance alive.
 **Signature**
 
 ```python
-async def browser_close(instance: str) -> dict[str, Any]
+async def browser_close(instance: str, *, page_id: str | None = None) -> dict[str, Any]
 ```
 
 **Parameters**
 
-| Name       | Type  | Default | Description    |
-| ---------- | ----- | ------- | -------------- |
-| `instance` | `str` | —       | Instance name. |
+| Name       | Type          | Default | Description                                                                                                         |
+| ---------- | ------------- | ------- | ------------------------------------------------------------------------------------------------------------------- |
+| `instance` | `str`         | —       | Instance name.                                                                                                      |
+| `page_id`  | `str \| None` | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs. |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 

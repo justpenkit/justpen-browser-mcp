@@ -26,6 +26,9 @@ def _register_browser_evaluate(mcp: FastMCP, mgr: InstanceManager) -> None:
         expression: str,
         ref: str | None = None,
         selector: str | None = None,
+        *,
+        page_id: str | None = None,
+        frame_id: str | None = None,
     ) -> dict[str, Any]:
         """Evaluate a JavaScript expression on the active page and return its result.
 
@@ -39,7 +42,7 @@ def _register_browser_evaluate(mcp: FastMCP, mgr: InstanceManager) -> None:
                         runs as locator.evaluate(expression), receiving the
                         element as its first argument.
             selector  — CSS/aria selector. Same semantics as ref but resolved
-                        directly via page.locator(selector).
+                        directly via scope.locator(selector).
 
         When neither is provided, the expression runs at page scope.
 
@@ -62,16 +65,18 @@ def _register_browser_evaluate(mcp: FastMCP, mgr: InstanceManager) -> None:
             mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
-                page = await mgr.active_page(instance)
+                page = await mgr.target_page(instance, page_id)
+                resolved_frame = mgr.target_frame(instance, page, frame_id)
+                scope = resolved_frame if frame_id is not None else page
                 try:
                     if ref is not None:
-                        locator = await resolve_ref(page, ref)
+                        locator = await resolve_ref(scope, ref)
                         result = await locator.evaluate(expression)
                     elif selector is not None:
-                        locator = page.locator(selector)
+                        locator = scope.locator(selector)
                         result = await locator.evaluate(expression)
                     else:
-                        result = await page.evaluate(expression)
+                        result = await scope.evaluate(expression)
                 except BrowserMcpError:
                     raise
                 except Exception as e:
@@ -87,7 +92,7 @@ def _register_browser_evaluate(mcp: FastMCP, mgr: InstanceManager) -> None:
 def _register_browser_run_code(mcp: FastMCP, mgr: InstanceManager) -> None:
 
     @mcp.tool
-    async def browser_run_code(instance: str, code: str) -> dict[str, Any]:
+    async def browser_run_code(instance: str, code: str, *, page_id: str | None = None) -> dict[str, Any]:
         """Execute a Python async code snippet with full Playwright access.
 
         The snippet runs as the body of an async function. These locals are
@@ -120,7 +125,7 @@ def _register_browser_run_code(mcp: FastMCP, mgr: InstanceManager) -> None:
             rec = mgr.get(instance)
             async with mgr.lock_for(instance):
                 assert_no_modal(mgr, instance)
-                page = await mgr.active_page(instance)
+                page = await mgr.target_page(instance, page_id)
                 # Expose the Playwright BrowserContext as 'context' for backwards
                 # compatibility with existing code snippets that reference it by that name.
                 playwright_context = rec.context

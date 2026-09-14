@@ -87,7 +87,7 @@ async def test_download_must_correlate_with_navigation(tools, active, download_u
         if "request" in listeners:
             listeners["request"](request)
         if "download" in listeners:
-            listeners["download"](SimpleNamespace(url=download_url))
+            listeners["download"](MagicMock(url=download_url))
         raise PlaywrightError("NS_BINDING_ABORTED")
 
     browser_page.goto.side_effect = navigate
@@ -338,7 +338,7 @@ async def test_modal_recovery_retains_state_when_resolution_fails(
     entry = {"kind": kind, "object": modal, "page": browser_page}
     state.modal_states.append(entry)
     mock_mgr.get_modal_states.side_effect = lambda _name: list(state.modal_states)
-    mock_mgr.consume_modal_state.side_effect = lambda *_args: state.modal_states.pop(0)
+    mock_mgr.consume_modal_state.side_effect = lambda *_args, **_kwargs: state.modal_states.pop(0)
     if cancelled:
         with pytest.raises(asyncio.CancelledError):
             await tools[tool_name]("test", **arguments)
@@ -439,7 +439,7 @@ async def test_already_handled_dialog_is_discarded(tools, active, mock_mgr, acce
     modal = MagicMock(accept=AsyncMock(side_effect=error), dismiss=AsyncMock(side_effect=error))
     entry = {"kind": "dialog", "object": modal, "page": browser_page}
     state.modal_states.append(entry)
-    mock_mgr.consume_modal_state.side_effect = lambda *_args: state.modal_states.pop(0)
+    mock_mgr.consume_modal_state.side_effect = lambda *_args, **_kwargs: state.modal_states.pop(0)
     result = await tools["browser_handle_dialog"]("test", accept=accept)
     assert result["status"] == "error"
     assert "already handled" in result["message"]

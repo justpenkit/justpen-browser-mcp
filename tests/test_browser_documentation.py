@@ -111,7 +111,7 @@ def test_tool_reference_matches_registered_browser_tools():
                 for decorator in node.decorator_list
             ):
                 registered.add(node.name)
-    assert len(documented) == 43
+    assert len(documented) == 46
     assert documented == registered
 
 

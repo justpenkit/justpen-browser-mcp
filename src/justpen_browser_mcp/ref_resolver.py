@@ -23,7 +23,7 @@ This module exists to:
 import logging
 import re
 
-from playwright.async_api import Error as PlaywrightError, Locator, Page
+from playwright.async_api import Error as PlaywrightError, Frame, Locator, Page
 
 from ._playwright_internal import resolve_selector, snapshot_for_ai
 from .errors import StaleRefError
@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 SNAPSHOT_TIMEOUT_MS = 5000
 
 
-async def capture_snapshot(page: Page) -> str:
+async def capture_snapshot(page: Page | Frame) -> str:
     """Capture an aria snapshot with [ref=eN] annotations. Returns YAML string.
 
     Calls Playwright's `Frame.ariaSnapshot` protocol method with `mode="ai"`
@@ -44,12 +44,12 @@ async def capture_snapshot(page: Page) -> str:
     return await snapshot_for_ai(page, SNAPSHOT_TIMEOUT_MS)
 
 
-def locator_for_ref(page: Page, ref: str) -> Locator:
+def locator_for_ref(page: Page | Frame, ref: str) -> Locator:
     """Build a Locator for a previously captured ref."""
     return page.locator(f"aria-ref={ref}")
 
 
-async def resolve_ref(page: Page, ref: str, timeout_ms: int = 1000) -> Locator:
+async def resolve_ref(page: Page | Frame, ref: str, timeout_ms: int = 1000) -> Locator:
     """Get a Locator for a ref, raising StaleRefError if missing/stale."""
     locator = locator_for_ref(page, ref)
     try:
@@ -148,7 +148,7 @@ def _internal_to_python(sel: str) -> str:
     return f"locator({sel!r})"
 
 
-async def resolve_selector_to_stable(page: Page, ref: str) -> dict[str, str]:
+async def resolve_selector_to_stable(page: Page | Frame, ref: str) -> dict[str, str]:
     """Resolve an aria-ref to a stable Playwright selector and Python equivalent.
 
     The internal selector is usable directly: page.locator(internal_selector)

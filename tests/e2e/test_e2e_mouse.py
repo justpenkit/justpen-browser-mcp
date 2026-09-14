@@ -22,13 +22,45 @@ pytestmark = [
 ]
 
 
+async def _record_pointer_events(client, instance):
+    result = await call(
+        client,
+        "browser_evaluate",
+        {
+            "instance": instance,
+            "expression": """() => {
+            window.pointerEvents = [];
+            for (const type of ['pointermove', 'pointerdown', 'pointerup']) {
+                document.addEventListener(type, e => pointerEvents.push({
+                    type, x:e.clientX, y:e.clientY, buttons:e.buttons, trusted:e.isTrusted
+                }));
+            }
+            return true;
+        }""",
+        },
+    )
+    assert result["status"] == "success", result
+
+
+async def _pointer_events(client, instance):
+    result = await call(client, "browser_evaluate", {"instance": instance, "expression": "window.pointerEvents"})
+    assert result["status"] == "success", result
+    events = result["data"]["result"]
+    assert events
+    assert all(event["trusted"] for event in events)
+    return events
+
+
 async def test_mouse_move_xy_returns_target_position(e2e_client, test_site):
     await call(e2e_client, "browser_create_instance", {"name": "m1"})
     await call(e2e_client, "browser_navigate", {"instance": "m1", "url": f"{test_site}/index.html"})
+    await _record_pointer_events(e2e_client, "m1")
 
     r = await call(e2e_client, "browser_mouse_move_xy", {"instance": "m1", "x": 10, "y": 12})
     assert r["status"] == "success"
     assert r["data"]["moved_to"] == [10, 12]
+    events = await _pointer_events(e2e_client, "m1")
+    assert events[-1] == {"type": "pointermove", "x": 10, "y": 12, "buttons": 0, "trusted": True}
 
 
 @pytest.mark.parametrize("source_page", ["index.html", "delayed-link.html"])
@@ -113,6 +145,7 @@ async def test_mouse_down_move_up_drags(e2e_client, test_site):
     """A manual down/move/up sequence via the low-level mouse primitives."""
     await call(e2e_client, "browser_create_instance", {"name": "m3"})
     await call(e2e_client, "browser_navigate", {"instance": "m3", "url": f"{test_site}/index.html"})
+    await _record_pointer_events(e2e_client, "m3")
 
     down_r = await call(e2e_client, "browser_mouse_down", {"instance": "m3", "button": "left"})
     assert down_r["status"] == "success"
@@ -121,11 +154,17 @@ async def test_mouse_down_move_up_drags(e2e_client, test_site):
     up_r = await call(e2e_client, "browser_mouse_up", {"instance": "m3", "button": "left"})
     assert up_r["status"] == "success"
     assert up_r["data"]["button_up"] == "left"
+    events = await _pointer_events(e2e_client, "m3")
+    assert [event for event in events if event["type"] != "pointermove"] == [
+        {"type": "pointerdown", "x": 0, "y": 0, "buttons": 1, "trusted": True},
+        {"type": "pointerup", "x": 0, "y": 0, "buttons": 0, "trusted": True},
+    ]
 
 
 async def test_mouse_drag_xy_reports_endpoints(e2e_client, test_site):
     await call(e2e_client, "browser_create_instance", {"name": "m4"})
     await call(e2e_client, "browser_navigate", {"instance": "m4", "url": f"{test_site}/index.html"})
+    await _record_pointer_events(e2e_client, "m4")
 
     r = await call(
         e2e_client,
@@ -135,6 +174,10 @@ async def test_mouse_drag_xy_reports_endpoints(e2e_client, test_site):
     assert r["status"] == "success"
     assert r["data"]["from"] == [5, 5]
     assert r["data"]["to"] == [40, 60]
+    events = await _pointer_events(e2e_client, "m4")
+    assert {"type": "pointerdown", "x": 5, "y": 5, "buttons": 1, "trusted": True} in events
+    assert {"type": "pointermove", "x": 40, "y": 60, "buttons": 1, "trusted": True} in events
+    assert events[-1] == {"type": "pointerup", "x": 40, "y": 60, "buttons": 0, "trusted": True}
 
 
 async def test_mouse_wheel_scrolls_page(e2e_client, test_site):

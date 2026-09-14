@@ -13,6 +13,8 @@ import pytest
 from fastmcp import FastMCP
 from fastmcp.client import Client
 
+from justpen_browser_mcp.downloads import DownloadRegistry
+from justpen_browser_mcp.errors import PageNotFoundError
 from justpen_browser_mcp.events import EventBuffer
 
 
@@ -48,11 +50,22 @@ def mock_mgr():
     mgr = MagicMock()
     mgr.get = MagicMock(return_value=MagicMock())
     mgr.active_page = AsyncMock()
+    mgr.ensure_page_headers = AsyncMock()
+
+    async def target_page(name, page_id=None):
+        if page_id is not None:
+            raise PageNotFoundError(f"Unknown mock page {page_id}")
+        return await mgr.active_page(name)
+
+    mgr.target_page = AsyncMock(side_effect=target_page)
+    mgr.target_frame = MagicMock(side_effect=lambda _name, page, _frame_id=None: page.main_frame)
+
     mgr.lock_for = MagicMock(return_value=_AsyncLockContext())
     mgr.modal_lock_for = MagicMock(return_value=_AsyncLockContext())
     mgr.state = MagicMock(return_value=MagicMock())
     mgr.state.return_value.console_messages = EventBuffer()
     mgr.state.return_value.network_requests = EventBuffer()
+    mgr.state.return_value.downloads = DownloadRegistry(1000)
     mgr.get_modal_states = MagicMock(return_value=[])
     mgr.consume_modal_state = MagicMock(return_value=None)
 
@@ -61,6 +74,7 @@ def mock_mgr():
         mgr.state.return_value.active_page = mgr.get.return_value.context.pages[index]
 
     mgr.set_active_page = MagicMock(side_effect=set_active_page)
+    mgr.frame_id = MagicMock(side_effect=lambda _instance, frame: f"frame-{id(frame)}")
     mgr.page_id = MagicMock(side_effect=lambda _instance, page: f"page-{id(page)}")
     return mgr
 

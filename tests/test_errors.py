@@ -49,8 +49,17 @@ def test_profile_dir_in_use_mapping():
 
 
 def test_valid_error_types_has_expected_count():
-    assert {"operation_timeout", "result_too_large", "unsupported_capability"} <= VALID_ERROR_TYPES
-    assert len(VALID_ERROR_TYPES) == 20
+    assert {
+        "operation_timeout",
+        "result_too_large",
+        "unsupported_capability",
+        "page_not_found",
+        "frame_not_found",
+        "observation_timeout",
+        "download_not_found",
+        "download_failed",
+    } <= VALID_ERROR_TYPES
+    assert len(VALID_ERROR_TYPES) == 25
 
 
 def test_instance_crashed_error_type():

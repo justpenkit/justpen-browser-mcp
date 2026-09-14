@@ -35,7 +35,7 @@ async def main_runtime(
     monkeypatch.setattr(asyncio.get_running_loop(), "add_signal_handler", add_handler)
     monkeypatch.setattr(main_mod, "build_config", lambda _args, _env: BrowserServerConfig())
     monkeypatch.setattr(main_mod, "_ensure_camoufox_binary", AsyncMock())
-    monkeypatch.setattr(main_mod, "InstanceManager", lambda _config: manager)
+    monkeypatch.setattr(main_mod, "InstanceManager", lambda _config, **_kwargs: manager)
     monkeypatch.setattr(main_mod, "register_all", MagicMock())
     yield handlers, manager
     # Keep a failing cleanup regression from leaving tasks behind in its test loop.
@@ -209,3 +209,83 @@ entrypoint.cli()
     assert result.returncode != 0, result.stderr
     assert "RuntimeError: server startup failed" in result.stderr
     assert "Task exception was never retrieved" not in result.stderr
+
+
+@pytest.mark.parametrize("sig", [signal.SIGTERM, signal.SIGINT])
+async def test_signal_during_preparation_drains_before_readiness(monkeypatch, main_runtime, sig):
+    handlers, manager = main_runtime
+    before = asyncio.all_tasks()
+    cleaned_up = asyncio.Event()
+
+    async def prepare():
+        assert sig in handlers
+        try:
+            handlers[sig]()
+            await asyncio.Event().wait()
+        finally:
+            await asyncio.sleep(0)
+            cleaned_up.set()
+
+    run_server = AsyncMock()
+    monkeypatch.setattr(main_mod, "_ensure_camoufox_binary", prepare)
+    monkeypatch.setattr(main_mod.mcp, "run_async", run_server)
+    await main_mod.main()
+    assert cleaned_up.is_set()
+    run_server.assert_not_awaited()
+    manager.start_reaper.assert_not_called()
+    assert asyncio.all_tasks() == before
+
+
+async def test_external_cancellation_during_preparation_propagates(monkeypatch, main_runtime):
+    _handlers, manager = main_runtime
+    before = asyncio.all_tasks()
+    started, cleaned_up = asyncio.Event(), asyncio.Event()
+
+    async def prepare():
+        try:
+            started.set()
+            await asyncio.Event().wait()
+        finally:
+            cleaned_up.set()
+
+    monkeypatch.setattr(main_mod, "_ensure_camoufox_binary", prepare)
+    task = asyncio.create_task(main_mod.main())
+    await started.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert cleaned_up.is_set()
+    manager.start_reaper.assert_not_called()
+    assert asyncio.all_tasks() == before
+
+
+async def test_repeated_startup_signals_do_not_interrupt_worker_cleanup(monkeypatch, main_runtime):
+    handlers, manager = main_runtime
+    cleanup_started, release_cleanup, cleaned_up = asyncio.Event(), asyncio.Event(), asyncio.Event()
+
+    async def prepare():
+        try:
+            handlers[signal.SIGTERM]()
+            await asyncio.Event().wait()
+        finally:
+            cleanup_started.set()
+            await release_cleanup.wait()
+            cleaned_up.set()
+
+    monkeypatch.setattr(main_mod, "_ensure_camoufox_binary", prepare)
+    task = asyncio.create_task(main_mod.main())
+    try:
+        await asyncio.wait_for(cleanup_started.wait(), timeout=5)
+        handlers[signal.SIGTERM]()
+        handlers[signal.SIGINT]()
+        await asyncio.sleep(0)
+        assert not task.done()
+        release_cleanup.set()
+        await task
+        assert cleaned_up.is_set()
+        manager.start_reaper.assert_not_called()
+    finally:
+        release_cleanup.set()
+        if not task.done():
+            task.cancel()
+        await asyncio.gather(task, return_exceptions=True)

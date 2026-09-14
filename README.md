@@ -11,7 +11,8 @@ runs in its own Camoufox process with its own BrowserForge fingerprint and
 separate parallel browser sessions for different users, tenants, or pentest
 identities.
 
-The runtime provides stable instance/tab identities, cooperative operation deadlines,
+The runtime provides stable instance/page/frame identities, cooperative operation deadlines,
+46 tools, optional action observations, original screenshot files, retained downloads,
 bounded console/network evidence with cursor pagination, and explicit recovery
 metadata on tool results. See the [framework integration guide](docs/guides/framework-integration.md)
 for lifecycle ownership, artifact collection and process supervision.
@@ -27,7 +28,10 @@ to contribute.
 uv add "justpen-browser-mcp @ git+https://github.com/justpenkit/justpen-browser-mcp@v0.6.1"
 ```
 
-Run the server (stdio transport); startup fetches Camoufox if needed:
+Run the server (stdio transport); every startup checks for the newest compatible
+official Camoufox release. A temporary mirror supplies the fixed beta.31 CI build
+while upstream is older; equal or newer official releases automatically take priority.
+See [browser selection](docs/getting-started/run-server.md#latest-build-compatibility).
 
 ```bash
 uv run justpen-browser-mcp

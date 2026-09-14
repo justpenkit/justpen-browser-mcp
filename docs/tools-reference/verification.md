@@ -8,6 +8,11 @@ Verification tools let you assert that the current state of a page matches expec
 
 Examples below focus on tool-specific data. Registered tools also return the shared [operation metadata and error fields](../concepts/response-envelope.md).
 
+Optional `page_id` selects a live page without changing the selected tab; an invalid
+explicit target returns `page_not_found`. Frame-capable calls also accept `frame_id`
+and return `frame_not_found` for a detached or foreign frame. Omitted targets retain
+existing behavior. See [explicit targeting](../concepts/instances-isolation.md#explicit-page-targets).
+
 ## browser_verify_element_visible { #browser_verify_element_visible }
 
 Verify that the element identified by a ref is currently visible on the page.
@@ -15,15 +20,19 @@ Verify that the element identified by a ref is currently visible on the page.
 **Signature**
 
 ```python
-async def browser_verify_element_visible(instance: str, ref: str) -> dict[str, Any]
+async def browser_verify_element_visible(
+    instance: str, ref: str, *, page_id: str | None = None, frame_id: str | None = None
+) -> dict[str, Any]
 ```
 
 **Parameters**
 
-| Name       | Type  | Default | Description                                       |
-| ---------- | ----- | ------- | ------------------------------------------------- |
-| `instance` | `str` | —       | Instance name.                                    |
-| `ref`      | `str` | —       | Element ref (`[ref=eN]`) from `browser_snapshot`. |
+| Name       | Type          | Default | Description                                                                                                         |
+| ---------- | ------------- | ------- | ------------------------------------------------------------------------------------------------------------------- |
+| `instance` | `str`         | —       | Instance name.                                                                                                      |
+| `ref`      | `str`         | —       | Element ref (`[ref=eN]`) from `browser_snapshot`.                                                                   |
+| `page_id`  | `str \| None` | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs. |
+| `frame_id` | `str \| None` | `None`  | Attached frame ID from `browser_frames`; explicit scope never falls back to another frame.                          |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -66,17 +75,22 @@ async def browser_verify_list_visible(
     refs: list[str] | None = None,
     container_ref: str | None = None,
     items: list[str] | None = None,
+    *,
+    page_id: str | None = None,
+    frame_id: str | None = None,
 ) -> dict[str, Any]
 ```
 
 **Parameters**
 
-| Name            | Type                | Default | Description                                                                                                    |
-| --------------- | ------------------- | ------- | -------------------------------------------------------------------------------------------------------------- |
-| `instance`      | `str`               | —       | Instance name.                                                                                                 |
-| `refs`          | `list[str] \| None` | `None`  | **Refs mode**: list of element refs that must all be visible. Mutually exclusive with `container_ref`/`items`. |
-| `container_ref` | `str \| None`       | `None`  | **Container mode**: ref of the parent element. Required when using `items`.                                    |
-| `items`         | `list[str] \| None` | `None`  | **Container mode**: list of text strings that must be visible as descendants of `container_ref`.               |
+| Name            | Type                | Default | Description                                                                                                         |
+| --------------- | ------------------- | ------- | ------------------------------------------------------------------------------------------------------------------- |
+| `instance`      | `str`               | —       | Instance name.                                                                                                      |
+| `refs`          | `list[str] \| None` | `None`  | **Refs mode**: list of element refs that must all be visible. Mutually exclusive with `container_ref`/`items`.      |
+| `container_ref` | `str \| None`       | `None`  | **Container mode**: ref of the parent element. Required when using `items`.                                         |
+| `items`         | `list[str] \| None` | `None`  | **Container mode**: list of text strings that must be visible as descendants of `container_ref`.                    |
+| `page_id`       | `str \| None`       | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs. |
+| `frame_id`      | `str \| None`       | `None`  | Attached frame ID from `browser_frames`; explicit scope never falls back to another frame.                          |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape depends on mode:
 
@@ -142,15 +156,19 @@ Verify that the given text is currently visible somewhere on the active page.
 **Signature**
 
 ```python
-async def browser_verify_text_visible(instance: str, text: str) -> dict[str, Any]
+async def browser_verify_text_visible(
+    instance: str, text: str, *, page_id: str | None = None, frame_id: str | None = None
+) -> dict[str, Any]
 ```
 
 **Parameters**
 
-| Name       | Type  | Default | Description                                          |
-| ---------- | ----- | ------- | ---------------------------------------------------- |
-| `instance` | `str` | —       | Instance name.                                       |
-| `text`     | `str` | —       | Text to look for (case-insensitive substring match). |
+| Name       | Type          | Default | Description                                                                                                         |
+| ---------- | ------------- | ------- | ------------------------------------------------------------------------------------------------------------------- |
+| `instance` | `str`         | —       | Instance name.                                                                                                      |
+| `text`     | `str`         | —       | Text to look for (case-insensitive substring match).                                                                |
+| `page_id`  | `str \| None` | `None`  | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs. |
+| `frame_id` | `str \| None` | `None`  | Attached frame ID from `browser_frames`; explicit scope never falls back to another frame.                          |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 
@@ -192,17 +210,22 @@ async def browser_verify_value(
     ref: str,
     expected_value: str,
     element_type: str = "text",
+    *,
+    page_id: str | None = None,
+    frame_id: str | None = None,
 ) -> dict[str, Any]
 ```
 
 **Parameters**
 
-| Name             | Type  | Default  | Description                                                                                                                                                   |
-| ---------------- | ----- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `instance`       | `str` | —        | Instance name.                                                                                                                                                |
-| `ref`            | `str` | —        | Element ref (`[ref=eN]`) from `browser_snapshot`.                                                                                                             |
-| `expected_value` | `str` | —        | Expected value. String for `"text"` mode; coerced to bool for `"checkbox"`/`"radio"` (accepts `"true"`, `"false"`, `"1"`, `"0"`, `"checked"`, `"unchecked"`). |
-| `element_type`   | `str` | `"text"` | Comparison mode: `"text"` (reads via `input_value()`), `"checkbox"`, or `"radio"` (reads via `is_checked()`).                                                 |
+| Name             | Type          | Default  | Description                                                                                                                                                   |
+| ---------------- | ------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `instance`       | `str`         | —        | Instance name.                                                                                                                                                |
+| `ref`            | `str`         | —        | Element ref (`[ref=eN]`) from `browser_snapshot`.                                                                                                             |
+| `expected_value` | `str`         | —        | Expected value. String for `"text"` mode; coerced to bool for `"checkbox"`/`"radio"` (accepts `"true"`, `"false"`, `"1"`, `"0"`, `"checked"`, `"unchecked"`). |
+| `element_type`   | `str`         | `"text"` | Comparison mode: `"text"` (reads via `input_value()`), `"checkbox"`, or `"radio"` (reads via `is_checked()`).                                                 |
+| `page_id`        | `str \| None` | `None`   | Stable page ID; omitted uses the selected page. Explicit targeting preserves selection and rejects unavailable IDs.                                           |
+| `frame_id`       | `str \| None` | `None`   | Attached frame ID from `browser_frames`; explicit scope never falls back to another frame.                                                                    |
 
 **Returns** — see [response envelope](../concepts/response-envelope.md). `data` shape:
 

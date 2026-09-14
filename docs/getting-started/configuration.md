@@ -37,6 +37,7 @@ default.
 | `BROWSER_MCP_GEOIP`                     | `--geoip` / `--no-geoip`          | Boolean override; unset enables automatic lookup only with a proxy                                      | automatic   |
 | `BROWSER_MCP_BLOCK_IMAGES`              | `--block-images`                  | Boolean flag                                                                                            | `false`     |
 | `BROWSER_MCP_BLOCK_WEBRTC`              | _(env only, no CLI flag)_         | Boolean                                                                                                 | `true`      |
+| `BROWSER_MCP_METADATA_HEADERS_ENABLED`  | _(env only, no CLI flag)_         | Boolean; generate instance name/ID and page ID HTTP headers                                             | `true`      |
 | `BROWSER_MCP_BLOCK_WEBGL`               | _(env only, no CLI flag)_         | Boolean                                                                                                 | `false`     |
 | `BROWSER_MCP_WINDOW`                    | `--window`                        | `WxH`, e.g. `1280x800`                                                                                  | none        |
 | `BROWSER_MCP_FIREFOX_PREFS`             | `--firefox-pref K=V` (repeatable) | `k=v;k2=v2` pairs; each value coerced `true`/`false` → bool, integer strings → int, else kept as string | `{}` (none) |
@@ -102,3 +103,11 @@ BROWSER_MCP_MAX_INSTANCES=5 justpen-browser-mcp
 
 `BROWSER_MCP_LOG_LEVEL` accepts any standard Python log level name
 (`DEBUG`, `INFO`, `WARNING`, `ERROR`). Logs go to stderr.
+
+## HTTP metadata headers
+
+Automatic identity headers are enabled by default. Set
+`BROWSER_MCP_METADATA_HEADERS_ENABLED=false` before starting the server to disable
+them. Values are generated from the current instance and page IDs; there is no
+per-instance override or arbitrary header input. See [header names and lifecycle
+limits](../guides/framework-integration.md#automatic-http-identity-headers).

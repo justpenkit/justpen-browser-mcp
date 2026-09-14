@@ -212,6 +212,8 @@ async def test_snapshot_selects_page_or_scoped_capture(direct, browser, monkeypa
     assert result["data"] == {
         "snapshot": "- button [ref=e1]" if selector is None else "- heading Main",
         "url": browser.page.url,
+        "page_id": f"page-{id(browser.page)}",
+        "frame_id": f"frame-{id(browser.page.main_frame)}",
     }
     if selector is None:
         capture.assert_awaited_once_with(browser.page)
@@ -235,7 +237,9 @@ async def test_screenshot_output_matches_final_dimensions(direct, browser, tmp_p
     browser.page.screenshot.assert_awaited_once_with(type=image_format, full_page=True)
     expected = (1568, 784) if dimensions == (2000, 1000) else dimensions
     assert (data["width"], data["height"]) == expected
+    assert (data["source_width"], data["source_height"]) == dimensions
     assert data["image_format"] == image_format
+    assert data["original"] is False
     if save:
         assert "image_base64" not in data
         encoded = (tmp_path / f"capture.{image_format}").read_bytes()
@@ -255,6 +259,9 @@ async def test_screenshot_rejects_format_and_keeps_bytes_when_image_processing_f
     result = await direct("browser_screenshot")
     assert result["data"]["width"] is None
     assert result["data"]["height"] is None
+    assert result["data"]["source_width"] is None
+    assert result["data"]["source_height"] is None
+    assert result["data"]["original"] is False
     assert base64.b64decode(result["data"]["image_base64"]) == b"unreadable image"
 
 
@@ -530,3 +537,21 @@ async def test_tool_failures_preserve_domain_errors_and_wrap_unexpected_failures
     assert result["instance"] == "example"
     assert result["error_type"] == expected
     assert str(error) in result["message"]
+
+
+@pytest.mark.parametrize(
+    ("tool", "args"),
+    [
+        ("browser_evaluate", {"expression": "() => 1"}),
+        ("browser_click", {"ref": "e1"}),
+        ("browser_type", {"ref": "e1", "text": "value"}),
+        ("browser_press_key", {"key": "Tab"}),
+        ("browser_mouse_move_xy", {"x": 1, "y": 2}),
+    ],
+)
+async def test_explicit_target_uses_requested_page(direct, browser, mock_mgr, tool, args):
+    mock_mgr.target_page = AsyncMock(return_value=browser.page)
+    result = await direct(tool, page_id="second", **args)
+    assert result["status"] == "success"
+    mock_mgr.target_page.assert_awaited_once_with("example", "second")
+    mock_mgr.active_page.assert_not_awaited()

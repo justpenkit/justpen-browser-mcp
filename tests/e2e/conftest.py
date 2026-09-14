@@ -29,7 +29,7 @@ import pytest
 from fastmcp import FastMCP
 from fastmcp.client import Client
 
-from justpen_browser_mcp.browser_runtime import ensure_camoufox_binary
+from justpen_browser_mcp.browser_runtime import BrowserRuntime, ensure_camoufox_binary
 from justpen_browser_mcp.config import BrowserServerConfig
 from justpen_browser_mcp.instance_manager import InstanceManager
 from justpen_browser_mcp.tools import register_all
@@ -41,9 +41,9 @@ PAGES_DIR = Path(__file__).parent / "pages"
 
 
 @pytest.fixture(scope="session", autouse=True)
-def pinned_browser_runtime() -> None:
+def pinned_browser_runtime() -> BrowserRuntime:
     """Use the same verified browser for direct manager and transport tests."""
-    asyncio.run(ensure_camoufox_binary())
+    return asyncio.run(ensure_camoufox_binary())
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
@@ -84,10 +84,10 @@ def test_site() -> Iterator[str]:
 
 
 @pytest.fixture
-async def e2e_client() -> AsyncIterator[Client[Any]]:
+async def e2e_client(pinned_browser_runtime: BrowserRuntime) -> AsyncIterator[Client[Any]]:
     """Yield a connected FastMCP client backed by a real InstanceManager."""
     cfg = BrowserServerConfig(log_level="INFO", max_instances=5)
-    mgr = InstanceManager(cfg)
+    mgr = InstanceManager(cfg, browser_runtime=pinned_browser_runtime)
     mcp = FastMCP("e2e")
     register_all(mcp, mgr)
     client = Client(mcp)

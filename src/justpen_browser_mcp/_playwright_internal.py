@@ -16,13 +16,10 @@ See: https://github.com/microsoft/playwright-python/issues/2867
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from playwright.async_api import Page
+from playwright.async_api import Frame, Page
 
 
-async def snapshot_for_ai(page: Page, timeout_ms: int) -> str:
+async def snapshot_for_ai(page: Page | Frame, timeout_ms: int) -> str:
     """Invoke Playwright's internal AI aria-snapshot RPC via the main frame.
 
     Returns the aria snapshot YAML string with [ref=eN] annotations.
@@ -30,19 +27,21 @@ async def snapshot_for_ai(page: Page, timeout_ms: int) -> str:
     Uses the ``Frame.ariaSnapshot`` RPC with ``mode="ai"`` (Playwright >= 1.59);
     earlier releases exposed this as ``Page.snapshotForAI``.
     """
-    return await page._impl_obj.main_frame._channel.send(  # type: ignore[reportPrivateUsage]  # noqa: SLF001
+    frame = page if isinstance(page, Frame) else page.main_frame
+    return await frame._impl_obj._channel.send(  # type: ignore[reportPrivateUsage]  # noqa: SLF001
         "ariaSnapshot",
         None,
         {"mode": "ai", "timeout": float(timeout_ms)},
     )
 
 
-async def resolve_selector(page: Page, ref: str) -> str:
+async def resolve_selector(page: Page | Frame, ref: str) -> str:
     """Invoke Playwright's internal resolveSelector RPC via the main frame.
 
     Returns the stable internal Playwright selector string.
     """
-    return await page._impl_obj.main_frame._channel.send(  # type: ignore[reportPrivateUsage]  # noqa: SLF001
+    frame = page if isinstance(page, Frame) else page.main_frame
+    return await frame._impl_obj._channel.send(  # type: ignore[reportPrivateUsage]  # noqa: SLF001
         "resolveSelector",
         None,
         {"selector": f"aria-ref={ref}"},
