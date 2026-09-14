@@ -1,3 +1,14 @@
+## v0.8.0 (2026-09-14)
+
+### Feat
+
+- wire telemetry into MCP server lifecycle
+- correlate browser operations with native MCP spans
+- configure bounded OTLP telemetry export
+- emit correlated operational events and metrics
+- receive W3C context and MCP call metadata
+- add telemetry configuration and resource identity
+
 ## v0.7.0 (2026-09-14)
 
 ### Feat
@@ -9,11 +20,6 @@
 - bridge Camoufox mouse hangs with verified upstream CI builds
 
 ## v0.6.1 (2026-09-13)
-
-### Maintenance
-
-- Align development hooks, CI, Commitizen validation, release tooling and common documentation with template v0.4.0.
-- Keep routine local verification in Git hooks and browser/integration/installed-package scenarios in CI.
 
 ## v0.6.0 (2026-09-12)
 

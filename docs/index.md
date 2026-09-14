@@ -20,7 +20,7 @@ for platform requirements.
 Install with [uv](https://docs.astral.sh/uv/) inside your Python project:
 
 ```bash
-uv add "justpen-browser-mcp @ git+https://github.com/justpenkit/justpen-browser-mcp@v0.7.0"
+uv add "justpen-browser-mcp @ git+https://github.com/justpenkit/justpen-browser-mcp@v0.8.0"
 ```
 
 Run the server (stdio transport); startup selects and verifies the newest compatible
