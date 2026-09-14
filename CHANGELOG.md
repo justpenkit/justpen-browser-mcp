@@ -1,3 +1,13 @@
+## v0.7.0 (2026-09-14)
+
+### Feat
+
+- **browser**: add pentest targeting and evidence workflows
+
+### Fix
+
+- bridge Camoufox mouse hangs with verified upstream CI builds
+
 ## v0.6.1 (2026-09-13)
 
 ### Maintenance

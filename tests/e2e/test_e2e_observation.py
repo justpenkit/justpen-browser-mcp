@@ -78,7 +78,7 @@ def outcome_site() -> Iterator[tuple[str, list[bytes], threading.Event, threadin
 
 
 @pytest.fixture
-async def observation_browser(outcome_site, request):
+async def observation_browser(outcome_site):
     url, received, _started, _release = outcome_site
     manager = InstanceManager(BrowserServerConfig(operation_timeout_seconds=8))
     server = FastMCP("outcomes")
@@ -87,7 +87,6 @@ async def observation_browser(outcome_site, request):
         await manager.create("outcomes")
         page = await manager.active_page("outcomes")
         await page.goto(url)
-        manager._config = BrowserServerConfig(operation_timeout_seconds=getattr(request, "param", 8))
         async with Client(server) as client:
             yield client, manager, page, url, received
     finally:
@@ -278,26 +277,29 @@ async def test_explicit_frame_filters_same_url_response(observation_browser):
     assert all(body == b"right-frame" for body in received[1:])
 
 
-@pytest.mark.parametrize("observation_browser", [0.5], indirect=True)
-async def test_outer_deadline_keeps_completion_and_allows_next_action(observation_browser):
-    client, _manager, page, url, _received = observation_browser
+async def test_outer_deadline_keeps_completion_and_allows_next_action(observation_browser, monkeypatch):
+    client, manager, page, url, _received = observation_browser
     ref = await input_ref(client, "DOM")
-    result = await call(
-        client,
-        "browser_type",
-        {
-            "instance": "outcomes",
-            "ref": ref,
-            "text": "completed",
-            "wait_for": {"kind": "response", "url": url + "/missing", "timeout_ms": 5000},
-        },
-    )
+    # Force only the observed operation to expire; recovery uses the normal budget.
+    with monkeypatch.context() as deadline:
+        deadline.setattr(manager, "_config", BrowserServerConfig(operation_timeout_seconds=0.5))
+        result = await call(
+            client,
+            "browser_type",
+            {
+                "instance": "outcomes",
+                "ref": ref,
+                "text": "completed",
+                "wait_for": {"kind": "response", "url": url + "/missing", "timeout_ms": 5000},
+            },
+        )
     assert result["error_type"] == "operation_timeout", result
     assert result["data"]["action_completed"] is True
     assert result["operation"]["retry"] == "inspect_state"
     assert await page.get_by_label("DOM").input_value() == "completed"
     following = await call(client, "browser_type", {"instance": "outcomes", "ref": ref, "text": "following"})
     assert following["status"] == "success", following
+    assert await page.get_by_label("DOM").input_value() == "following"
 
 
 async def test_delayed_response_waits_for_headers_after_action(observation_browser, outcome_site):
