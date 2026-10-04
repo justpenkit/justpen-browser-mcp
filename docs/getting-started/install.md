@@ -24,7 +24,7 @@ server's signal handling requires a Unix event loop.
 Until the package is on PyPI, install straight from git inside your Python project:
 
 ```bash
-uv add "justpen-browser-mcp @ git+https://github.com/justpenkit/justpen-browser-mcp@v0.8.0"
+uv add "justpen-browser-mcp @ git+https://github.com/justpenkit/justpen-browser-mcp@v0.8.1"
 ```
 
 Run `uv run justpen-browser-mcp` from that project to start the server using its
