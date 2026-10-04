@@ -1,3 +1,10 @@
+## v0.8.1 (2026-10-04)
+
+### Fix
+
+- **browser**: keep the latest browser selected under camoufox 0.5.7
+- **deps**: upgrade locked dependencies for known vulnerabilities
+
 ## v0.8.0 (2026-09-14)
 
 ### Feat
@@ -20,11 +27,6 @@
 - bridge Camoufox mouse hangs with verified upstream CI builds
 
 ## v0.6.1 (2026-09-13)
-
-### Maintenance
-
-- Align development hooks, CI, Commitizen validation, release tooling and common documentation with template v0.4.0.
-- Keep routine local verification in Git hooks and browser/integration/installed-package scenarios in CI.
 
 ## v0.6.0 (2026-09-12)
 
@@ -93,35 +95,6 @@
 - **tests**: add type params to Client and dict in tools conftest
 - **tools/lifecycle**: close TOCTOU race and add limit test
 - **instance-manager**: acquire registry_lock in shutdown_all
-
-### Refactor
-
-- **instance-manager**: destroy uses self.get too
-- **instance-manager**: make get sync, dedupe lookup-or-raise
-- **instance-manager**: use anyio.Path for profile_dir resolve
-- remove launcher, context-manager, and server-tools modules
-- **tools**: re-export renamed modules from package __init__
-- **tools/utility**: rename context → instance
-- **tools/page**: rename context → instance
-- **tools/cookies**: rename context → instance
-- **tools/code_execution**: rename context → instance
-- **tools/verification**: rename context → instance
-- **tools/inspection**: rename context → instance
-- **tools/mouse**: rename context → instance
-- **tools/interaction**: rename context → instance
-- **tools/navigation**: rename context → instance
-- **responses**: rename envelope field context → instance
-- **config**: drop headless, add max_instances env + default 10
-- **errors**: replace context\_\* with instance\_\* error types
-
-### Perf
-
-- **instance-manager**: resolve profile_dir once, store canonical
-
-## v0.1.0 (2026-04-19)
-
-### Fix
-
 - **types**: enable strict pyright for browser_mcp
 - **pyright**: resolve register_all import collision between tests/ and lib/ namespaces
 - **browser_mcp**: remove dead comparisons flagged by pyright
@@ -182,6 +155,23 @@
 
 ### Refactor
 
+- **instance-manager**: destroy uses self.get too
+- **instance-manager**: make get sync, dedupe lookup-or-raise
+- **instance-manager**: use anyio.Path for profile_dir resolve
+- remove launcher, context-manager, and server-tools modules
+- **tools**: re-export renamed modules from package __init__
+- **tools/utility**: rename context → instance
+- **tools/page**: rename context → instance
+- **tools/cookies**: rename context → instance
+- **tools/code_execution**: rename context → instance
+- **tools/verification**: rename context → instance
+- **tools/inspection**: rename context → instance
+- **tools/mouse**: rename context → instance
+- **tools/interaction**: rename context → instance
+- **tools/navigation**: rename context → instance
+- **responses**: rename envelope field context → instance
+- **config**: drop headless, add max_instances env + default 10
+- **errors**: replace context\_\* with instance\_\* error types
 - **types**: revert module-private helper renames; rename navigation.normalize_url to avoid collision
 - **browser_mcp**: extract \_playwright_internal facade for snapshotForAI/resolveSelector
 - **browser_mcp**: isolate playwright \_impl_obj access and fix private symbols
@@ -201,3 +191,7 @@
 - **browser_mcp**: split ContextManager.load_state into phase helpers
 - **browser_mcp**: extract listener wiring from ContextManager.create
 - move browser_mcp to mcps/browser_mcp
+
+### Perf
+
+- **instance-manager**: resolve profile_dir once, store canonical
