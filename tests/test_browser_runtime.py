@@ -36,6 +36,10 @@ def prepared_install(tmp_path, monkeypatch):
     monkeypatch.setattr(runtime, "launch_path", lambda _path: str(executable), raising=False)
     monkeypatch.setattr(runtime, "get_active_path", lambda: install_path, raising=False)
     monkeypatch.setattr(runtime, "set_active", MagicMock(), raising=False)
+    # Keep the SDK's shared config out of unit tests.
+    config: dict[str, object] = {}
+    monkeypatch.setattr(runtime, "load_config", lambda: config)
+    monkeypatch.setattr(runtime, "save_config", lambda _config: None)
     monkeypatch.setattr(runtime, "RepoConfig", MagicMock(load_repos=lambda: [repo]), raising=False)
     return release, installed, catalog
 

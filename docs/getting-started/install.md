@@ -45,7 +45,7 @@ Equal or newer official releases automatically take priority at the next startup
 even when the mirror is cached. See [browser selection](run-server.md#latest-build-compatibility).
 The server reuses or downloads the selected browser, activates it, and verifies it before serving
 browser operations. Startup fails if that preparation cannot complete; it does not
-fall back to an unverified older browser. Playwright 1.61.x and Camoufox SDK 0.5.6 or newer are required. The process
+fall back to an unverified older browser. Playwright 1.61.x and Camoufox SDK 0.5.7 or newer are required. The process
 retains the exact resolved SDK browser selector for all its launches even if another SDK process
 later changes the shared active selection. `make browser-fetch` uses the same
 preparation flow. Python dependencies are installed through uv, not updated at runtime.

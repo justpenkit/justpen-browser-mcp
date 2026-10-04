@@ -10,7 +10,7 @@ and prefers the newest complete browser version. While upstream is older than
 selected browser when needed, activates it, and verifies readiness. A failed
 update check or verification stops startup rather than selecting an unverified older
 browser. The resolved SDK browser selector is retained for this process's launches.
-Playwright 1.61.x and Camoufox SDK 0.5.6 or newer are installed through uv.
+Playwright 1.61.x and Camoufox SDK 0.5.7 or newer are installed through uv.
 
 ## Invocation forms { #invocation-forms }
 

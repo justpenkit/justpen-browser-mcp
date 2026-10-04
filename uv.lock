@@ -1565,7 +1565,7 @@ docs = [
 [package.metadata]
 requires-dist = [
     { name = "anyio", specifier = ">=4.13.0" },
-    { name = "camoufox", specifier = ">=0.5.6" },
+    { name = "camoufox", specifier = ">=0.5.7" },
     { name = "fastmcp", specifier = ">=4.0.3" },
     { name = "opentelemetry-api", specifier = ">=1.41.0,<2" },
     { name = "opentelemetry-exporter-otlp-proto-grpc", specifier = ">=1.41.0,<2" },

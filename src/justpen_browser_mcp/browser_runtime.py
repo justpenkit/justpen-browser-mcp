@@ -9,11 +9,13 @@ import asyncio
 import json
 import logging
 import sys
+from collections.abc import Callable
 from contextlib import redirect_stdout
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, cast
 
+from camoufox import multiversion
 from camoufox.multiversion import (
     InstalledVersion,
     find_install,
@@ -30,6 +32,11 @@ from .errors import BinaryNotFoundError
 
 logger = logging.getLogger(__name__)
 STARTUP_TIMEOUT_SECONDS = 300
+
+# The SDK leaves its shared config helpers untyped.
+_multiversion: Any = multiversion
+load_config: Callable[[], dict[str, object]] = _multiversion.load_config
+save_config: Callable[[dict[str, object]], None] = _multiversion.save_config
 
 
 @dataclass(frozen=True)
@@ -51,6 +58,18 @@ def _version_key(version: Version) -> tuple[tuple[int, ...], Version]:
     if version.version is None:
         raise BinaryNotFoundError("Camoufox release is missing its Firefox version")
     return tuple(int(part) for part in version.version.split(".")), version
+
+
+def _activate(installed: InstalledVersion) -> None:
+    """Make the SDK's shared selection match this startup's choice.
+
+    The SDK launches the build it was released with unless a choice is explicit,
+    so the selection is recorded the way `camoufox set` records one.
+    """
+    set_active(installed.relative_path)
+    config = load_config()
+    config["pinned"] = installed.version.full_string
+    save_config(config)
 
 
 def prepare_runtime() -> BrowserRuntime:
@@ -102,7 +121,7 @@ def prepare_runtime() -> BrowserRuntime:
         raise BinaryNotFoundError(f"Camoufox {version} was not installed after fetch")
     executable = launch_path(installed.path)
     logger.info("Activating Camoufox %s", version)
-    set_active(installed.relative_path)
+    _activate(installed)
     if get_active_path() != installed.path:
         raise BinaryNotFoundError(f"Camoufox {version} activation did not select the installed release")
     return BrowserRuntime(version=version, executable_path=executable, installation=installed.relative_path)
