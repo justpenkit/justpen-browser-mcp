@@ -121,8 +121,8 @@ def test_formatter_handles_spaces_and_skips_private_files(make_project):
     shutil.copyfile(ROOT / ".gitignore", project / ".gitignore")
     shutil.copyfile(ROOT / ".mdformat.toml", project / ".mdformat.toml")
     (project / "space name.md").write_text("# Heading\n\nhello    \n")
-    (project / ".superpowers").mkdir()
-    private = project / ".superpowers/private.md"
+    (project / ".private").mkdir()
+    private = project / ".private/private.md"
     private.write_text("# private    \n")
     subprocess.run(["git", "init", "-q"], cwd=project, env=environment, check=True)
     check = subprocess.run(
@@ -177,13 +177,17 @@ def test_asset_formatters_check_then_rewrite_without_node(make_project, tmp_path
         assert executable is not None
         (binaries / name).symlink_to(executable)
     environment["PATH"] = os.pathsep.join((str(binaries), str(Path(sys.executable).parent)))
+    if shutil.which("taplo", path=environment["PATH"]) is None:
+        pytest.skip("taplo is missing from this environment; run make install-taplo")
     assert shutil.which("node", path=environment["PATH"]) is None
     assert shutil.which("npm", path=environment["PATH"]) is None
     shutil.copyfile(ROOT / "scripts/format_files.py", project / "scripts/format_files.py")
     shutil.copyfile(ROOT / ".gitignore", project / ".gitignore")
     asset = project / f"space name.{kind}"
     asset.write_text(content)
-    excluded = [project / folder / f"untouched.{kind}" for folder in (".superpowers", "site", "template")]
+    excluded = [
+        project / folder / f"untouched.{kind}" for folder in (".private", "site", "template", ".compound-engineering")
+    ]
     excluded.append(tmp_path / f"linked.{kind}")
     for path in excluded:
         path.parent.mkdir(exist_ok=True)

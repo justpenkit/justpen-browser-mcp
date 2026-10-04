@@ -13,15 +13,15 @@ permissions:
   contents: read
 
 jobs:
-  quality:
-    name: quality
+  check:
+    name: check
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       UV_PYTHON: "3.13"
     steps:
       - uses: actions/checkout@v7.0.1
-      - uses: astral-sh/setup-uv@v10.1.0
+      - uses: astral-sh/setup-uv@v10.2.0
         with:
           enable-cache: true
       - name: Install Python
@@ -34,34 +34,29 @@ jobs:
         run: make check-static
       - name: Strict documentation build
         run: make docs-build
-
-  check:
-    name: check (py${{ matrix.python-version }})
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.11", "3.12", "3.13"]
-    env:
-      UV_PYTHON: ${{ matrix.python-version }}
-    steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: astral-sh/setup-uv@v10.1.0
-        with:
-          enable-cache: true
-      - name: Install Python
-        run: uv python install "$UV_PYTHON"
-      - name: Require the committed lockfile
-        run: make lock-check
-      - name: make install
-        run: make install
-      - name: Active Python typing and unit tests
+      - name: Python 3.13 typing and unit tests
         run: make check-python
+      # Pull requests also cover the older supported versions; main re-checks 3.13 only.
+      - name: Python 3.12 typing and unit tests
+        if: github.event_name == 'pull_request'
+        env:
+          UV_PYTHON: "3.12"
+        run: |
+          uv python install "$UV_PYTHON"
+          make install
+          make check-python
+      - name: Python 3.11 typing and unit tests
+        if: github.event_name == 'pull_request'
+        env:
+          UV_PYTHON: "3.11"
+        run: |
+          uv python install "$UV_PYTHON"
+          make install
+          make check-python
 
   browser:
     name: browser (py${{ matrix.python-version }})
-    needs: quality
+    needs: check
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
@@ -72,7 +67,7 @@ jobs:
       UV_PYTHON: ${{ matrix.python-version }}
     steps:
       - uses: actions/checkout@v7.0.1
-      - uses: astral-sh/setup-uv@v10.1.0
+      - uses: astral-sh/setup-uv@v10.2.0
         with:
           enable-cache: true
       - name: Install Python
@@ -102,7 +97,7 @@ jobs:
 
   deploy-docs:
     name: Publish documentation
-    needs: [quality, check, browser]
+    needs: [check, browser]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment:
       name: production
@@ -125,7 +120,7 @@ jobs:
             exit 1
           fi
       - uses: actions/checkout@v7.0.1
-      - uses: astral-sh/setup-uv@v10.1.0
+      - uses: astral-sh/setup-uv@v10.2.0
         with:
           enable-cache: true
       - name: Install Python

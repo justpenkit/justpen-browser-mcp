@@ -24,6 +24,8 @@ def create_make_project(tmp_path):
     (project / "scripts").mkdir()
     shutil.copyfile(ROOT / "scripts/development.mk", project / "scripts/development.mk")
     (project / "pyproject.toml").write_text('[project]\nversion = "0.1.0"\n')
+    # Stand in for the formatter runner so tests can see that formatting ran.
+    (project / "scripts/format_files.py").write_text("import json, sys\nprint(json.dumps(['format', *sys.argv[1:]]))\n")
     binary = tmp_path / "bin"
     binary.mkdir()
     # Capture tool arguments, but delegate the formatter runner to real tools.
@@ -41,7 +43,8 @@ def create_make_project(tmp_path):
         environment.pop(name, None)
     environment["PATH"] = os.pathsep.join((str(binary), str(Path(sys.executable).parent), environment["PATH"]))
     environment.pop("CODEX_TEST_BINARY", None)
-    environment.pop("TEST", None)
+    for name in ("TEST", "PKG", "GROUP"):
+        environment.pop(name, None)
     return project, environment
 
 
@@ -167,3 +170,93 @@ def test_permission_target_requires_an_actual_codex_binary(make_project):
     )
     assert result.returncode != 0
     assert "CODEX_TEST_BINARY" in result.stderr
+
+
+SYNC = ["sync", "--locked", "--group", "dev", "--group", "docs"]
+FORMAT_TOML = ["format", "toml"]
+
+
+def run_make(project, environment, *arguments, check=True):
+    return subprocess.run(
+        ["make", "-s", *arguments], cwd=project, env=environment, capture_output=True, text=True, check=check
+    )
+
+
+def recorded_calls(result):
+    return [json.loads(line) for line in result.stdout.splitlines()]
+
+
+def test_uv_add_adds_the_package_then_formats_toml(make_project):
+    project, environment = make_project
+    result = run_make(project, environment, "uv-add", "PKG=httpx")
+    assert recorded_calls(result) == [["add", "httpx"], FORMAT_TOML]
+
+
+def test_uv_add_passes_the_group_only_when_given(make_project):
+    project, environment = make_project
+    result = run_make(project, environment, "uv-add", "PKG=pytest-x", "GROUP=dev")
+    assert recorded_calls(result) == [["add", "--group", "dev", "pytest-x"], FORMAT_TOML]
+
+
+def test_uv_remove_removes_the_package_then_formats_toml(make_project):
+    project, environment = make_project
+    result = run_make(project, environment, "uv-remove", "PKG=httpx")
+    assert recorded_calls(result) == [["remove", "httpx"], FORMAT_TOML]
+
+
+def test_uv_remove_passes_the_group_only_when_given(make_project):
+    project, environment = make_project
+    result = run_make(project, environment, "uv-remove", "PKG=pytest-x", "GROUP=dev")
+    assert recorded_calls(result) == [["remove", "--group", "dev", "pytest-x"], FORMAT_TOML]
+
+
+@pytest.mark.parametrize("target", ["uv-add", "uv-remove"])
+@pytest.mark.parametrize("arguments", [[], ["PKG="]])
+def test_uv_add_and_remove_require_a_package(make_project, target, arguments):
+    project, environment = make_project
+    result = run_make(project, environment, target, *arguments, check=False)
+    assert result.returncode == 2
+    assert "PKG=" in result.stderr
+    assert result.stdout == ""
+
+
+@pytest.mark.parametrize("target", ["uv-add", "uv-remove"])
+def test_a_package_with_spaces_is_one_argument(make_project, target):
+    project, environment = make_project
+    spec = "httpx>=0.27 ; python_version >= '3.11' $(shell touch injected)"
+    result = run_make(project, environment, target, f"PKG={spec}")
+    assert recorded_calls(result) == [[target.removeprefix("uv-"), spec], FORMAT_TOML]
+    assert not (project / "injected").exists()
+
+
+def test_uv_upgrade_upgrades_everything_then_syncs(make_project):
+    project, environment = make_project
+    result = run_make(project, environment, "uv-upgrade")
+    assert recorded_calls(result) == [["lock", "--upgrade"], SYNC, FORMAT_TOML]
+
+
+def test_uv_upgrade_can_target_one_package(make_project):
+    project, environment = make_project
+    result = run_make(project, environment, "uv-upgrade", "PKG=ruff")
+    assert recorded_calls(result) == [["lock", "--upgrade-package", "ruff"], SYNC, FORMAT_TOML]
+
+
+def test_uv_lock_relocks_then_syncs(make_project):
+    project, environment = make_project
+    result = run_make(project, environment, "uv-lock")
+    assert recorded_calls(result) == [["lock"], SYNC, FORMAT_TOML]
+
+
+def test_uv_reinstall_removes_the_venv_before_a_locked_sync(make_project):
+    project, environment = make_project
+    (project / ".venv/lib").mkdir(parents=True)
+    (project / ".venv/lib/planted.pth").write_text("import os\n")
+    result = run_make(project, environment, "uv-reinstall")
+    assert recorded_calls(result) == [SYNC]
+    assert not (project / ".venv").exists()
+
+
+def test_setup_has_no_sandbox_workarounds():
+    recipe = (ROOT / "scripts/development.mk").read_text().split("\nsetup:", 1)[1].split("\n\n", 1)[0]
+    assert "exclude-placeholders" not in recipe
+    assert ".codex/rules" not in recipe

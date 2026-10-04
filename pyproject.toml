@@ -68,7 +68,7 @@ dev = [
   "pytest-cov>=5.0",
   "pytest-timeout>=2.3",
   "ruff>=0.15",
-  "taplo>=0.9.3",
+  "taplo>=0.9.3 ; platform_machine != 'aarch64' or sys_platform != 'linux'",
   "yamlfix>=1.16",
 ]
 docs = ["mkdocs-material>=9.5"]
@@ -107,7 +107,7 @@ markers = [
 [tool.ruff]
 line-length = 120
 src = ["src"]
-extend-exclude = [".superpowers"]
+extend-exclude = [".private"]
 
 [tool.ruff.lint]
 select = [
