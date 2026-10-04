@@ -22,8 +22,11 @@ make setup
 
 `make setup` installs the locked development and documentation dependencies into
 `.venv`, fetches Camoufox and installs the pre-commit, pre-push and commit-msg
-Git hooks. `make install` installs dependencies only. Run setup again after
-cloning onto another computer or when hooks need reinstalling.
+Git hooks. On linux aarch64, where taplo publishes no wheel, `make install-taplo`
+installs the pinned upstream binary into `.venv/bin` after verifying its checksums.
+Claude Code and Codex plugins the project declares are installed in project
+scope when those CLIs are present. `make install` installs dependencies only.
+Run setup again after cloning onto another computer or when hooks need reinstalling.
 
 Setup, `make browser-fetch`, and every server startup resolve, install if needed,
 activate, and verify the newest compatible official Camoufox release, including
@@ -35,7 +38,7 @@ Playwright 1.61.x and retains that startup's exact SDK browser selector for all
 instance launches. See [installation](../getting-started/install.md).
 
 Use uv for dependency management and application commands; do not install project
-dependencies into system Python. The standalone permission hook uses isolated
+dependencies into system Python. The protected-files guard hook uses isolated
 system Python independently of the project environment. See the
 [agent guide](agents.md) before starting Claude Code or Codex.
 
@@ -55,8 +58,9 @@ active uv Python once, defaulting to 3.13. The strict MkDocs build validates
 local file links and heading anchors. A passing pre-push
 already supplies these gates; no duplicate manual run is required before a PR.
 
-CI runs shared formatting, lint and docs once on Python 3.13. Its unit matrix
-checks strict typing and unit coverage once per Python 3.11, 3.12 and 3.13.
+CI runs one `check` job: shared formatting, lint and the docs build once on
+Python 3.13, then typing and unit tests. Pull requests run typing and tests on
+Python 3.11, 3.12 and 3.13; the push to `main` after a merge re-checks 3.13 only.
 It rejects a missing or stale committed lock before installing dependencies.
 Real tool, transport, hook, formatter, release and docs scenarios run separately
 through `make test-integration` on 3.13, including the browser tests below.
@@ -69,9 +73,10 @@ the suite-wide coverage threshold; the pre-push unit gate applies that threshold
 ### End-to-end tests
 
 `make check` and `make test` select unit tests and exclude `integration` tests.
-Every Camoufox-backed `e2e` test is also an integration test. CI runs these on
-Python 3.11 and 3.12 through `make test-e2e`; on 3.13 they run once as part of
-the full integration suite. A short test using real components still belongs
+Every Camoufox-backed `e2e` test is also an integration test. On pull requests,
+CI runs these on Python 3.11 and 3.12 through `make test-e2e`; on 3.13, which
+also runs after every push to `main`, they run once as part of the full
+integration suite. A short test using real components still belongs
 in integration: classification depends on its boundaries, not elapsed time.
 
 When developing an integration test or its harness, use
@@ -91,7 +96,8 @@ identity, all 46 tool schemas and a real browser round trip. One environment use
 locked runtime dependencies; another resolves the lowest allowed direct versions
 with compatible transitive packages. It does not upgrade `uv.lock`.
 
-CI runs this on Python 3.11, 3.12 and 3.13. It is a real installation/MCP/browser
+CI runs this on Python 3.11, 3.12 and 3.13 for pull requests, and on 3.13 after
+every push to `main`. It is a real installation/MCP/browser
 integration, not part of the local unit gate. A focused local run is useful while
 developing the consumer harness; repeating it before every PR is unnecessary.
 The local target needs network access and the fetched Camoufox binary.

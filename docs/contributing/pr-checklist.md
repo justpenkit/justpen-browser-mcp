@@ -22,8 +22,8 @@ and unit tests with 80% branch coverage in the active Python environment.
 The strict docs build validates local links and heading anchors.
 Do not substitute direct tool invocations or weaker flags.
 
-CI runs shared quality checks once, typing/unit tests across Python 3.11–3.13,
-and real integration/browser/consumer scenarios separately. A passing local unit
+CI runs shared quality checks once, typing/unit tests across Python 3.11–3.13 on
+pull requests, and real integration/browser/consumer scenarios separately. A passing local unit
 gate does not replace the CI integration results.
 
 ## 3. Tests { #3-tests }
@@ -36,9 +36,9 @@ gate does not replace the CI integration results.
     See [End-to-end tests](getting-started.md#end-to-end-tests).
 - Preserve CI's installed-wheel consumer coverage with locked and minimum direct
     dependencies when runtime APIs, packaging or dependency bounds change.
-- When developing permission tests or the native sandbox harness, use the focused
+- When developing permission tests or the Codex rule checks, use the focused
     test and follow the [agent guide](agents.md#verify-and-troubleshoot) for the
-    explicit `CODEX_TEST_BINARY` probe. It is not an automatic routine gate.
+    explicit `CODEX_TEST_BINARY` run. It is not an automatic routine gate.
 
 ## 4. Documentation { #4-documentation }
 

@@ -63,7 +63,8 @@ One of:
 
 ## Config changes require escalation
 
-Never modify `pyproject.toml` ruff or pyright rules unilaterally to make warnings disappear. This includes:
+The [protected-files guard](agents.md#protected-files-guard) reverts agent edits
+to `pyproject.toml` and the other configuration files. Never modify `pyproject.toml` ruff or pyright rules unilaterally to make warnings disappear. This includes:
 
 - `[tool.ruff.lint] select`
 - `[tool.ruff.lint] ignore`
@@ -99,13 +100,13 @@ builds exercise integrations. Browser scenarios using a real FastMCP client,
 MCP stdio or Camoufox also belong in integration, including every `e2e` test.
 Direct tool-function tests with isolated browser collaborators remain unit tests.
 CI runs the integration and installed-wheel consumer suites separately from the
-unit matrix. The actual Codex sandbox probes additionally require an explicit
+`check` job. The real Codex rule checks additionally require an explicit
 `CODEX_TEST_BINARY` and remain skipped in normal CI. Local integration execution
 is only needed while developing that test or its harness: select the relevant
 scenario with `make test-one` instead of repeating the entire browser matrix.
 
-TOML formatting of Python metadata through Make and uv-managed lockfile changes
-remain trusted tool operations. Direct AI metadata rewrites and unilateral
+TOML formatting of Python metadata through Make and the `make uv-*` dependency
+targets remain trusted tool operations. Direct AI metadata rewrites and unilateral
 changes to lint/type/coverage policy still require approval.
 
 ## Git hooks
@@ -133,11 +134,12 @@ an indented `#` line is message content. Leading blank lines and trailing spaces
 are normalized, so a period followed only by whitespace is still rejected.
 Git's scissors marker ends the message; text below it cannot supply a subject.
 
-CI's shared job runs formatting, lint and the docs build once. Each Python matrix
-job runs strict typing and unit tests only for its selected interpreter. Real
-integration scenarios run separately. Browser CI covers Camoufox on all three
-Python versions and runs the shared integrations once on 3.13, alongside the
-locked and minimum-dependency installed-wheel consumer checks.
+CI's single `check` job runs formatting, lint and the docs build once, then strict
+typing and unit tests per interpreter: 3.11, 3.12 and 3.13 on pull requests, 3.13
+alone on the push to `main`. Real integration scenarios run separately. Browser
+CI covers Camoufox on all three Python versions and runs the shared integrations
+once on 3.13, alongside the locked and minimum-dependency installed-wheel consumer
+checks.
 
 Use `make setup` to install/reinstall hooks after configuration changes.
 `make pre-commit` is available for deliberate all-file hook diagnostics, not an
