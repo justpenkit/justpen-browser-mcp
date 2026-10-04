@@ -5,7 +5,7 @@ import io
 import zipfile
 
 import pytest
-from camoufox import multiversion, pkgman
+from camoufox import browser_pin, multiversion, pkgman
 from camoufox.exceptions import CorruptedDownload
 
 from justpen_browser_mcp import browser_runtime
@@ -92,3 +92,14 @@ def test_mirror_hash_mismatch_does_not_activate_or_leave_partial_install(isolate
         browser_runtime.prepare_runtime()
     assert multiversion.get_active_path() is None
     assert multiversion.list_installed() == []
+
+
+def test_the_selection_overrides_the_sdk_released_build(isolated_sdk, monkeypatch):
+    """Camoufox launches the build it was released with unless a choice is explicit."""
+    pin = browser_pin.BrowserPin(
+        tag="v156.0.1-beta.34", repo="daijro/camoufox", repo_name="official", version="156.0.1", build="beta.34"
+    )
+    monkeypatch.setattr(browser_pin, "load_pin", lambda: pin)
+    runtime = browser_runtime.prepare_runtime()
+    assert multiversion.load_config()["pinned"] == runtime.version
+    assert multiversion.get_active_path() == pkgman.INSTALL_DIR / runtime.installation

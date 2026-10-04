@@ -9,6 +9,10 @@ description: Install justpen-browser-mcp with uv and fetch the Camoufox browser 
 - Python 3.11–3.13 (3.13 is the default for contributors)
 - [`uv`](https://docs.astral.sh/uv/) for dependency management
 - Disk space for the Camoufox browser binary
+- On Linux aarch64 (ARM), a C compiler and the zstd headers: Camoufox's
+    `indexed-zstd` dependency has no wheel there and builds from source. On
+    Debian or Ubuntu, install them with `sudo apt-get install libzstd-dev`;
+    `make install` and `make setup` do this for contributors.
 
 The current lockfile supports Linux, Apple silicon macOS, and 64-bit Windows.
 Intel macOS and 32-bit Windows are no longer supported by the cryptography
@@ -41,7 +45,7 @@ Equal or newer official releases automatically take priority at the next startup
 even when the mirror is cached. See [browser selection](run-server.md#latest-build-compatibility).
 The server reuses or downloads the selected browser, activates it, and verifies it before serving
 browser operations. Startup fails if that preparation cannot complete; it does not
-fall back to an unverified older browser. Playwright 1.61.x and Camoufox SDK 0.5.6 or newer are required. The process
+fall back to an unverified older browser. Playwright 1.61.x and Camoufox SDK 0.5.7 or newer are required. The process
 retains the exact resolved SDK browser selector for all its launches even if another SDK process
 later changes the shared active selection. `make browser-fetch` uses the same
 preparation flow. Python dependencies are installed through uv, not updated at runtime.
