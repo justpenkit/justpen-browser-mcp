@@ -9,6 +9,10 @@ description: Install justpen-browser-mcp with uv and fetch the Camoufox browser 
 - Python 3.11–3.13 (3.13 is the default for contributors)
 - [`uv`](https://docs.astral.sh/uv/) for dependency management
 - Disk space for the Camoufox browser binary
+- On Linux aarch64 (ARM), a C compiler and the zstd headers: Camoufox's
+    `indexed-zstd` dependency has no wheel there and builds from source. On
+    Debian or Ubuntu, install them with `sudo apt-get install libzstd-dev`;
+    `make install` and `make setup` do this for contributors.
 
 The current lockfile supports Linux, Apple silicon macOS, and 64-bit Windows.
 Intel macOS and 32-bit Windows are no longer supported by the cryptography
