@@ -73,9 +73,10 @@ the suite-wide coverage threshold; the pre-push unit gate applies that threshold
 ### End-to-end tests
 
 `make check` and `make test` select unit tests and exclude `integration` tests.
-Every Camoufox-backed `e2e` test is also an integration test. CI runs these on
-Python 3.11 and 3.12 through `make test-e2e`; on 3.13 they run once as part of
-the full integration suite. A short test using real components still belongs
+Every Camoufox-backed `e2e` test is also an integration test. On pull requests,
+CI runs these on Python 3.11 and 3.12 through `make test-e2e`; on 3.13, which
+also runs after every push to `main`, they run once as part of the full
+integration suite. A short test using real components still belongs
 in integration: classification depends on its boundaries, not elapsed time.
 
 When developing an integration test or its harness, use
@@ -95,7 +96,8 @@ identity, all 46 tool schemas and a real browser round trip. One environment use
 locked runtime dependencies; another resolves the lowest allowed direct versions
 with compatible transitive packages. It does not upgrade `uv.lock`.
 
-CI runs this on Python 3.11, 3.12 and 3.13. It is a real installation/MCP/browser
+CI runs this on Python 3.11, 3.12 and 3.13 for pull requests, and on 3.13 after
+every push to `main`. It is a real installation/MCP/browser
 integration, not part of the local unit gate. A focused local run is useful while
 developing the consumer harness; repeating it before every PR is unnecessary.
 The local target needs network access and the fetched Camoufox binary.

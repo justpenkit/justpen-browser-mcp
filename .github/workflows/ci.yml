@@ -54,15 +54,16 @@ jobs:
           make install
           make check-python
 
-  browser:
-    name: browser (py${{ matrix.python-version }})
+  integration:
+    name: integration (py${{ matrix.python-version }})
     needs: check
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]
+        # Browser compatibility on every version for pull requests; 3.13 alone on main.
+        python-version: ${{ github.event_name == 'pull_request' && fromJSON('["3.11", "3.12", "3.13"]') || fromJSON('["3.13"]') }}
     env:
       UV_PYTHON: ${{ matrix.python-version }}
     steps:
@@ -97,7 +98,7 @@ jobs:
 
   deploy-docs:
     name: Publish documentation
-    needs: [check, browser]
+    needs: [check, integration]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment:
       name: production

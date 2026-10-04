@@ -37,11 +37,19 @@ def test_ci_keeps_its_name_and_triggers_for_docs_deployment():
     assert triggers(config) == {"pull_request": None, "push": {"branches": ["main"]}}
 
 
-def test_one_job_runs_the_checks_and_browser_and_docs_wait_for_it():
+def test_one_job_runs_the_checks_and_integration_and_docs_wait_for_it():
     jobs = workflow("ci.yml")["jobs"]
-    assert set(jobs) == {"check", "browser", "deploy-docs"}
-    assert jobs["browser"]["needs"] == "check"
-    assert set(jobs["deploy-docs"]["needs"]) == {"check", "browser"}
+    assert set(jobs) == {"check", "integration", "deploy-docs"}
+    assert jobs["integration"]["needs"] == "check"
+    assert set(jobs["deploy-docs"]["needs"]) == {"check", "integration"}
+
+
+def test_browser_integration_covers_every_version_on_pull_requests_and_313_on_main():
+    """The browser matrix follows the template's policy: extra versions on pull requests only."""
+    matrix = workflow("ci.yml")["jobs"]["integration"]["strategy"]["matrix"]["python-version"]
+    assert matrix == (
+        '${{ github.event_name == \'pull_request\' && fromJSON(\'["3.11", "3.12", "3.13"]\') || fromJSON(\'["3.13"]\') }}'
+    )
 
 
 def test_the_check_job_keeps_every_static_gate():
